@@ -50,7 +50,7 @@ jobs:
             exit 1
           fi
           while IFS= read -r entry; do
-            [[ -z "$entry" || "$entry" == #* ]] && continue
+            [[ -z "$entry" || "$entry" == \\#* ]] && continue
             if [[ ! -f "$addon/$entry" ]]; then
               echo "::error::Manifest references missing file: $entry"
               exit 1

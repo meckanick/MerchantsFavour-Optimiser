@@ -19,7 +19,7 @@ jobs:
       - name: Install Lua 5.1 and zip
         run: |
           sudo apt-get update
-          sudo apt-get install -y lua5.1 zip
+          sudo apt-get install -y lua5.1 zip unzip
       - name: Validate Lua syntax
         shell: bash
         run: |
@@ -29,6 +29,8 @@ jobs:
               echo "Checking $file"
               luac5.1 -p "$file"
             done
+      - name: Run crate data and calculation regression tests
+        run: lua5.1 tests/mfo-regression.lua
       - name: Validate addon structure, manifest version and referenced assets
         shell: bash
         run: |
@@ -70,8 +72,36 @@ jobs:
           mkdir -p dist
           zip -q -r "dist/MerchantsFavourOptimiser_v${version}_Forever.zip" "$addon" \
             -x '*/.DS_Store' '*/Thumbs.db'
-          unzip -t "dist/MerchantsFavourOptimiser_v${version}_Forever.zip"
-          echo "PACKAGE=dist/MerchantsFavourOptimiser_v${version}_Forever.zip" >> "$GITHUB_ENV"
+          archive="dist/MerchantsFavourOptimiser_v${version}_Forever.zip"
+          unzip -t "$archive"
+          python3 - "$archive" "$version" <<'PY'
+          import pathlib, sys, zipfile
+          archive = pathlib.Path(sys.argv[1])
+          expected_version = sys.argv[2]
+          with zipfile.ZipFile(archive) as zf:
+              names = zf.namelist()
+              if len(names) != len(set(names)):
+                  raise SystemExit("Duplicate paths found in addon ZIP")
+              files = [n for n in names if not n.endswith("/")]
+              if not files or any(not n.startswith("MerchantsFavourOptimiser/") for n in files):
+                  raise SystemExit("ZIP must contain files under exactly one canonical addon folder")
+              required = {
+                  "MerchantsFavourOptimiser/MerchantsFavourOptimiser.toc",
+                  "MerchantsFavourOptimiser/Data.lua",
+                  "MerchantsFavourOptimiser/Calculations.lua",
+                  "MerchantsFavourOptimiser/Core.lua",
+              }
+              missing = sorted(required - set(files))
+              if missing:
+                  raise SystemExit("Missing required ZIP files: " + ", ".join(missing))
+              toc = zf.read("MerchantsFavourOptimiser/MerchantsFavourOptimiser.toc").decode("utf-8")
+              versions = [line.split(":", 1)[1].strip() for line in toc.splitlines()
+                          if line.startswith("## Version:")]
+              if versions != [expected_version]:
+                  raise SystemExit(f"ZIP version mismatch: expected {expected_version}, found {versions}")
+          print(f"ZIP layout, duplicate paths, required files and version {expected_version} validated.")
+          PY
+          echo "PACKAGE=$archive" >> "$GITHUB_ENV"
       - name: Upload testable ZIP
         uses: actions/upload-artifact@v4
         with:

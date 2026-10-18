@@ -63,13 +63,14 @@ equal(have, 1, "owned material quantity should be reported")
 equal(crateOwned, true, "owned crate should be marked owned")
 equal(rate, 50, "owned crate and remaining materials should affect rate")
 
-prices[102] = nil
+prices[101], prices[102] = nil, nil
 owned[101], owned[102], owned[9001] = 0, 0, 0
 rate = MFO_Calculations.calculate(crate, getPrice, getOwned, resolve)
 equal(rate, nil, "unknown required prices must not be treated as zero")
 
 -- If all required materials are owned, material cost is known to be zero
 -- even if their current Auctionator prices are unavailable.
+prices[101] = 100
 owned[101], owned[102] = 20, 2
 rate, crateCost, bundle, bundleCost = MFO_Calculations.calculate(crate, getPrice, getOwned, resolve)
 equal(bundleCost, 0, "fully owned bundle should cost zero")

@@ -167,17 +167,55 @@ local status=frame:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
 status:SetPoint("BOTTOMLEFT",19,16)
 status:SetWidth(856)
 status:SetJustifyH("LEFT")
+-- Recessed bronze controls matching the profession panel's visual language.
 local function SkinWoodButton(button)
-  local texture=MFO_ART.."MFO_WoodButton"
-  button:SetNormalTexture(texture)
-  button:SetPushedTexture(texture)
-  button:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square","ADD")
+  button:SetNormalTexture("")
+  button:SetPushedTexture("")
+  button:SetHighlightTexture("")
+  if button.SetBackdrop then
+    button:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1,
+      insets={left=1,right=1,top=1,bottom=1}})
+    button:SetBackdropColor(.075,.035,.015,.94)
+    button:SetBackdropBorderColor(.59,.40,.19,1)
+  end
   local font=button:GetFontString()
-  if font then font:SetFontObject(GameFontNormalSmall);font:SetTextColor(1,.83,.12) end
+  if font then font:SetFontObject(GameFontNormalSmall);font:SetTextColor(1,.79,.12) end
+  button:HookScript("OnEnter",function(self)
+    if self.SetBackdropBorderColor then self:SetBackdropBorderColor(.95,.72,.32,1) end
+  end)
+  button:HookScript("OnLeave",function(self)
+    if self.SetBackdropBorderColor then self:SetBackdropBorderColor(.59,.40,.19,1) end
+  end)
+  button:HookScript("OnMouseDown",function(self)
+    if self.SetBackdropColor then self:SetBackdropColor(.20,.10,.035,1) end
+  end)
+  button:HookScript("OnMouseUp",function(self)
+    if self.SetBackdropColor then self:SetBackdropColor(.075,.035,.015,.94) end
+  end)
 end
-local labels={"Crate / cheapest bundle", "Crate", "Mats", "Total", "Favour", "Gold/Fav"}
-local xpos={16,390,480,570,660,719}
-for i,s in ipairs(labels) do local t=frame:CreateFontString(nil,"OVERLAY","GameFontNormal");t:SetPoint("TOPLEFT",xpos[i],-92);t:SetText(s) end
+local labels={"Crate / cheapest bundle", "Crate", "Mats", "Total", "Favour", "Gold/Fav", "Shop"}
+local xpos={16,390,480,570,660,719,809}
+local columnWidths={374,90,90,90,59,90,57}
+local subheader=CreateFrame("Frame",nil,frame,"BackdropTemplate")
+subheader:SetPoint("TOPLEFT",frame,"TOPLEFT",16,-86)
+subheader:SetSize(843,25)
+subheader:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1})
+subheader:SetBackdropColor(.10,.045,.02,.94)
+subheader:SetBackdropBorderColor(.50,.32,.14,.95)
+for i,label in ipairs(labels) do
+  local textLabel=subheader:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+  textLabel:SetPoint("LEFT",subheader,"LEFT",xpos[i]-16+6,0)
+  textLabel:SetWidth(columnWidths[i]-8)
+  textLabel:SetJustifyH("LEFT")
+  textLabel:SetText(label)
+  textLabel:SetTextColor(1,.76,.13)
+  if i>1 then
+    local divider=subheader:CreateTexture(nil,"ARTWORK")
+    divider:SetColorTexture(.42,.27,.11,.75)
+    divider:SetSize(1,15)
+    divider:SetPoint("LEFT",subheader,"LEFT",xpos[i]-16,-1)
+  end
+end
 -- A fixed-height scrolling viewport keeps all 21 rows available without a tall window.
 local scrollFrame=CreateFrame("ScrollFrame","MFOCompactScrollFrame",frame,"UIPanelScrollFrameTemplate")
 scrollFrame:SetPoint("TOPLEFT",frame,"TOPLEFT",16,-112)
@@ -207,13 +245,19 @@ for i=1,21 do
   local y=-(i-1)*19
   entries[i]={}
   local hit=CreateFrame("Button",nil,scrollChild)
+  local rowShade=scrollChild:CreateTexture(nil,"BACKGROUND")
+  rowShade:SetColorTexture(.055,.025,.012,i%2==0 and .40 or .22)
+  rowShade:SetPoint("TOPLEFT",scrollChild,"TOPLEFT",0,y+2)
+  rowShade:SetSize(843,19)
   hit:SetPoint("TOPLEFT",0,y+2);hit:SetSize(365,18)
+  hit:SetScript("OnEnter",function() rowShade:SetColorTexture(.24,.12,.035,.65) end)
+  hit:SetScript("OnLeave",function() rowShade:SetColorTexture(.055,.025,.012,i%2==0 and .40 or .22) end)
   hit:SetScript("OnClick",function()
     local c=hit.crate
     if c then selectedCrate=c; status:SetText("Selected "..c.name..". Shift-click its item link into the box and press Bind item.") end
   end)
   selectButtons[i]=hit
-  local shop=CreateFrame("Button",nil,scrollChild,"UIPanelButtonTemplate")
+  local shop=CreateFrame("Button",nil,scrollChild,"BackdropTemplate")
   shop:SetSize(54,18);shop:SetPoint("TOPLEFT",789,y+3);shop:SetText("Shop");SkinWoodButton(shop)
   shop:SetScript("OnClick",function()
     local r=displayedResults[i]
@@ -274,9 +318,7 @@ local function refresh()
   end
   status:SetText(complete.."/21 ranked | "..missingIDs.." unknown IDs | "..missingPrices.." missing crate prices. "..(MFO_DB.useOwned and "Owned items deducted." or "All items valued at AH prices.")..bankInfo)
 end
-local shopHeader=frame:CreateFontString(nil,"OVERLAY","GameFontNormal")
-shopHeader:SetPoint("TOPLEFT",809,-92);shopHeader:SetText("Shop")
-local refreshBtn=CreateFrame("Button",nil,frame,"UIPanelButtonTemplate");refreshBtn:SetSize(82,22);refreshBtn:SetPoint("TOPRIGHT",-38,-37);refreshBtn:SetText("Refresh");SkinWoodButton(refreshBtn);refreshBtn:SetScript("OnClick",refresh)
+local refreshBtn=CreateFrame("Button",nil,frame,"BackdropTemplate");refreshBtn:SetSize(82,22);refreshBtn:SetPoint("TOPRIGHT",-38,-37);refreshBtn:SetText("Refresh");SkinWoodButton(refreshBtn);refreshBtn:SetScript("OnClick",refresh)
 local ownedCheck=CreateFrame("CheckButton",nil,frame,"UICheckButtonTemplate")
 ownedCheck:SetSize(24,24);ownedCheck:SetPoint("BOTTOMLEFT",475,44)
 local ownedLabel=frame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
@@ -288,7 +330,7 @@ ownedCheck:SetScript("OnClick",function(self)
 end)
 local bindLabel=frame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall");bindLabel:SetPoint("BOTTOMLEFT",16,49);bindLabel:SetText("Item link:")
 local edit=CreateFrame("EditBox",nil,frame,"InputBoxTemplate");edit:SetSize(205,22);edit:SetPoint("LEFT",bindLabel,"RIGHT",12,0);edit:SetAutoFocus(false)
-local bindBtn=CreateFrame("Button",nil,frame,"UIPanelButtonTemplate");bindBtn:SetSize(85,22);bindBtn:SetPoint("LEFT",edit,"RIGHT",8,0);bindBtn:SetText("Bind item");SkinWoodButton(bindBtn)
+local bindBtn=CreateFrame("Button",nil,frame,"BackdropTemplate");bindBtn:SetSize(85,22);bindBtn:SetPoint("LEFT",edit,"RIGHT",8,0);bindBtn:SetText("Bind item");SkinWoodButton(bindBtn)
 local function bind()
   local s=edit:GetText();local id=tonumber(s:match("item:(%d+)"))
   local name=s:match("%[([^%]]+)%]")

@@ -1,0 +1,81 @@
+name: Validate and package addon
+
+on:
+  pull_request:
+    branches: [main, development]
+  push:
+    branches: [main, development]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-and-package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Install Lua 5.1 and zip
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lua5.1 zip
+      - name: Validate Lua syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          find MerchantsFavourOptimiser -type f -name '*.lua' -print0 |
+            while IFS= read -r -d '' file; do
+              echo "Checking $file"
+              luac5.1 -p "$file"
+            done
+      - name: Validate addon structure, manifest version and referenced assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          addon="MerchantsFavourOptimiser"
+          toc="$addon/MerchantsFavourOptimiser.toc"
+          test -f "$toc"
+          test -f "$addon/Core.lua"
+          test -f "$addon/Data.lua"
+          grep -q '^## Interface:' "$toc"
+          version="$(sed -n 's/^## Version:[[:space:]]*//p' "$toc" | head -n1)"
+          test -n "$version"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Manifest version must use MAJOR.MINOR.PATCH, got '$version'"
+            exit 1
+          fi
+          echo "Addon version: $version"
+          # Verify texture references in Lua point to files included beside the TOC.
+          python3 - "$addon" <<'PY'
+          import pathlib, re, sys
+          root = pathlib.Path(sys.argv[1])
+          text = "\n".join(p.read_text(errors="ignore") for p in root.glob("*.lua"))
+          # Textures are referenced by concatenating MFO_ART with a stem.
+          stems = set(re.findall(r'MFO_ART\s*\.\.\s*["\']([^"\']+)["\']', text))
+          missing = [stem for stem in sorted(stems)
+                     if not any((root / (stem + ext)).is_file()
+                                for ext in (".tga", ".blp", ".png"))]
+          if missing:
+              print("Missing texture assets: " + ", ".join(missing))
+              sys.exit(1)
+          print(f"Texture references validated ({len(stems)} unique assets).")
+          PY
+      - name: Package addon ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          addon="MerchantsFavourOptimiser"
+          version="$(sed -n 's/^## Version:[[:space:]]*//p' "$addon/MerchantsFavourOptimiser.toc" | head -n1)"
+          mkdir -p dist
+          zip -q -r "dist/MerchantsFavourOptimiser_v${version}_Forever.zip" "$addon" \
+            -x '*/.DS_Store' '*/Thumbs.db'
+          unzip -t "dist/MerchantsFavourOptimiser_v${version}_Forever.zip"
+          echo "PACKAGE=dist/MerchantsFavourOptimiser_v${version}_Forever.zip" >> "$GITHUB_ENV"
+      - name: Upload testable ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: Merchant-Favour-Optimiser-${{ github.sha }}
+          path: ${{ env.PACKAGE }}
+          if-no-files-found: error
+          retention-days: 30

@@ -501,8 +501,23 @@ positionMinimapButton()
 SLASH_MFO1="/mfo";SlashCmdList.MFO=function(msg) if msg=="refresh" then refresh() else if frame:IsShown() then frame:Hide() else refresh();frame:Show() end end end
 local events=CreateFrame("Frame");events:RegisterEvent("ADDON_LOADED");events:RegisterEvent("BAG_UPDATE_DELAYED");events:RegisterEvent("BANKFRAME_OPENED");events:RegisterEvent("PLAYERBANKSLOTS_CHANGED")
 events:SetScript("OnEvent",function(_,event,name)
- if event=="BANKFRAME_OPENED" or event=="PLAYERBANKSLOTS_CHANGED" then scanBank();if frame:IsShown() then refresh() end;return end
- if event=="BAG_UPDATE_DELAYED" then if MFO_DB then learnBagItems();if frame:IsShown() then refresh() end end;return end
+ if event=="BANKFRAME_OPENED" then scanBank();if frame:IsShown() then refresh() end;return end
+ if event=="PLAYERBANKSLOTS_CHANGED" then
+  -- Only scan live bank containers while the bank UI is open; retain the last
+  -- valid snapshot after closing because remote bank contents are unavailable.
+  local bank=BankFrame or _G.BankFrame
+  if bank and bank.IsShown and bank:IsShown() then scanBank();if frame:IsShown() then refresh() end end
+  return
+ end
+ if event=="BAG_UPDATE_DELAYED" then
+  if MFO_DB then
+   learnBagItems();scanBags()
+   local bank=BankFrame or _G.BankFrame
+   if bank and bank.IsShown and bank:IsShown() then scanBank() end
+   if frame:IsShown() then refresh() end
+  end
+  return
+ end
  if name~=ADDON then return end
  MFO_DB=MFO_DB or {};MFO_DB.ids=MFO_DB.ids or {};MFO_DB.useSnapshot=nil
  ownedCheck:SetChecked(MFO_DB.useOwned or false)

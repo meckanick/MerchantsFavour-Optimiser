@@ -97,23 +97,7 @@ local function ownedCount(id)
   return (bagCounts[id] or 0)+(MFO_DB.bankCounts and MFO_DB.bankCounts[id] or 0)
 end
 local function calc(crate)
-  local id=crate.id or resolve(crate.name)
-  local cratePrice=price(id)
-  local crateOwned=ownedCount(id)>0
-  local effectiveCrateCost=crateOwned and 0 or cratePrice
-  local best,bundleCost,bundleName,missingQty,ownedQty
-  for _,b in ipairs(crate.bundles) do
-    local itemID=resolve(b.name)
-    local have=math.min(b.qty,ownedCount(itemID))
-    local missing=b.qty-have
-    local unit=price(itemID)
-    local cost=(missing==0 and 0) or (unit and unit*missing)
-    if cost and (not best or cost<bundleCost) then
-      best=true;bundleCost=cost;bundleName=b;missingQty=missing;ownedQty=have
-    end
-  end
-  local rate=effectiveCrateCost and best and (effectiveCrateCost+bundleCost)/crate.favour or nil
-  return rate,effectiveCrateCost,bundleName,bundleCost,missingQty,ownedQty,crateOwned
+  return MFO_Calculations.calculate(crate, price, ownedCount, resolve)
 end
 local frame=CreateFrame("Frame","MFOFrame",UIParent,"BackdropTemplate")
 frame:SetSize(900,440); frame:SetPoint("CENTER"); frame:SetMovable(true); frame:EnableMouse(true)

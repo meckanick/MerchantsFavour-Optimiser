@@ -1,8 +1,0 @@
-## Interface: 16001
-## Title: Merchant's Favour Optimiser
-## Notes: WoW Forever crate gold-per-favour ranking with Auctionator
-## Version: 0.1.26
-## OptionalDeps: Auctionator
-## SavedVariables: MFO_DB
-Data.lua
-Core.lua

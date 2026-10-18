@@ -499,9 +499,9 @@ end)
 minimapButton:SetScript("OnLeave",function() GameTooltip:Hide() end)
 positionMinimapButton()
 SLASH_MFO1="/mfo";SlashCmdList.MFO=function(msg) if msg=="refresh" then refresh() else if frame:IsShown() then frame:Hide() else refresh();frame:Show() end end end
-local events=CreateFrame("Frame");events:RegisterEvent("ADDON_LOADED");events:RegisterEvent("BAG_UPDATE_DELAYED");events:RegisterEvent("BANKFRAME_OPENED");events:RegisterEvent("PLAYERBANKSLOTS_CHANGED");events:RegisterEvent("PLAYERBANKBAGSLOTS_CHANGED")
+local events=CreateFrame("Frame");events:RegisterEvent("ADDON_LOADED");events:RegisterEvent("BAG_UPDATE_DELAYED");events:RegisterEvent("BANKFRAME_OPENED");events:RegisterEvent("PLAYERBANKSLOTS_CHANGED")
 events:SetScript("OnEvent",function(_,event,name)
- if event=="BANKFRAME_OPENED" or event=="PLAYERBANKSLOTS_CHANGED" or event=="PLAYERBANKBAGSLOTS_CHANGED" then scanBank();if frame:IsShown() then refresh() end;return end
+ if event=="BANKFRAME_OPENED" or event=="PLAYERBANKSLOTS_CHANGED" then scanBank();if frame:IsShown() then refresh() end;return end
  if event=="BAG_UPDATE_DELAYED" then if MFO_DB then learnBagItems();if frame:IsShown() then refresh() end end;return end
  if name~=ADDON then return end
  MFO_DB=MFO_DB or {};MFO_DB.ids=MFO_DB.ids or {};MFO_DB.useSnapshot=nil

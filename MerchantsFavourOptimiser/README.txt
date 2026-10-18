@@ -1,15 +1,25 @@
-Merchant's Favour Optimiser v0.1.5 - WoW Forever
+Merchant's Favour Optimiser v0.1.12 - WoW Forever
 
-21 crate IDs; Auctionator-only crate and material prices.
-Total Cost = crate auction price + cheapest priced material bundle.
-Gold/Favour = Total Cost / Favour reward.
-Owned materials are always valued at Auction House prices.
+INSTALLATION
+Extract the MerchantsFavourOptimiser folder into Interface/AddOns.
+Auctionator is an optional dependency but is required for auction-price comparisons.
 
-/mfo to toggle; /mfo refresh to update.
-Install the MerchantsFavourOptimiser folder in Interface/AddOns.
+FEATURES
+- 21 Waylaid Crates with researched crate item IDs and material bundle options.
+- Auctionator-only crate and material market-price estimates.
+- Total cost and gold-per-favour comparison.
+- Optional bag/bank owned-item deduction. Bag counts are live; bank counts are cached on bank visits.
+- Shop buttons use Auctionator API v1 MultiSearch with the Auction House open.
+  These initiate searches; they do not create persistent Auctionator shopping lists.
+- Minimap launcher: left-click toggles, right-click refreshes, drag to reposition.
+- Wood-and-gold interface.
 
-No CSV price fallback is used. A ? indicates unavailable Auctionator pricing.
+COMMANDS
+/mfo - Toggle optimiser
+/mfo refresh - Refresh displayed estimates
 
-Version 0.1.6: Shop button uses Auctionator API v1 MultiSearch for the selected crate and its cheapest material bundle. Auction House must be open. This is a search, not a persistent Auctionator shopping list; API v1 does not document list creation.
-
-Minimap: left-click toggles window; right-click refreshes; drag to reposition. Position persists across logins.
+NOTES
+An unknown price is shown as ?. No CSV fallback is used.
+Without owned-item deduction, all items are valued at Auction House prices.
+When owned-item deduction is enabled, owned items reduce the estimated gold still needed.
+All price estimates depend on the most recent Auctionator pricing data.

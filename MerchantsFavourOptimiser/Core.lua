@@ -6,7 +6,7 @@ local function money(v)
   return string.format("%dg %ds %dc", math.floor(v/10000), math.floor(v/100)%100, v%100)
 end
 local function price(id)
-  if not id or not Auctionator or not Auctionator.API or not Auctionator.API.v1 then return nil end
+  if not id or not Auctionator or not Auctionator.API or not Auctionator.API.v1 or type(Auctionator.API.v1.GetAuctionPriceByItemID)~="function" then return nil end
   local ok, value = pcall(Auctionator.API.v1.GetAuctionPriceByItemID, ADDON, id)
   if ok and type(value)=="number" and value>0 then return value end
 end
@@ -34,7 +34,7 @@ local knownIDs = {
 local function learnBagItems()
   if not (C_Container and C_Container.GetContainerNumSlots and C_Container.GetContainerItemLink) then return end
   for bag=0,4 do
-    for slot=1,C_Container.GetContainerNumSlots(bag) do
+    for slot=1,(C_Container.GetContainerNumSlots(bag) or 0) do
       local link=C_Container.GetContainerItemLink(bag,slot)
       if link then
         local id=tonumber(link:match("item:(%d+)"))
@@ -56,20 +56,19 @@ local function resolve(name)
   end
 end
 -- Bank quantities are cached on bank visits; the client does not expose remote bank contents.
-local function countBags(id)
-  if not id or not C_Container then return 0 end
-  local n=0
+local bagCounts={}
+local function scanBags()
+  bagCounts={}
+  if not (C_Container and C_Container.GetContainerNumSlots and C_Container.GetContainerItemInfo) then return end
   for bag=0,4 do
-    local slots=C_Container.GetContainerNumSlots(bag) or 0
-    for slot=1,slots do
+    for slot=1,(C_Container.GetContainerNumSlots(bag) or 0) do
       local info=C_Container.GetContainerItemInfo(bag,slot)
-      if info and info.itemID==id then n=n+(info.stackCount or 1) end
+      if info and info.itemID then bagCounts[info.itemID]=(bagCounts[info.itemID] or 0)+(info.stackCount or 1) end
     end
   end
-  return n
 end
 local function scanBank()
-  if not MFO_DB or not C_Container then return end
+  if not MFO_DB or not C_Container or not C_Container.GetContainerNumSlots or not C_Container.GetContainerItemInfo then return end
   local counts={}
   local ids={-1}
   -- WoW Forever bank bag IDs are provided by Enum.BagIndex where available.
@@ -95,7 +94,7 @@ local function scanBank()
 end
 local function ownedCount(id)
   if not MFO_DB or not MFO_DB.useOwned then return 0 end
-  return countBags(id)+(MFO_DB.bankCounts and MFO_DB.bankCounts[id] or 0)
+  return (bagCounts[id] or 0)+(MFO_DB.bankCounts and MFO_DB.bankCounts[id] or 0)
 end
 local function calc(crate)
   local id=crate.id or resolve(crate.name)
@@ -244,10 +243,11 @@ for i=1,21 do
 end
 local function refresh()
   learnBagItems()
+  scanBags()
   local results={};local complete=0;local missingIDs=0;local missingPrices=0
   for _,crate in ipairs(rows) do
     local rate,cp,b,bc,missing,owned,crateOwned=calc(crate)
-    if not (crate.id or resolve(crate.name)) then missingIDs=missingIDs+1 elseif not cp then missingPrices=missingPrices+1 end
+    if not (crate.id or resolve(crate.name)) then missingIDs=missingIDs+1 elseif cp==nil then missingPrices=missingPrices+1 end
     if rate then complete=complete+1 end
     table.insert(results,{crate=crate,rate=rate,cp=cp,b=b,bc=bc,missing=missing,owned=owned,crateOwned=crateOwned})
   end
@@ -265,7 +265,14 @@ local function refresh()
     t[2]:SetText(money(r.cp));t[3]:SetText(money(r.bc));t[4]:SetText(money(r.cp and r.bc and (r.cp+r.bc) or nil));t[5]:SetText(r.crate.favour);t[6]:SetText(money(r.rate))
     t[6]:SetTextColor(r.rate and .95 or .6,r.rate and .8 or .6,r.rate and .35 or .6)
   end
-  status:SetText(complete.."/21 ranked | "..missingIDs.." unknown crate IDs | "..missingPrices.." missing AH prices. "..(MFO_DB.useOwned and "Owned items deducted (bank from last visit)." or "All items valued at AH prices."))
+  local bankInfo=""
+  if MFO_DB.useOwned then
+    if MFO_DB.bankScanTime then
+      local elapsed=math.max(0,math.floor((time()-MFO_DB.bankScanTime)/3600))
+      bankInfo=" Bank snapshot: "..elapsed.."h old."
+    else bankInfo=" Bank not scanned yet." end
+  end
+  status:SetText(complete.."/21 ranked | "..missingIDs.." unknown IDs | "..missingPrices.." missing crate prices. "..(MFO_DB.useOwned and "Owned items deducted." or "All items valued at AH prices.")..bankInfo)
 end
 local shopHeader=frame:CreateFontString(nil,"OVERLAY","GameFontNormal")
 shopHeader:SetPoint("TOPLEFT",809,-92);shopHeader:SetText("Shop")
@@ -286,7 +293,7 @@ local function bind()
   local s=edit:GetText();local id=tonumber(s:match("item:(%d+)"))
   local name=s:match("%[([^%]]+)%]")
   if not id then status:SetText("Shift-click an item link into the box first.");return end
-  if not name then name=C_Item.GetItemInfo(id) end
+  if not name and C_Item and C_Item.GetItemInfo then name=C_Item.GetItemInfo(id) end
   if not name then status:SetText("Item name unavailable; hover the item and retry.");return end
   if selectedCrate then
     local expected=selectedCrate.name

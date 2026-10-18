@@ -75,4 +75,14 @@ rate, crateCost, bundle, bundleCost = MFO_Calculations.calculate(crate, getPrice
 equal(bundleCost, 0, "fully owned bundle should cost zero")
 equal(rate, 100, "fully owned materials should leave only crate cost")
 
+-- Unknown item IDs must not cause a nil table-index error or invent a price.
+local unknownCrate = {name = "Unknown", id = 9002, favour = 5,
+  bundles = {{name = "Unresolved Material", qty = 3}}}
+local unknownRate = MFO_Calculations.calculate(
+  unknownCrate,
+  function(id) return prices[id] end,
+  function(id) return owned[id] or 0 end,
+  function(name) return nil end)
+equal(unknownRate, nil, "unresolved material IDs should remain unranked safely")
+
 print("PASS: 21 crate definitions and calculation regression scenarios")

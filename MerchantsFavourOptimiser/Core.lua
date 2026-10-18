@@ -483,7 +483,19 @@ end)
 minimapButton:SetScript("OnLeave",function() GameTooltip:Hide() end)
 positionMinimapButton()
 SLASH_MFO1="/mfo";SlashCmdList.MFO=function(msg) if msg=="refresh" then refresh() else if frame:IsShown() then frame:Hide() else refresh();frame:Show() end end end
-local events=CreateFrame("Frame");events:RegisterEvent("ADDON_LOADED");events:RegisterEvent("BAG_UPDATE_DELAYED");events:RegisterEvent("BANKFRAME_OPENED");events:RegisterEvent("PLAYERBANKSLOTS_CHANGED")
+local events=CreateFrame("Frame")
+local function registerSupportedEvent(eventName)
+  -- Some retail events do not exist in WoW Forever. Never let one optional
+  -- registration failure prevent the addon from loading.
+  local ok=pcall(events.RegisterEvent,events,eventName)
+  if not ok then
+    print("|cffffcc66Merchant's Favour Optimiser|r skipped unsupported event: "..eventName)
+  end
+end
+registerSupportedEvent("ADDON_LOADED")
+registerSupportedEvent("BAG_UPDATE_DELAYED")
+registerSupportedEvent("BANKFRAME_OPENED")
+registerSupportedEvent("PLAYERBANKSLOTS_CHANGED")
 events:SetScript("OnEvent",function(_,event,name)
  if event=="BANKFRAME_OPENED" then scanBank();if frame:IsShown() then refresh() end;return end
  if event=="PLAYERBANKSLOTS_CHANGED" then

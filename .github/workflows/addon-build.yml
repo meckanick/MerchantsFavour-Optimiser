@@ -41,13 +41,22 @@ jobs:
           test -f "$addon/Core.lua"
           test -f "$addon/Data.lua"
           grep -q '^## Interface:' "$toc"
-          version="$(sed -n 's/^## Version:[[:space:]]*//p' "$toc" | head -n1)"
+          versions="$(grep -c '^## Version:' "$toc" || true)"
+          test "$versions" -eq 1
+          version="$(sed -n 's/^## Version:[[:space:]]*//p' "$toc")"
           test -n "$version"
           if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "::error::Manifest version must use MAJOR.MINOR.PATCH, got '$version'"
             exit 1
           fi
-          echo "Addon version: $version"
+          while IFS= read -r entry; do
+            [[ -z "$entry" || "$entry" == #* ]] && continue
+            if [[ ! -f "$addon/$entry" ]]; then
+              echo "::error::Manifest references missing file: $entry"
+              exit 1
+            fi
+          done < "$toc"
+          echo "Addon version: $version; manifest file entries validated."
           # Verify texture references in Lua point to files included beside the TOC.
           python3 - "$addon" <<'PY'
           import pathlib, re, sys

@@ -1,0 +1,38 @@
+name: Sync main into development
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-main-to-development
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository history
+        uses: actions/checkout@v4
+        with:
+          ref: development
+          fetch-depth: 0
+      - name: Merge main into development
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main development
+          git checkout development
+          if git merge-base --is-ancestor origin/main HEAD; then
+            echo "Development already contains main; no sync needed."
+            exit 0
+          fi
+          git merge --no-edit origin/main
+          git push origin development

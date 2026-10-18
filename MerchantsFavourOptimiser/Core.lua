@@ -5,6 +5,32 @@ local function money(v)
   v = math.floor(v + 0.5)
   return string.format("%dg %ds %dc", math.floor(v/10000), math.floor(v/100)%100, v%100)
 end
+local function lastAuctionScanTime()
+  local stamp = _G.AUCTIONATOR_LAST_SCAN_TIME
+  if type(stamp) == "number" and stamp > 0 then return stamp end
+  local db = _G.AuctionatorDB or _G.Auctionator_Saved
+  if type(db) == "table" then
+    local candidates = { db.lastScanTime, db.lastFullScan, db.lastScan }
+    for _, value in ipairs(candidates) do
+      if type(value) == "number" and value > 0 then return value end
+    end
+  end
+end
+local function formatElapsed(seconds)
+  seconds = math.max(0, math.floor(seconds))
+  if seconds < 60 then return seconds .. "s ago" end
+  if seconds < 3600 then return math.floor(seconds / 60) .. "m ago" end
+  if seconds < 86400 then return math.floor(seconds / 3600) .. "h ago" end
+  return math.floor(seconds / 86400) .. "d " .. math.floor((seconds % 86400) / 3600) .. "h ago"
+end
+local function updateScanNote()
+  local stamp = lastAuctionScanTime()
+  if stamp then
+    note:SetText("Auctionator scanned prices | 21 crates | Last AH scan: " .. formatElapsed(time() - stamp))
+  else
+    note:SetText("Auctionator scanned prices | 21 crates | Last AH scan time unavailable")
+  end
+end
 local function price(id)
   if not id or not Auctionator or not Auctionator.API or not Auctionator.API.v1 or type(Auctionator.API.v1.GetAuctionPriceByItemID)~="function" then return nil end
   local ok, value = pcall(Auctionator.API.v1.GetAuctionPriceByItemID, ADDON, id)
@@ -172,7 +198,7 @@ local labels={"Crate / cheapest bundle", "Crate", "Mats", "Total", "Favour", "Go
 local xpos={16,390,480,570,660,719,809}
 local columnWidths={374,90,90,90,59,90,57}
 local subheader=CreateFrame("Frame",nil,frame,"BackdropTemplate")
-subheader:SetPoint("TOPLEFT",frame,"TOPLEFT",8,-86)
+subheader:SetPoint("TOPLEFT",frame,"TOPLEFT",8,-76)
 subheader:SetSize(867,28)
 subheader:SetBackdrop({bgFile=MFO_ART.."WTP_ProfessionRow",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1})
 subheader:SetBackdropColor(1,1,1,1)
@@ -198,7 +224,7 @@ for i,label in ipairs(labels) do
 end
 -- A fixed-height scrolling viewport keeps all 21 rows available without a tall window.
 local scrollFrame=CreateFrame("ScrollFrame","MFOCompactScrollFrame",frame,"UIPanelScrollFrameTemplate")
-scrollFrame:SetPoint("TOPLEFT",frame,"TOPLEFT",12,-120)
+scrollFrame:SetPoint("TOPLEFT",frame,"TOPLEFT",12,-110)
 scrollFrame:SetPoint("BOTTOMRIGHT",frame,"BOTTOMRIGHT",-40,79)
 local scrollChild=CreateFrame("Frame",nil,scrollFrame)
 scrollChild:SetSize(846,21*19+4)
@@ -369,6 +395,7 @@ for i=1,21 do
   end
 end
 local function refresh()
+  updateScanNote()
   learnBagItems()
   scanBags()
   local results={};local complete=0;local missingIDs=0;local missingPrices=0

@@ -131,12 +131,12 @@ frame:SetFrameStrata("HIGH")
 frame:Hide()
 
 local header=frame:CreateTexture(nil,"ARTWORK")
-header:SetTexture(MFO_ART.."MFO_WoodHeader")
+header:SetTexture(MFO_ART.."WTP_NativeHeader")
 header:SetPoint("TOPLEFT",frame,"TOPLEFT",9,-7)
 header:SetPoint("TOPRIGHT",frame,"TOPRIGHT",-9,-7)
-header:SetHeight(34)
+header:SetHeight(27)
 local footer=frame:CreateTexture(nil,"ARTWORK")
-footer:SetTexture(MFO_ART.."MFO_WoodHeader")
+footer:SetTexture(MFO_ART.."WTP_NativeHeader")
 footer:SetPoint("BOTTOMLEFT",frame,"BOTTOMLEFT",9,7)
 footer:SetPoint("BOTTOMRIGHT",frame,"BOTTOMRIGHT",-9,7)
 footer:SetHeight(34)
@@ -158,11 +158,15 @@ local title=frame:CreateFontString(nil,"OVERLAY","GameFontNormal")
 title:SetPoint("TOP",frame,"TOP",5,-15)
 title:SetText("Merchant's Favour Optimiser")
 title:SetTextColor(1,.82,.05)
-local close=CreateFrame("Button",nil,frame,"UIPanelCloseButton")
-close:SetSize(28,28)
-close:SetPoint("TOPRIGHT",frame,"TOPRIGHT",-8,-10)
-close:SetHitRectInsets(2,2,2,2)
+local close=CreateFrame("Button",nil,frame)
+-- Fit the visible X artwork within the 34px wooden header, rather than
+-- sizing the entire UIPanelCloseButton template to the header height.
+close:SetSize(30,30)
+close:SetPoint("TOPRIGHT",frame,"TOPRIGHT",-2,-3)
+close:SetNormalTexture(MFO_ART.."WTP_NativeClose")
+close:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square","ADD")
 close:SetFrameLevel(frame:GetFrameLevel()+10)
+close:SetScript("OnClick",function() frame:Hide() end)
 local note=frame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
 note:SetPoint("TOPLEFT",70,-53)
 note:SetText("Auctionator scanned prices | 21 crates")
@@ -171,58 +175,47 @@ status:SetPoint("BOTTOMLEFT",19,16)
 status:SetWidth(856)
 status:SetJustifyH("LEFT")
 -- Recessed bronze controls matching the profession panel's visual language.
+-- Same textured button artwork and font treatment as What's Training? Professions.
 local function SkinWoodButton(button)
-  button:SetNormalTexture("")
-  button:SetPushedTexture("")
-  button:SetHighlightTexture("")
-  if button.SetBackdrop then
-    button:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1,
-      insets={left=1,right=1,top=1,bottom=1}})
-    button:SetBackdropColor(.075,.035,.015,.94)
-    button:SetBackdropBorderColor(.59,.40,.19,1)
-  end
+  local texture=MFO_ART.."WTP_FooterButton"
+  button:SetNormalTexture(texture)
+  button:SetPushedTexture(texture)
+  button:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square","ADD")
   local font=button:GetFontString()
-  if font then font:SetFontObject(GameFontNormalSmall);font:SetTextColor(1,.79,.12) end
-  button:HookScript("OnEnter",function(self)
-    if self.SetBackdropBorderColor then self:SetBackdropBorderColor(.95,.72,.32,1) end
-  end)
-  button:HookScript("OnLeave",function(self)
-    if self.SetBackdropBorderColor then self:SetBackdropBorderColor(.59,.40,.19,1) end
-  end)
-  button:HookScript("OnMouseDown",function(self)
-    if self.SetBackdropColor then self:SetBackdropColor(.20,.10,.035,1) end
-  end)
-  button:HookScript("OnMouseUp",function(self)
-    if self.SetBackdropColor then self:SetBackdropColor(.075,.035,.015,.94) end
-  end)
+  if font then font:SetFontObject(GameFontNormalSmall);font:SetTextColor(1,.82,.05) end
 end
 local labels={"Crate / cheapest bundle", "Crate", "Mats", "Total", "Favour", "Gold/Fav", "Shop"}
 local xpos={16,390,480,570,660,719,809}
 local columnWidths={374,90,90,90,59,90,57}
 local subheader=CreateFrame("Frame",nil,frame,"BackdropTemplate")
-subheader:SetPoint("TOPLEFT",frame,"TOPLEFT",16,-86)
-subheader:SetSize(843,25)
-subheader:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1})
-subheader:SetBackdropColor(.10,.045,.02,.94)
+subheader:SetPoint("TOPLEFT",frame,"TOPLEFT",8,-86)
+subheader:SetSize(867,28)
+subheader:SetBackdrop({bgFile=MFO_ART.."WTP_ProfessionRow",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1})
+subheader:SetBackdropColor(1,1,1,1)
 subheader:SetBackdropBorderColor(.50,.32,.14,.95)
 for i,label in ipairs(labels) do
   local textLabel=subheader:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
-  textLabel:SetPoint("LEFT",subheader,"LEFT",xpos[i]-16+6,0)
-  textLabel:SetWidth(columnWidths[i]-8)
+  textLabel:SetPoint("LEFT",subheader,"LEFT",xpos[i]-8+(i==1 and 16 or 7),0)
+  textLabel:SetWidth(columnWidths[i]-(i==1 and 22 or 12))
   textLabel:SetJustifyH("LEFT")
   textLabel:SetText(label)
+  -- Keep the headers exactly four font points above the row text.
+  local bodyFont,bodySize,bodyFlags=GameFontHighlightSmall:GetFont()
+  if bodyFont and bodySize then
+    textLabel:SetFont(bodyFont,bodySize+4,bodyFlags)
+  end
   textLabel:SetTextColor(1,.76,.13)
   if i>1 then
     local divider=subheader:CreateTexture(nil,"ARTWORK")
     divider:SetColorTexture(.42,.27,.11,.75)
     divider:SetSize(1,15)
-    divider:SetPoint("LEFT",subheader,"LEFT",xpos[i]-16,-1)
+    divider:SetPoint("LEFT",subheader,"LEFT",xpos[i]-8,-1)
   end
 end
 -- A fixed-height scrolling viewport keeps all 21 rows available without a tall window.
 local scrollFrame=CreateFrame("ScrollFrame","MFOCompactScrollFrame",frame,"UIPanelScrollFrameTemplate")
-scrollFrame:SetPoint("TOPLEFT",frame,"TOPLEFT",16,-112)
-scrollFrame:SetPoint("BOTTOMRIGHT",frame,"BOTTOMRIGHT",-31,79)
+scrollFrame:SetPoint("TOPLEFT",frame,"TOPLEFT",12,-120)
+scrollFrame:SetPoint("BOTTOMRIGHT",frame,"BOTTOMRIGHT",-40,79)
 local scrollChild=CreateFrame("Frame",nil,scrollFrame)
 scrollChild:SetSize(846,21*19+4)
 scrollFrame:SetScrollChild(scrollChild)
@@ -231,13 +224,115 @@ local scrollBar=scrollFrame.ScrollBar or _G["MFOCompactScrollFrameScrollBar"]
 if scrollBar then
   local up=scrollBar.ScrollUpButton or _G["MFOCompactScrollFrameScrollBarScrollUpButton"]
   local down=scrollBar.ScrollDownButton or _G["MFOCompactScrollFrameScrollBarScrollDownButton"]
-  for _,arrow in ipairs({up,down}) do
-    if arrow and arrow.GetNormalTexture and arrow:GetNormalTexture() then
-      arrow:GetNormalTexture():SetVertexColor(.83,.66,.37)
+  local thumb=scrollBar.GetThumbTexture and scrollBar:GetThumbTexture()
+  if up then
+    up:SetSize(14,14)
+    up:SetNormalTexture(MFO_ART.."WTP_ScrollUp")
+    up:SetPushedTexture(MFO_ART.."WTP_ScrollUp")
+    up:SetDisabledTexture(MFO_ART.."WTP_ScrollUp")
+    up:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square","ADD")
+  end
+  if down then
+    down:SetSize(14,14)
+    down:SetNormalTexture(MFO_ART.."WTP_ScrollDown")
+    down:SetPushedTexture(MFO_ART.."WTP_ScrollDown")
+    down:SetDisabledTexture(MFO_ART.."WTP_ScrollDown")
+    down:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square","ADD")
+  end
+  local track=scrollBar:CreateTexture(nil,"BACKGROUND")
+  track:SetTexture(MFO_ART.."WTP_ScrollTrack")
+  track:SetWidth(10)
+  track:SetPoint("TOP",up or scrollBar,"BOTTOM",0,-1)
+  track:SetPoint("BOTTOM",down or scrollBar,"TOP",0,1)
+  local grip,gripGlow
+  if thumb then
+    thumb:SetTexture(MFO_ART.."WTP_ScrollThumb")
+    thumb:SetWidth(10)
+    grip=scrollBar:CreateTexture(nil,"ARTWORK")
+    grip:SetTexture(MFO_ART.."WTP_ScrollThumb")
+    grip:SetWidth(10)
+    grip:SetHeight(120)
+    thumb:SetAlpha(0)
+  end
+  local function MakeGlow(target,texture)
+    if not target then return nil end
+    -- Arrow glows must be on their button's own OVERLAY layer.
+    -- Scrollbar-parent textures render behind child button artwork.
+    -- The decorative grip is a Texture, so it still uses the bar.
+    local owner=(target==up or target==down) and target or scrollBar
+    local glow=owner:CreateTexture(nil,"OVERLAY")
+    glow:SetAllPoints(target)
+    glow:SetTexture(MFO_ART..texture)
+    glow:SetBlendMode("ADD")
+    glow:SetAlpha(.22)
+    glow:Hide()
+    return glow
+  end
+  local upGlow=MakeGlow(up,"WTP_ScrollUp")
+  local downGlow=MakeGlow(down,"WTP_ScrollDown")
+  if grip then gripGlow=MakeGlow(grip,"WTP_ScrollThumb") end
+  local function ToggleGlow(glow,active)
+    if glow then if active then glow:Show() else glow:Hide() end end
+  end
+  local function SetGrey(button,grey)
+    if not button then return end
+    for _,method in ipairs({"GetNormalTexture","GetPushedTexture","GetDisabledTexture"}) do
+      local texture=button[method] and button[method](button)
+      if texture and texture.SetDesaturated then texture:SetDesaturated(grey) end
     end
   end
-  local thumb=scrollBar.GetThumbTexture and scrollBar:GetThumbTexture()
-  if thumb then thumb:SetVertexColor(.87,.70,.40) end
+  local dragging=false
+  scrollBar:HookScript("OnMouseDown",function(_,button)
+    if button=="LeftButton" then dragging=true end
+  end)
+  scrollBar:HookScript("OnMouseUp",function(_,button)
+    if button=="LeftButton" then dragging=false end
+  end)
+  local function UpdateScrollAppearance()
+    if dragging and IsMouseButtonDown and not IsMouseButtonDown("LeftButton") then dragging=false end
+    local minimum,maximum=scrollBar:GetMinMaxValues()
+    minimum,maximum=minimum or 0,maximum or 0
+    local value=scrollBar:GetValue() or 0
+    local canUp=value>minimum+.5
+    local canDown=value<maximum-.5
+    SetGrey(up,not canUp)
+    SetGrey(down,not canDown)
+    ToggleGlow(upGlow,canUp and up and up:IsMouseOver())
+    ToggleGlow(downGlow,canDown and down and down:IsMouseOver())
+    if grip and thumb then
+      local topEdge=up and up:GetBottom()
+      local bottomEdge=down and down:GetTop()
+      local barBottom=scrollBar:GetBottom()
+      if topEdge and bottomEdge and barBottom then
+        topEdge,bottomEdge=topEdge-2,bottomEdge+2
+        local trackHeight=topEdge-bottomEdge
+        if trackHeight>0 then
+          local gripHeight=math.min(120,trackHeight)
+          local fraction=maximum>minimum and math.max(0,math.min(1,(value-minimum)/(maximum-minimum))) or 0
+          local centerY=topEdge-gripHeight/2-fraction*(trackHeight-gripHeight)
+          if grip:GetHeight()~=gripHeight then grip:SetHeight(gripHeight) end
+          grip:ClearAllPoints()
+          grip:SetPoint("CENTER",scrollBar,"BOTTOM",0,centerY-barBottom)
+          if thumb:IsShown() then grip:Show() else grip:Hide() end
+        else grip:Hide() end
+      else grip:Hide() end
+      local gripHover=false
+      if grip:IsShown() and GetCursorPosition then
+        local cx,cy=GetCursorPosition()
+        local scale=scrollBar:GetEffectiveScale()
+        if scale and scale>0 then
+          cx,cy=cx/scale,cy/scale
+          local l,r,b,t=grip:GetLeft(),grip:GetRight(),grip:GetBottom(),grip:GetTop()
+          gripHover=l and r and b and t and cx>=l and cx<=r and cy>=b and cy<=t or false
+        end
+      end
+      ToggleGlow(gripGlow,thumb:IsShown() and maximum>minimum and (gripHover or thumb:IsMouseOver() or dragging))
+    end
+  end
+  -- OnUpdate is supported by the Forever UI; don't hook the unsupported
+  -- OnScrollRangeChanged script (which stopped the addon loading in v0.1.22).
+  scrollBar:HookScript("OnUpdate",UpdateScrollAppearance)
+  UpdateScrollAppearance()
 end
 local entries={}
 local selectedCrate=nil
@@ -249,18 +344,19 @@ for i=1,21 do
   entries[i]={}
   local hit=CreateFrame("Button",nil,scrollChild)
   local rowShade=scrollChild:CreateTexture(nil,"BACKGROUND")
-  rowShade:SetColorTexture(.055,.025,.012,i%2==0 and .40 or .22)
+  rowShade:SetTexture(MFO_ART.."WTP_ProfessionRow")
+  rowShade:SetVertexColor(.40,.33,.27,i%2==0 and .22 or .13)
   rowShade:SetPoint("TOPLEFT",scrollChild,"TOPLEFT",0,y+2)
   rowShade:SetSize(843,19)
   hit:SetPoint("TOPLEFT",0,y+2);hit:SetSize(365,18)
-  hit:SetScript("OnEnter",function() rowShade:SetColorTexture(.24,.12,.035,.65) end)
-  hit:SetScript("OnLeave",function() rowShade:SetColorTexture(.055,.025,.012,i%2==0 and .40 or .22) end)
+  hit:SetScript("OnEnter",function() rowShade:SetVertexColor(.85,.76,.59,.52) end)
+  hit:SetScript("OnLeave",function() rowShade:SetVertexColor(.40,.33,.27,i%2==0 and .22 or .13) end)
   hit:SetScript("OnClick",function()
     local c=hit.crate
     if c then selectedCrate=c; status:SetText("Selected "..c.name..". Shift-click its item link into the box and press Bind item.") end
   end)
   selectButtons[i]=hit
-  local shop=CreateFrame("Button",nil,scrollChild,"BackdropTemplate")
+  local shop=CreateFrame("Button",nil,scrollChild)
   shop:SetSize(54,18);shop:SetPoint("TOPLEFT",789,y+3);shop:SetText("Shop");SkinWoodButton(shop)
   shop:SetScript("OnClick",function()
     local r=displayedResults[i]
@@ -321,7 +417,7 @@ local function refresh()
   end
   status:SetText(complete.."/21 ranked | "..missingIDs.." unknown IDs | "..missingPrices.." missing crate prices. "..(MFO_DB.useOwned and "Owned items deducted." or "All items valued at AH prices.")..bankInfo)
 end
-local refreshBtn=CreateFrame("Button",nil,frame,"BackdropTemplate");refreshBtn:SetSize(82,22);refreshBtn:SetPoint("TOPRIGHT",frame,"TOPRIGHT",-38,-44);refreshBtn:SetText("Refresh");SkinWoodButton(refreshBtn);refreshBtn:SetScript("OnClick",refresh)
+local refreshBtn=CreateFrame("Button",nil,frame);refreshBtn:SetSize(82,22);refreshBtn:SetPoint("TOPRIGHT",frame,"TOPRIGHT",-38,-44);refreshBtn:SetText("Refresh");SkinWoodButton(refreshBtn);refreshBtn:SetScript("OnClick",refresh)
 local ownedCheck=CreateFrame("CheckButton",nil,frame,"UICheckButtonTemplate")
 ownedCheck:SetSize(24,24);ownedCheck:SetPoint("BOTTOMLEFT",475,44)
 local ownedLabel=frame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
@@ -333,7 +429,7 @@ ownedCheck:SetScript("OnClick",function(self)
 end)
 local bindLabel=frame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall");bindLabel:SetPoint("BOTTOMLEFT",16,49);bindLabel:SetText("Item link:")
 local edit=CreateFrame("EditBox",nil,frame,"InputBoxTemplate");edit:SetSize(205,22);edit:SetPoint("LEFT",bindLabel,"RIGHT",12,0);edit:SetAutoFocus(false)
-local bindBtn=CreateFrame("Button",nil,frame,"BackdropTemplate");bindBtn:SetSize(85,22);bindBtn:SetPoint("LEFT",edit,"RIGHT",8,0);bindBtn:SetText("Bind item");SkinWoodButton(bindBtn)
+local bindBtn=CreateFrame("Button",nil,frame);bindBtn:SetSize(85,22);bindBtn:SetPoint("LEFT",edit,"RIGHT",8,0);bindBtn:SetText("Bind item");SkinWoodButton(bindBtn)
 local function bind()
   local s=edit:GetText();local id=tonumber(s:match("item:(%d+)"))
   local name=s:match("%[([^%]]+)%]")

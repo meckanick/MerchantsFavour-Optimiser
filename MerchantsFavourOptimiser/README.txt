@@ -1,4 +1,4 @@
-Merchant's Favour Optimiser v0.1.62 - WoW Forever
+Merchant's Favour Optimiser v0.1.63 - WoW Forever
 
 Install the MerchantsFavourOptimiser folder in Interface/AddOns.
 Auctionator is required for auction pricing.
@@ -29,3 +29,5 @@ Use Owned now matches header gold typography, with the checkbox right-aligned be
 Favour Planner: enter a target (1-1000) to find a minimum-cost combination allowing overfill. Hover Shop Planned Items for aggregate quantities. Owned stock is counted once, but mixed-inventory optimisation is an estimate.
 
 Inline Favour Planner: enter a Favour Needed target in the main toolbar to replace the rankings with the cheapest crate combination. Clear the target to restore rankings; no separate window.
+
+Inline planner now shows a matching Use Owned checkbox at the top right, synchronized with the rankings toggle and the saved setting.

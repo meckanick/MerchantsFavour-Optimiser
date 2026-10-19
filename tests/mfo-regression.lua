@@ -177,6 +177,13 @@ check(not coreSource:find("OwnedLabel", 1, true), "wrong-case OwnedLabel referen
 check(not coreSource:find("OwnedCount", 1, true), "wrong-case OwnedCount reference")
 check(coreSource:find('Crate (Cheapest Bundle)', 1, true) ~= nil, "crate column heading must be preserved")
 check(coreSource:find('Net C/F', 1, true) ~= nil, "net cost heading must be preserved")
+check(coreSource:find('targetInput:SetScript("OnTextChanged"',1,true)~=nil,
+  "planner must react to target entry without separate button")
+check(coreSource:find('planner:Show();subheader:Hide();scrollFrame:Hide()',1,true)~=nil,
+  "planner must replace the rankings in the existing window")
+check(not coreSource:find('plannerBtn=CreateFrame',1,true),
+  "standalone planner launcher must be removed")
+
 check(not coreSource:find("Bind Item", 1, true), "obsolete manual bind button must be absent")
 check(not coreSource:find("Item Link:", 1, true), "obsolete item link box must be absent")
 check(coreSource:find('refreshBtn:SetScript("OnClick",refresh)', 1, true) ~= nil, "refresh control must remain")

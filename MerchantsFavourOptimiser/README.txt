@@ -1,4 +1,4 @@
-Merchant's Favour Optimiser v0.1.60 - WoW Forever
+Merchant's Favour Optimiser v0.1.61 - WoW Forever
 
 Install the MerchantsFavourOptimiser folder in Interface/AddOns.
 Auctionator is required for auction pricing.
@@ -25,3 +25,5 @@ Removed obsolete Item Link / Bind Item controls; owned-items toggle moved to the
 The compact Use Owned checkbox is now in the Crate (Cheapest Bundle) header, with a tooltip explaining its purpose. Footer and window height reduced.
 
 Use Owned now matches header gold typography, with the checkbox right-aligned before the first column divider.
+
+Favour Planner: enter a target (1-1000) to find a minimum-cost combination allowing overfill. Hover Shop Planned Items for aggregate quantities. Owned stock is counted once, but mixed-inventory optimisation is an estimate.

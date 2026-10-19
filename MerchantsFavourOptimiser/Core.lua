@@ -405,7 +405,9 @@ for i=1,21 do
   shopButtons[i]=shop
   for j=1,6 do
     local t=scrollChild:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-    t:SetPoint("TOPLEFT",xpos[j]-16,y);t:SetWidth(({365,82,82,82,50,82})[j]);t:SetJustifyH("LEFT");t:SetWordWrap(false)
+    -- Align numeric values under their existing header labels without moving the headers.
+    -- Keep the wide crate-name column and Shop buttons in their original positions.
+    t:SetPoint("TOPLEFT",xpos[j]-(j==1 and 16 or 5),y);t:SetWidth(({365,76,76,76,48,76})[j]);t:SetJustifyH("LEFT");t:SetWordWrap(false)
     entries[i][j]=t
   end
 end

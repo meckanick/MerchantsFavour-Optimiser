@@ -1,5 +1,12 @@
 local ADDON = ...
-local rows = MFO_DATA
+-- Keep unconfirmed Artisan crate definitions in Data.lua for future activation,
+-- but exclude them from the visible table, prices, shopping, and rankings.
+local rows = {}
+for _, crate in ipairs(MFO_DATA) do
+  if not crate.name:find("Artisan", 1, true) then
+    rows[#rows + 1] = crate
+  end
+end
 local note -- forward declaration: updateScanNote is defined before the UI font string\nlocal knownIDs\nlocal price
 local function money(v)
   if not v then return "?" end

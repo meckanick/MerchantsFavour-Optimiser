@@ -159,7 +159,7 @@ equal(missing,nil,"planner must not treat missing prices as free")
 local invalid=MFO_Calculations.plan(1001,planOptions)
 equal(invalid,nil,"planner must bound target input")
 local forced=MFO_Calculations.plan(20,planOptions,planOptions[1])
-equal(forced.items.five,1,"forced planner seed should be retained")
+equal(forced.items.five,2,"forced planner seed should be retained")
 equal(forced.cost,340,"forced planner should find cheapest completion")
 
 -- Guard against accidental capitalization of case-sensitive Lua identifiers

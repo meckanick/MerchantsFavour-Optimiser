@@ -213,11 +213,13 @@ local labels={"Crate / cheapest bundle", "Crate", "Mats", "Total", "Favour", "Go
 local xpos={16,390,480,570,660,719,809}
 local columnWidths={374,90,90,90,59,90,57}
 local subheader=CreateFrame("Frame",nil,frame,"BackdropTemplate")
+-- Stretch the subheading texture between the inner gold frame borders.
+-- No separate brown outline: the window's own gold trim defines its edges.
 subheader:SetPoint("TOPLEFT",frame,"TOPLEFT",8,-76)
-subheader:SetSize(885,28)
-subheader:SetBackdrop({bgFile=MFO_ART.."WTP_ProfessionRow",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1})
+subheader:SetPoint("TOPRIGHT",frame,"TOPRIGHT",-8,-76)
+subheader:SetHeight(28)
+subheader:SetBackdrop({bgFile=MFO_ART.."WTP_ProfessionRow"})
 subheader:SetBackdropColor(1,1,1,1)
-subheader:SetBackdropBorderColor(.50,.32,.14,.95)
 for i,label in ipairs(labels) do
   local textLabel=subheader:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
   textLabel:SetPoint("LEFT",subheader,"LEFT",xpos[i]-8+(i==1 and 16 or 7),0)

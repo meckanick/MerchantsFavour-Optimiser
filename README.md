@@ -1,35 +1,113 @@
 # Merchant's Favour Optimiser
 
-A **World of Warcraft Forever** addon for comparing the cost efficiency of Merchant's Favour crates, using Auctionator market prices.
+[![Build and validation](https://github.com/meckanick/MerchantsFavour-Optimiser/actions/workflows/addon-build.yml/badge.svg?branch=main)](https://github.com/meckanick/MerchantsFavour-Optimiser/actions/workflows/addon-build.yml)
+[![Latest release](https://img.shields.io/github/v/release/meckanick/MerchantsFavour-Optimiser?display_name=tag&label=release)](https://github.com/meckanick/MerchantsFavour-Optimiser/releases)
+[![License](https://img.shields.io/badge/license-see%20repository-lightgrey)](https://github.com/meckanick/MerchantsFavour-Optimiser)
+
+**Merchant's Favour Optimiser (MFO)** is a World of Warcraft Forever addon that compares the estimated gold cost of filling Waylaid Supply crates, ranks the available options by **gold per Favour**, and helps you shop for the materials through Auctionator.
+
+The goal is simple: see which supported crate is the most cost-effective to complete using current auction-house prices, without manually calculating every material bundle.
+
+> MFO is a community addon for WoW Forever. It is not affiliated with or endorsed by Blizzard Entertainment.
 
 ## Features
 
-- Tracks all 21 supported crates and their required materials.
-- Displays crate costs and compares **gold per favour**.
-- Uses Auctionator scan prices for market-value estimates.
-- Optional use of materials owned in bags or bank; when enabled, totals account for owned materials.
-- Creates Auctionator shopping lists using the Shop buttons.
-- Compact, scrollable interface and minimap button.
-- Wood-and-gold UI inspired by [What's Training? Professions](https://github.com/meckanick/WhatsTraining-Professions).
+- **21 supported crates** — crate item IDs, Favour rewards, and known material bundle requirements are included in the addon data.
+- **Cost and value comparison** — displays the crate price, cheapest currently priceable material bundle, estimated total, Favour reward, and gold-per-Favour rate.
+- **Auctionator integration** — reads item prices through Auctionator's public API; no separate CSV crate-price list is used as a price fallback.
+- **Price-age indicator** — shows the age of the oldest available Auctionator material price used for the estimate, when Auctionator exposes that information. This is a price-age indicator, not a guaranteed timestamp for the last full auction-house scan.
+- **Shopping assistance** — use a row's **Shop** button to search for the crate and the selected bundle through supported Auctionator functionality.
+- **Optional owned-material accounting** — toggle whether materials in your bags and the saved bank snapshot should reduce the quantities and costs you need to buy.
+- **Minimap launcher** — open the window from the coin button, drag the button around the minimap, or use `/mfo`.
+- **Refresh and item binding** — refresh prices and rankings, and bind an item link when an item needs a known ID.
+- **Scrollable, themed interface** — a wood-and-gold frame, coin artwork, compact table, and custom controls styled to coordinate with [What's Training? Professions](https://github.com/meckanick/WhatsTraining-Professions).
+
+## Requirements
+
+- **World of Warcraft Forever** — MFO targets the WoW Forever client API, not retail WoW.
+- **Auctionator** — required for live auction-price lookups and supported shopping-list/search actions.
+
+MFO can be installed without Auctionator, but auction-price and shopping features need a compatible Auctionator version. Prices can be unavailable if an item has not been scanned, cannot be resolved, or is not exposed by Auctionator.
 
 ## Installation
 
-1. Download the latest addon ZIP.
-2. Extract the `MerchantsFavourOptimiser` folder into the WoW Forever `Interface/AddOns` directory.
-3. Enable the addon in the game's addon list.
-4. Install Auctionator and run a scan for pricing data.
+1. Download a packaged ZIP from the repository's [Actions builds](https://github.com/meckanick/MerchantsFavour-Optimiser/actions) or a published [release](https://github.com/meckanick/MerchantsFavour-Optimiser/releases), when available.
+2. Extract the `MerchantsFavourOptimiser` folder into your WoW Forever installation's `Interface/AddOns/` directory.
+3. Make sure the folder contains `MerchantsFavourOptimiser.toc`, `Core.lua`, `Data.lua`, `Calculations.lua`, and the referenced texture assets.
+4. Start WoW Forever and enable **Merchant's Favour Optimiser** in the AddOns list.
+5. Install/enable Auctionator and perform an auction-house scan so item prices are available.
 
-## Development status
+If you install from a ZIP, avoid leaving an extra nested `MerchantsFavourOptimiser` folder inside `Interface/AddOns/MerchantsFavourOptimiser/`.
 
-**v0.1.12** is the current development baseline (compact layout with wood reskin). Visual changes have not yet been verified in-game.
+## Using MFO
 
-The addon source belongs in `MerchantsFavourOptimiser/`:
+- **Open or close:** click the minimap coin or enter `/mfo`.
+- **Refresh:** click **Refresh** to recalculate rankings using the latest prices currently exposed by Auctionator.
+- **Compare options:** rows are ranked by gold per Favour when the crate and a supported bundle have usable prices. Lower gold-per-Favour values are more cost-efficient.
+- **Shop:** click a row's **Shop** button while Auctionator's supported shopping/search functionality is available. MFO prepares a search for the crate and the selected bundle; behaviour depends on the Auctionator API version.
+- **Use owned bag / bank items:** enable the checkbox to deduct owned quantities from the amount to buy. Bag quantities are scanned from your current bags. Bank quantities are a saved snapshot captured when the bank is visited, so open the bank again to refresh that snapshot after moving items.
+- **Bind item:** paste or enter an item link and use **Bind item** if an item ID needs to be learned. Unknown IDs and missing prices are reported rather than silently treated as zero.
 
-- `Core.lua` — UI, price calculations, interaction and Auctionator integration
-- `Data.lua` — crate and material data
-- `MerchantsFavourOptimiser.toc` — addon manifest
-- `MFO_*.tga` — visual assets
+## How the estimate works
 
-See [DEVELOPMENT.md](DEVELOPMENT.md) for maintenance and testing notes.
+For each supported crate, MFO evaluates the crate's current Auctionator price and its configured material bundles. It chooses the lowest-cost bundle for which the required price data is available, then calculates:
 
-*This addon is community-developed and is not affiliated with Blizzard.*
+`Estimated total = crate price + cost of the selected material bundle`
+
+`Gold per Favour = estimated total ÷ Favour reward`
+
+When owned-material accounting is enabled, owned quantities reduce the amount of each required material to buy. If the crate itself is already owned, its purchase cost is treated as zero for the estimate. The result is an estimate based on the available prices and configured data, not a guarantee of the final auction-house price.
+
+A crate may be unranked when required price data or item IDs are missing. Check the status line at the bottom of the window for ranked crates, unknown IDs, missing crate prices, and the owned-bank snapshot age.
+
+## Interface and saved settings
+
+- The main window can be dragged.
+- The minimap button can be dragged around the minimap; its position is saved.
+- The owned-material option, learned item IDs, and bank snapshot are stored in the `MFO_DB` saved variable.
+- The coin watermark and wood-and-gold artwork are bundled with the addon; no external texture download is required.
+
+## Troubleshooting
+
+**Prices are missing or show as unknown**
+- Confirm Auctionator is enabled and compatible with WoW Forever.
+- Open the auction house and run an Auctionator scan.
+- Click **Refresh** in MFO.
+- Some item names or IDs may not resolve automatically. Use the item-binding field when you have the correct item link.
+
+**The price-age indicator is unavailable**
+- MFO uses Auctionator's per-item price-age API. If your installed Auctionator build does not expose that API or has no age for the relevant items, MFO reports that the age is unavailable.
+
+**Owned bank quantities look out of date**
+- Bank contents cannot be read while the bank is closed. Visit the bank to refresh the saved snapshot.
+
+**The Shop button does not open a shopping search**
+- Open the auction house and verify that your Auctionator version supports the API MFO uses for its shopping/search action.
+
+**Lua errors or unexpected behaviour**
+- Record the full error text and steps to reproduce it, and open a [GitHub issue](https://github.com/meckanick/MerchantsFavour-Optimiser/issues).
+
+## Development
+
+The canonical addon source is in `MerchantsFavourOptimiser/`.
+
+| File | Purpose |
+| --- | --- |
+| `MerchantsFavourOptimiser.toc` | WoW addon manifest, version, load order, and optional dependencies |
+| `Data.lua` | Supported crate IDs, Favour rewards, and material bundle data |
+| `Calculations.lua` | UI-independent crate-cost and gold-per-Favour calculations |
+| `Core.lua` | Main UI, Auctionator API integration, item binding, owned-item scans, minimap button, and slash command |
+| `MFO_*.tga`, `WTP_*.tga` | Bundled coin, wood, frame, button, and scroll textures |
+| `tests/mfo-regression.lua` | Regression checks for crate data and calculations |
+| `.github/workflows/addon-build.yml` | Lua syntax, regression, manifest, asset, and ZIP validation |
+
+Development changes should be made on `development`, tested in WoW Forever, and merged into `main` only after the test build is approved. See [AGENTS.md](AGENTS.md) and [DEVELOPMENT.md](DEVELOPMENT.md) for project rules and the in-game testing checklist.
+
+## Credits
+
+- [Auctionator](https://github.com/NeonArray/Auctionator) for auction-house price data and supported shopping/search integration.
+- [What's Training? Professions](https://github.com/meckanick/WhatsTraining-Professions) as a visual-style reference for the wood-and-gold interface.
+
+---
+
+If MFO saves you time, feedback and bug reports are welcome through [GitHub Issues](https://github.com/meckanick/MerchantsFavour-Optimiser/issues).

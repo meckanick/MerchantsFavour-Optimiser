@@ -139,12 +139,18 @@ frame:RegisterForDrag("LeftButton"); frame:SetScript("OnDragStart",function(self
 
 -- Wood-and-gold frame inspired by the What's Training? profession interface.
 local MFO_ART="Interface\\AddOns\\MerchantsFavourOptimiser\\"
-frame:SetBackdrop({bgFile=MFO_ART.."MFO_CoinBackground",
+frame:SetBackdrop({bgFile=MFO_ART.."MFO_WoodBackground",
   edgeFile="Interface\\DialogFrame\\UI-DialogBox-Gold-Border",tile=false,edgeSize=22,
   insets={left=8,right=8,top=8,bottom=8}})
--- Preserve the original v0.1.37 coin-background appearance at full texture strength.
 frame:SetBackdropColor(1,1,1,1)
 frame:SetBackdropBorderColor(1,1,1,1)
+-- Concept 3: retain the coin artwork as a low-contrast watermark above the wood base.
+local coinWatermark=frame:CreateTexture(nil,"BACKGROUND")
+coinWatermark:SetTexture(MFO_ART.."MFO_CoinBackground")
+coinWatermark:SetPoint("TOPLEFT",frame,"TOPLEFT",9,-8)
+coinWatermark:SetPoint("BOTTOMRIGHT",frame,"BOTTOMRIGHT",-9,8)
+coinWatermark:SetVertexColor(.78,.68,.54,1)
+coinWatermark:SetAlpha(.40)
 frame:SetClampedToScreen(true)
 frame:SetFrameStrata("HIGH")
 frame:Hide()

@@ -103,6 +103,14 @@ The canonical addon source is in `MerchantsFavourOptimiser/`.
 
 Development changes should be made on `development`, tested in WoW Forever, and merged into `main` only after the test build is approved. See [AGENTS.md](AGENTS.md) and [DEVELOPMENT.md](DEVELOPMENT.md) for project rules and the in-game testing checklist.
 
+## License and third-party materials
+
+Original Merchant's Favour Optimiser code, calculations, crate data, and artwork authored by the copyright holder are licensed under the [MIT License](LICENSE).
+
+This licence does not grant rights to third-party software, artwork, trademarks, or other material that may be referenced or included. Any such material remains subject to its own applicable licence or permission. WoW Forever, World of Warcraft, and Auctionator are third-party projects/marks and are not affiliated with or endorsing MFO.
+
+Before distributing a release, confirm that every bundled third-party asset is covered by an applicable licence or explicit permission.
+
 ## Credits
 
 - [Auctionator](https://github.com/NeonArray/Auctionator) for auction-house price data and supported shopping/search integration.

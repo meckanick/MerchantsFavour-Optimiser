@@ -144,8 +144,8 @@ frame:SetBackdrop({bgFile=MFO_ART.."MFO_WoodBackground",
   insets={left=8,right=8,top=8,bottom=8}})
 frame:SetBackdropColor(1,1,1,1)
 frame:SetBackdropBorderColor(1,1,1,1)
--- Concept 3: retain the coin artwork as a low-contrast watermark above the wood base.
-local coinWatermark=frame:CreateTexture(nil,"BACKGROUND")
+-- Render watermark on BORDER above the backdrop, but behind the interface ARTWORK and text.
+local coinWatermark=frame:CreateTexture(nil,"BORDER",nil,-8)
 coinWatermark:SetTexture(MFO_ART.."MFO_CoinBackground")
 coinWatermark:SetPoint("TOPLEFT",frame,"TOPLEFT",9,-8)
 coinWatermark:SetPoint("BOTTOMRIGHT",frame,"BOTTOMRIGHT",-9,8)

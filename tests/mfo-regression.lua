@@ -146,7 +146,8 @@ local coreFile = assert(io.open("MerchantsFavourOptimiser/Core.lua", "r"))
 local coreSource = coreFile:read("*a")
 coreFile:close()
 for _, identifier in ipairs({"ownedCheck", "ownedLabel", "ownedCount"}) do
-  check(coreSource:find("local " .. identifier, 1, true) ~= nil,
+  check((coreSource:find("local " .. identifier, 1, true) ~= nil or
+    coreSource:find("local function " .. identifier, 1, true) ~= nil),
     "UI identifier " .. identifier .. " must retain its original case")
 end
 check(not coreSource:find("OwnedCheck", 1, true), "wrong-case OwnedCheck reference")

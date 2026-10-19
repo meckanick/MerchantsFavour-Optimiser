@@ -139,4 +139,20 @@ local noFavourRate, _, noFavourBundle = MFO_Calculations.calculate(
 equal(noFavourRate, nil, "unverified favour cannot generate gold-per-favour rank")
 check(noFavourBundle ~= nil, "unverified favour still allows cheapest bundle selection")
 
-print("PASS: 30 crate definitions and calculation regression scenarios")
+
+-- Guard against accidental capitalization of case-sensitive Lua identifiers
+-- while editing player-facing text. This caught the v0.1.55 ownedCheck bug.
+local coreFile = assert(io.open("MerchantsFavourOptimiser/Core.lua", "r"))
+local coreSource = coreFile:read("*a")
+coreFile:close()
+for _, identifier in ipairs({"ownedCheck", "ownedLabel", "ownedCount"}) do
+  check(coreSource:find("local " .. identifier, 1, true) ~= nil,
+    "UI identifier " .. identifier .. " must retain its original case")
+end
+check(not coreSource:find("OwnedCheck", 1, true), "wrong-case OwnedCheck reference")
+check(not coreSource:find("OwnedLabel", 1, true), "wrong-case OwnedLabel reference")
+check(not coreSource:find("OwnedCount", 1, true), "wrong-case OwnedCount reference")
+check(coreSource:find('Crate (Cheapest Bundle)', 1, true) ~= nil, "crate column heading must be preserved")
+check(coreSource:find('Net C/F', 1, true) ~= nil, "net cost heading must be preserved")
+
+print("PASS: 30 crate definitions, calculations and UI capitalization guards")

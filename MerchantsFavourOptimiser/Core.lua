@@ -607,7 +607,7 @@ events:SetScript("OnEvent",function(_,event,name)
  end
  if name~=ADDON then return end
  MFO_DB=MFO_DB or {};MFO_DB.ids=MFO_DB.ids or {}
- OwnedCheck:SetChecked(MFO_DB.useOwned or false)
+ ownedCheck:SetChecked(MFO_DB.useOwned or false)
  positionMinimapButton()
  refresh()
  print("|cffffcc66Merchant's Favour Optimiser|r loaded. Type /mfo")

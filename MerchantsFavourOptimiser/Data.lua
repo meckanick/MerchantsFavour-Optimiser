@@ -20,7 +20,8 @@ MFO_DATA = {
   {name='Waylaid Crate: Expert Parts', id=248710, favour=30, bundles={{name='Iron Strut', qty=8},{name='Mithril Tube', qty=5},{name='Unstable Trigger', qty=12},{name='Mithril Casing', qty=5}}},
   {name='Waylaid Crate: Expert Ingots', id=248709, favour=30, bundles={{name='Mithril Bar', qty=20},{name='Steel Bar', qty=15},{name='Gold Bar', qty=10}}},
   {name='Waylaid Crate: Expert Fabrics', id=248708, favour=30, bundles={{name='Bolt of Mageweave', qty=8},{name='Cured Heavy Hide', qty=2}}},
-  {name='Waylaid Crate: Journeyman Fabrics', id=248705, favour=20, bundles={{name='Bolt of Woolen Cloth', qty=6},{name='Bolt of Silk Cloth', qty=10},{name='Cured Medium Hide', qty=2}}},
+  {name='Waylaid Crate: Journeyman Fabrics', id=248705, -- Favour reward not verified; excluded from gold/Favour ranking.
+   bundles={{name='Bolt of Woolen Cloth', qty=6},{name='Bolt of Silk Cloth', qty=10},{name='Cured Medium Hide', qty=2}}},
   {name='Waylaid Crate: Earthly Artisan Herbs', id=248695, -- Favour reward not verified; excluded from gold/Favour ranking.
    bundles={{name='Golden Sansam', qty=10},{name='Sungrass', qty=20},{name='Blindweed', qty=10},{name='Ghost Mushroom', qty=10},{name='Gromsblood', qty=10}}},
   {name='Waylaid Crate: Flowering Artisan Herbs', id=248696, -- Favour reward not verified; excluded from gold/Favour ranking.

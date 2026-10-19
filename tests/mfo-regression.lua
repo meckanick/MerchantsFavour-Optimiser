@@ -181,6 +181,10 @@ check(coreSource:find('targetInput:SetScript("OnTextChanged"',1,true)~=nil,
   "planner must react to target entry without separate button")
 check(coreSource:find('planner:Show();subheader:Hide();scrollFrame:Hide()',1,true)~=nil,
   "planner must replace the rankings in the existing window")
+check(coreSource:find('plannerOwnedCheck=CreateFrame',1,true)~=nil,
+  "inline planner must expose its own owned-items toggle")
+check(coreSource:find('plannerOwnedCheck:SetChecked(MFO_DB.useOwned)',1,true)~=nil,
+  "planner owned-items checkbox must sync with shared saved setting")
 check(not coreSource:find('plannerBtn=CreateFrame',1,true),
   "standalone planner launcher must be removed")
 

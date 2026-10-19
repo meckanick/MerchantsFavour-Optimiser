@@ -1,5 +1,12 @@
 local ADDON = ...
-local rows = MFO_DATA
+-- Keep unconfirmed Artisan crate definitions in Data.lua for future activation,
+-- but exclude them from the visible table, prices, shopping, and rankings.
+local rows = {}
+for _, crate in ipairs(MFO_DATA) do
+  if not crate.name:find("Artisan", 1, true) then
+    rows[#rows + 1] = crate
+  end
+end
 local note -- forward declaration: updateScanNote is defined before the UI font string\nlocal knownIDs\nlocal price
 local function money(v)
   if not v then return "?" end
@@ -19,7 +26,7 @@ end
 local function updateScanNote()
   local api = auctionatorAPI()
   if not api or type(api.GetAuctionAgeByItemID) ~= "function" then
-    note:SetText("Auctionator scanned prices | 21 crates | Scan age unavailable")
+    note:SetText("Auctionator scanned prices | "..#rows.." crates | Scan age unavailable")
     return
   end
   local oldestAge, checked = nil, 0
@@ -34,9 +41,9 @@ local function updateScanNote()
     end
   end
   if oldestAge then
-    note:SetText("Auctionator scanned prices | 21 crates | Oldest price: " .. formatAgeDays(oldestAge))
+    note:SetText("Auctionator scanned prices | "..#rows.." crates | Oldest price: " .. formatAgeDays(oldestAge))
   else
-    note:SetText("Auctionator scanned prices | 21 crates | Scan age unavailable")
+    note:SetText("Auctionator scanned prices | "..#rows.." crates | Scan age unavailable")
   end
 end
 price = function(id)
@@ -62,6 +69,15 @@ knownIDs = {
  ['Handful of Copper Bolts']=4359, ['Copper Tube']=4361, ['Bronze Tube']=4371, ['Whirring Bronze Gizmo']=4375, ['Bronze Framework']=4382,
  ['Mithril Tube']=10559, ['Unstable Trigger']=10560, ['Mithril Casing']=10561,
  ['Cured Heavy Hide']=4236,
+ ['Bolt of Woolen Cloth']=2997, ['Bolt of Silk Cloth']=4305, ['Cured Medium Hide']=4233,
+ ['Golden Sansam']=13464, ['Sungrass']=8838, ['Blindweed']=8839, ['Ghost Mushroom']=8845, ['Gromsblood']=8846,
+ ['Dreamfoil']=13463, ['Mountain Silversage']=13465, ['Plaguebloom']=13466, ['Icecap']=13467,
+ ['Truesilver Ore']=7911, ['Thorium Ore']=10620, ['Dark Iron Ore']=11370,
+ ['Runecloth']=14047, ['Thick Leather']=4304, ['Rugged Leather']=8170,
+ ['Dream Dust']=11176, ['Greater Nether Essence']=11175, ['Small Brilliant Shard']=14343, ['Large Brilliant Shard']=14344,
+ ['Bolt of Runecloth']=14048, ['Cured Thick Hide']=8172,
+ ['Dark Iron Bar']=11371, ['Truesilver Bar']=6037, ['Thorium Bar']=12359,
+ ['Thorium Widget']=15994, ['Truesilver Transformer']=18631, ['Thorium Tube']=16000,
 }
 -- The game's own name lookup remains a fallback for new Forever-specific items.
 -- Learn exact Forever item IDs from items visible in the player's bags.
@@ -171,9 +187,6 @@ local emblem=CreateFrame("Frame",nil,frame)
 emblem:SetSize(64,64)
 emblem:SetPoint("TOPLEFT",frame,"TOPLEFT",-7,8)
 emblem:SetFrameLevel(frame:GetFrameLevel()+5)
-local medallion=emblem:CreateTexture(nil,"ARTWORK")
-medallion:SetTexture(nil)
-medallion:SetAllPoints()
 local merchantIcon=emblem:CreateTexture(nil,"OVERLAY")
 merchantIcon:SetTexture(MFO_ART.."MFO_CoinBadge3D")
 merchantIcon:SetSize(68,68)
@@ -194,7 +207,7 @@ close:SetFrameLevel(frame:GetFrameLevel()+10)
 close:SetScript("OnClick",function() frame:Hide() end)
 note=frame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
 note:SetPoint("TOPLEFT",70,-53)
-note:SetText("Auctionator scanned prices | 21 crates")
+note:SetText("Auctionator scanned prices | "..#rows.." crates")
 local status=frame:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
 status:SetPoint("BOTTOMLEFT",19,16)
 status:SetWidth(856)
@@ -239,12 +252,12 @@ for i,label in ipairs(labels) do
     divider:SetPoint("LEFT",subheader,"LEFT",xpos[i]-8,-1)
   end
 end
--- A fixed-height scrolling viewport keeps all 21 rows available without a tall window.
+-- A fixed-height scrolling viewport supports every crate without enlarging the window.
 local scrollFrame=CreateFrame("ScrollFrame","MFOCompactScrollFrame",frame,"UIPanelScrollFrameTemplate")
 scrollFrame:SetPoint("TOPLEFT",frame,"TOPLEFT",12,-110)
 scrollFrame:SetPoint("BOTTOMRIGHT",frame,"BOTTOMRIGHT",-40,79)
 local scrollChild=CreateFrame("Frame",nil,scrollFrame)
-scrollChild:SetSize(864,21*19+4)
+scrollChild:SetSize(864,#rows*19+4)
 scrollFrame:SetScrollChild(scrollChild)
 -- Preserve Blizzard scrolling mechanics; tint controls to the bronze palette.
 local scrollBar=scrollFrame.ScrollBar or _G["MFOCompactScrollFrameScrollBar"]
@@ -366,7 +379,7 @@ local selectedCrate=nil
 local selectButtons={}
 local shopButtons={}
 local displayedResults={}
-for i=1,21 do
+for i=1,#rows do
   local y=-(i-1)*19
   entries[i]={}
   local hit=CreateFrame("Button",nil,scrollChild)
@@ -437,7 +450,7 @@ local function refresh()
     local t=entries[i]
     selectButtons[i].crate=r.crate
     t[1]:SetText(r.crate.name:gsub("Waylaid Crate: ","")..(r.b and (" ("..(MFO_DB.useOwned and ((r.missing or r.b.qty).." to buy / "..(r.owned or 0).." owned") or (r.b.qty.."x")).." "..r.b.name..")") or ""))
-    t[2]:SetText(money(r.cp));t[3]:SetText(money(r.bc));t[4]:SetText(money(r.cp and r.bc and (r.cp+r.bc) or nil));t[5]:SetText(r.crate.favour);t[6]:SetText(money(r.rate))
+    t[2]:SetText(money(r.cp));t[3]:SetText(money(r.bc));t[4]:SetText(money(r.cp and r.bc and (r.cp+r.bc) or nil));t[5]:SetText(r.crate.favour or "?");t[6]:SetText(money(r.rate))
     t[6]:SetTextColor(r.rate and .95 or .6,r.rate and .8 or .6,r.rate and .35 or .6)
   end
   local bankInfo=""
@@ -447,7 +460,7 @@ local function refresh()
       bankInfo=" Bank snapshot: "..elapsed.."h old."
     else bankInfo=" Bank not scanned yet." end
   end
-  status:SetText(complete.."/21 ranked | "..missingIDs.." unknown IDs | "..missingPrices.." missing crate prices. "..(MFO_DB.useOwned and "Owned items deducted." or "All items valued at AH prices.")..bankInfo)
+  status:SetText(complete.."/"..#rows.." ranked | "..missingIDs.." unknown IDs | "..missingPrices.." missing crate prices. "..(MFO_DB.useOwned and "Owned items deducted." or "All items valued at AH prices.")..bankInfo)
 end
 local refreshBtn=CreateFrame("Button",nil,frame);refreshBtn:SetSize(82,22);refreshBtn:SetPoint("TOPRIGHT",frame,"TOPRIGHT",-38,-44);refreshBtn:SetText("Refresh");SkinWoodButton(refreshBtn);refreshBtn:SetScript("OnClick",refresh)
 local ownedCheck=CreateFrame("CheckButton",nil,frame,"UICheckButtonTemplate")
@@ -563,7 +576,7 @@ events:SetScript("OnEvent",function(_,event,name)
   return
  end
  if name~=ADDON then return end
- MFO_DB=MFO_DB or {};MFO_DB.ids=MFO_DB.ids or {};MFO_DB.useSnapshot=nil
+ MFO_DB=MFO_DB or {};MFO_DB.ids=MFO_DB.ids or {}
  ownedCheck:SetChecked(MFO_DB.useOwned or false)
  positionMinimapButton()
  refresh()

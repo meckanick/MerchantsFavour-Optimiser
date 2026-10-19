@@ -485,6 +485,186 @@ local function refresh()
   status:SetText(complete.."/"..#rows.." Ranked | "..missingIDs.." Unknown IDs | "..missingPrices.." Missing Crate Prices. "..(MFO_DB.useOwned and "Owned Items Deducted." or "All Items Valued at AH Prices.")..bankInfo)
 end
 local refreshBtn=CreateFrame("Button",nil,frame);refreshBtn:SetSize(82,22);refreshBtn:SetPoint("TOPRIGHT",frame,"TOPRIGHT",-38,-44);refreshBtn:SetText("Refresh");SkinWoodButton(refreshBtn);refreshBtn:SetScript("OnClick",refresh)
+-- Favour Planner: a separate panel keeps the compact rankings window unchanged.
+local planner=CreateFrame("Frame","MFOFavourPlanner",UIParent,"BackdropTemplate")
+planner:SetSize(680,435)
+planner:SetPoint("CENTER",UIParent,"CENTER",0,0)
+planner:SetMovable(true);planner:EnableMouse(true);planner:SetClampedToScreen(true)
+planner:RegisterForDrag("LeftButton")
+planner:SetScript("OnDragStart",function(self)self:StartMoving()end)
+planner:SetScript("OnDragStop",function(self)self:StopMovingOrSizing()end)
+planner:SetFrameStrata("DIALOG")
+planner:SetBackdrop({bgFile=MFO_ART.."MFO_WoodBackground",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Gold-Border",
+  tile=false,edgeSize=22,insets={left=8,right=8,top=8,bottom=8}})
+planner:SetBackdropColor(1,1,1,1)
+planner:Hide()
+local plannerTitle=planner:CreateFontString(nil,"OVERLAY","GameFontNormal")
+plannerTitle:SetPoint("TOP",0,-17);plannerTitle:SetText("Favour Planner")
+plannerTitle:SetTextColor(1,.82,.05)
+local plannerClose=CreateFrame("Button",nil,planner)
+plannerClose:SetSize(25,25);plannerClose:SetPoint("TOPRIGHT",-9,-7)
+plannerClose:SetNormalTexture(MFO_ART.."WTP_NativeClose")
+plannerClose:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square","ADD")
+plannerClose:SetScript("OnClick",function()planner:Hide()end)
+local targetLabel=planner:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+targetLabel:SetPoint("TOPLEFT",25,-60);targetLabel:SetText("Favour Needed:")
+local targetInput=CreateFrame("EditBox",nil,planner,"InputBoxTemplate")
+targetInput:SetSize(75,22);targetInput:SetPoint("LEFT",targetLabel,"RIGHT",12,0)
+targetInput:SetAutoFocus(false);targetInput:SetNumeric(true)
+local calculateButton=CreateFrame("Button",nil,planner)
+calculateButton:SetSize(110,23);calculateButton:SetPoint("LEFT",targetInput,"RIGHT",13,0)
+calculateButton:SetText("Find Cheapest");SkinWoodButton(calculateButton)
+local plannerInfo=planner:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+plannerInfo:SetPoint("TOPLEFT",25,-94);plannerInfo:SetWidth(625)
+plannerInfo:SetJustifyH("LEFT");plannerInfo:SetText("Enter a Favour Target and Click Find Cheapest.")
+local plannerSummary=planner:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+plannerSummary:SetPoint("TOPLEFT",25,-118);plannerSummary:SetWidth(625)
+plannerSummary:SetJustifyH("LEFT")
+local plannerRows={}
+for i=1,11 do
+  local line=planner:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+  line:SetPoint("TOPLEFT",28,-147-(i-1)*19)
+  line:SetWidth(610);line:SetJustifyH("LEFT")
+  plannerRows[i]=line
+end
+local plannerWarning=planner:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+plannerWarning:SetPoint("BOTTOMLEFT",25,59);plannerWarning:SetWidth(625)
+plannerWarning:SetJustifyH("LEFT")
+plannerWarning:SetText("Auctionator Prices Are Estimates; Turn-In Money Is Beta-Reported.")
+local plannerShop=CreateFrame("Button",nil,planner)
+plannerShop:SetSize(165,24);plannerShop:SetPoint("BOTTOMRIGHT",-24,23)
+plannerShop:SetText("Shop Planned Items");SkinWoodButton(plannerShop)
+local plannerShopping=nil
+local function planFavour()
+  local target=tonumber(targetInput:GetText())
+  if not target or target<1 or target>1000 or target~=math.floor(target) then
+    plannerInfo:SetText("Enter a Whole-Number Favour Target Between 1 and 1000.")
+    return
+  end
+  MFO_DB.plannerTarget=target
+  learnBagItems();scanBags()
+  local options,lookup={},{}
+  for _,crate in ipairs(rows) do
+    local crateID=crate.id or resolve(crate.name)
+    local cratePrice=price(crateID)
+    local bestBundle,bestCost,bestID
+    for _,bundle in ipairs(crate.bundles) do
+      local itemID=resolve(bundle.name)
+      local unitPrice=price(itemID)
+      if unitPrice and (not bestCost or unitPrice*bundle.qty<bestCost) then
+        bestBundle,bestCost,bestID=bundle,unitPrice*bundle.qty,itemID
+      end
+    end
+    if cratePrice and bestBundle and type(crate.favour)=="number" and crate.favour>0 then
+      local option={key=crate.name,name=crate.name,id=crateID,favour=crate.favour,
+        bundle=bestBundle,materialID=bestID,cratePrice=cratePrice,
+        unitPrice=bestCost/bestBundle.qty,
+        cost=cratePrice+bestCost-(crate.turnInCopper or 0),turnIn=crate.turnInCopper or 0}
+      options[#options+1]=option;lookup[option.key]=option
+    end
+  end
+  local solution,err=MFO_Calculations.plan(target,options)
+  if not solution then
+    plannerInfo:SetText(err or "No Priced Combination Available.")
+    plannerSummary:SetText("")
+    for _,line in ipairs(plannerRows) do line:SetText("") end
+    plannerShopping=nil
+    return
+  end
+  -- Revalue the combined shopping list once, consuming each owned item only
+  -- once even when several crates share materials.
+  local function evaluate(sol)
+    local demand,details={},{}
+    for key,qty in pairs(sol.items) do
+      local o=lookup[key]
+      if o then
+        demand[o.id]=(demand[o.id] or 0)+qty
+        demand[o.materialID]=(demand[o.materialID] or 0)+qty*o.bundle.qty
+        details[#details+1]={option=o,qty=qty}
+      end
+    end
+    table.sort(details,function(a,b)return a.option.name<b.option.name end)
+    local total,terms,shopping=0,{},{}
+    for id,qty in pairs(demand) do
+      local unitPrice=price(id)
+      if not unitPrice then return nil end
+      local missing=math.max(0,qty-math.min(qty,ownedCount(id)))
+      total=total+missing*unitPrice
+      if missing>0 then shopping[id]=missing end
+    end
+    for _,entry in ipairs(details) do
+      total=total-entry.qty*entry.option.turnIn
+    end
+    return total,details,shopping
+  end
+  local bestCost,bestDetails,bestShopping=evaluate(solution)
+  -- With owned stock enabled, compare alternative seeded combinations.
+  -- This improves stock-aware results without treating shared items as
+  -- available more than once; it is not a global mixed-inventory guarantee.
+  if MFO_DB.useOwned then
+    for _,seed in ipairs(options) do
+      local candidate=MFO_Calculations.plan(target,options,seed)
+      if candidate then
+        local cost,details,shopping=evaluate(candidate)
+        if cost and (not bestCost or cost<bestCost) then
+          solution,bestCost,bestDetails,bestShopping=candidate,cost,details,shopping
+        end
+      end
+    end
+  end
+  if not bestCost then plannerInfo:SetText("Some Required Auctionator Prices Are Missing.");return end
+  plannerInfo:SetText("Cheapest Priced Combination"..(MFO_DB.useOwned and " (Owned-Stock Estimate)" or "")..":")
+  plannerSummary:SetText("Target: "..target.." | Favour: "..solution.favour..
+    " | Net Cost: "..money(bestCost).." | "..#bestDetails.." Crate Types")
+  for i,line in ipairs(plannerRows) do
+    local entry=bestDetails[i]
+    if entry then
+      local name=entry.option.name:gsub("Waylaid Crate: ","")
+      line:SetText(entry.qty.."x "..name.." ("..entry.option.favour.." Favour Each) — "..entry.option.bundle.qty..
+        "x "..entry.option.bundle.name.." per Crate")
+    elseif i==11 and #bestDetails>11 then
+      line:SetText("Additional Crate Types Not Shown")
+    else line:SetText("") end
+  end
+  plannerShopping={items=bestShopping,details=bestDetails}
+  plannerWarning:SetText(MFO_DB.useOwned and
+    "Owned Items Counted Once; Mixed-Stock Optimisation Is an Estimate. Coin Rewards Are Beta-Reported." or
+    "Minimum Net Cost at Current Prices; Turn-In Coin Rewards Are Beta-Reported.")
+end
+calculateButton:SetScript("OnClick",planFavour)
+targetInput:SetScript("OnEnterPressed",function(self)self:ClearFocus();planFavour()end)
+plannerShop:SetScript("OnClick",function()
+  if not plannerShopping then plannerInfo:SetText("Calculate a Plan First.");return end
+  local terms,seen={},{}
+  for _,entry in ipairs(plannerShopping.details) do
+    local o=entry.option
+    for _,item in ipairs({{id=o.id,name=o.name},{id=o.materialID,name=o.bundle.name}}) do
+      if plannerShopping.items[item.id] and not seen[item.id] then
+        terms[#terms+1]=item.name;seen[item.id]=true
+      end
+    end
+  end
+  if #terms==0 then plannerInfo:SetText("All Planned Items Are Already Owned.");return end
+  if not ((AuctionHouseFrame and AuctionHouseFrame:IsShown()) or (AuctionFrame and AuctionFrame:IsShown())) then
+    plannerInfo:SetText("Open the Auction House Before Using Shop Planned Items.");return
+  end
+  local api=auctionatorAPI()
+  if not api or type(api.MultiSearch)~="function" then
+    plannerInfo:SetText("This Auctionator Version Does Not Support MultiSearch.");return
+  end
+  local ok,err=pcall(api.MultiSearch,ADDON,terms)
+  if ok then
+    plannerInfo:SetText("Auctionator Search Opened. Buy Quantities Listed in the Plan.")
+  else plannerInfo:SetText("Auctionator Search Failed: "..tostring(err)) end
+end)
+local plannerBtn=CreateFrame("Button",nil,frame)
+plannerBtn:SetSize(90,22);plannerBtn:SetPoint("RIGHT",refreshBtn,"LEFT",-8,0)
+plannerBtn:SetText("Planner");SkinWoodButton(plannerBtn)
+plannerBtn:SetScript("OnClick",function()
+  if planner:IsShown() then planner:Hide();return end
+  targetInput:SetText(tostring((MFO_DB and MFO_DB.plannerTarget) or 35))
+  planner:Show();planFavour()
+end)
 local ownedCheck=CreateFrame("CheckButton",nil,subheader,"UICheckButtonTemplate")
 -- Align the checkbox at the right edge of the first column, before its divider.
 ownedCheck:SetSize(22,22);ownedCheck:SetPoint("RIGHT",subheader,"LEFT",374,0)

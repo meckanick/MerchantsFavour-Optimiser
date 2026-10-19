@@ -222,7 +222,7 @@ local function SkinWoodButton(button)
   local font=button:GetFontString()
   if font then font:SetFontObject(GameFontNormalSmall);font:SetTextColor(1,.82,.05) end
 end
-local labels={"Crate / cheapest bundle", "Crate", "Mats", "Total", "Favour", "Gold/Fav", "Shop"}
+local labels={"Crate / cheapest bundle", "Crate", "Mats", "Total", "Favour", "Net G/F", "Shop"}
 local xpos={16,390,480,570,660,719,809}
 local columnWidths={374,90,90,90,59,90,57}
 local subheader=CreateFrame("Frame",nil,frame,"BackdropTemplate")
@@ -389,8 +389,23 @@ for i=1,#rows do
   rowShade:SetPoint("TOPLEFT",scrollChild,"TOPLEFT",0,y+2)
   rowShade:SetSize(861,19)
   hit:SetPoint("TOPLEFT",0,y+2);hit:SetSize(365,18)
-  hit:SetScript("OnEnter",function() rowShade:SetVertexColor(.85,.76,.59,.52) end)
-  hit:SetScript("OnLeave",function() rowShade:SetVertexColor(.40,.33,.27,i%2==0 and .22 or .13) end)
+  hit:SetScript("OnEnter",function(self)
+    rowShade:SetVertexColor(.85,.76,.59,.52)
+    local c=self.crate
+    if c then
+      GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
+      GameTooltip:AddLine(c.name,1,.82,.2)
+      if c.turnInCopper then
+        GameTooltip:AddLine("Reported turn-in money: "..money(c.turnInCopper),1,1,1)
+        GameTooltip:AddLine("Beta-reported reward; subject to in-game verification.",.75,.75,.75)
+        GameTooltip:AddLine("Net gold per Favour deducts this reward.",.75,.75,.75)
+      else
+        GameTooltip:AddLine("Turn-in money not confirmed.",.75,.75,.75)
+      end
+      GameTooltip:Show()
+    end
+  end)
+  hit:SetScript("OnLeave",function() rowShade:SetVertexColor(.40,.33,.27,i%2==0 and .22 or .13); GameTooltip:Hide() end)
   hit:SetScript("OnClick",function()
     local c=hit.crate
     if c then selectedCrate=c; status:SetText("Selected "..c.name..". Shift-click its item link into the box and press Bind item.") end

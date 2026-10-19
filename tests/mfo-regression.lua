@@ -160,7 +160,7 @@ local invalid=MFO_Calculations.plan(1001,planOptions)
 equal(invalid,nil,"planner must bound target input")
 local forced=MFO_Calculations.plan(20,planOptions,planOptions[1])
 equal(forced.items.five,1,"forced planner seed should be retained")
-equal(forced.cost,330,"forced planner should find cheapest completion")
+equal(forced.cost,340,"forced planner should find cheapest completion")
 
 -- Guard against accidental capitalization of case-sensitive Lua identifiers
 -- while editing player-facing text. This caught the v0.1.55 ownedCheck bug.

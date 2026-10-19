@@ -12,6 +12,18 @@ local function equal(actual, expected, message)
 end
 
 equal(#MFO_DATA, 30, "there must be exactly 30 crate definitions")
+-- Artisan definitions are retained for future verification but hidden in the UI.
+local visibleCount, artisanCount = 0, 0
+for _, crate in ipairs(MFO_DATA) do
+  if crate.name:find("Artisan", 1, true) then
+    artisanCount = artisanCount + 1
+    check(crate.favour == nil, crate.name .. " must not invent an Artisan reward")
+  else
+    visibleCount = visibleCount + 1
+  end
+end
+equal(artisanCount, 8, "eight unconfirmed Artisan definitions must be retained")
+equal(visibleCount, 22, "exactly 22 confirmed-tier crates should remain visible")
 local ids, names = {}, {}
 for _, crate in ipairs(MFO_DATA) do
   check(type(crate.name) == "string" and crate.name ~= "", "crate name must exist")

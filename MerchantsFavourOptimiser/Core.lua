@@ -142,7 +142,8 @@ local MFO_ART="Interface\\AddOns\\MerchantsFavourOptimiser\\"
 frame:SetBackdrop({bgFile=MFO_ART.."MFO_WoodBackground",
   edgeFile="Interface\\DialogFrame\\UI-DialogBox-Gold-Border",tile=false,edgeSize=22,
   insets={left=8,right=8,top=8,bottom=8}})
-frame:SetBackdropColor(1,1,1,.96)
+-- Keep the coin artwork as a subtle brown-tinted watermark behind the table.
+frame:SetBackdropColor(.46,.34,.23,.28)
 frame:SetBackdropBorderColor(1,1,1,1)
 frame:SetClampedToScreen(true)
 frame:SetFrameStrata("HIGH")

@@ -20,13 +20,13 @@ local function auctionatorAPI()
 end
 local function formatAgeDays(days)
   days = math.floor(days)
-  if days == 0 then return "less than 1 day ago" end
-  return days .. (days == 1 and " day ago" or " days ago")
+  if days == 0 then return "Less Than 1 Day Ago" end
+  return days .. (days == 1 and " Day Ago" or " Days Ago")
 end
 local function updateScanNote()
   local api = auctionatorAPI()
   if not api or type(api.GetAuctionAgeByItemID) ~= "function" then
-    note:SetText("Auctionator scanned prices | "..#rows.." crates | Scan age unavailable")
+    note:SetText("Auctionator Scanned Prices | "..#rows.." Crates | Scan Age Unavailable")
     return
   end
   local oldestAge, checked = nil, 0
@@ -41,9 +41,9 @@ local function updateScanNote()
     end
   end
   if oldestAge then
-    note:SetText("Auctionator scanned prices | "..#rows.." crates | Oldest price: " .. formatAgeDays(oldestAge))
+    note:SetText("Auctionator Scanned Prices | "..#rows.." Crates | Oldest Price: " .. formatAgeDays(oldestAge))
   else
-    note:SetText("Auctionator scanned prices | "..#rows.." crates | Scan age unavailable")
+    note:SetText("Auctionator Scanned Prices | "..#rows.." Crates | Scan Age Unavailable")
   end
 end
 price = function(id)
@@ -142,12 +142,12 @@ local function scanBank()
   MFO_DB.bankCounts=counts
   MFO_DB.bankScanTime=time()
 end
-local function ownedCount(id)
+local function OwnedCount(id)
   if not MFO_DB or not MFO_DB.useOwned then return 0 end
   return (bagCounts[id] or 0)+(MFO_DB.bankCounts and MFO_DB.bankCounts[id] or 0)
 end
 local function calc(crate)
-  return MFO_Calculations.calculate(crate, price, ownedCount, resolve)
+  return MFO_Calculations.calculate(crate, price, OwnedCount, resolve)
 end
 local frame=CreateFrame("Frame","MFOFrame",UIParent,"BackdropTemplate")
 frame:SetSize(918,440); frame:SetPoint("CENTER"); frame:SetMovable(true); frame:EnableMouse(true)
@@ -207,7 +207,7 @@ close:SetFrameLevel(frame:GetFrameLevel()+10)
 close:SetScript("OnClick",function() frame:Hide() end)
 note=frame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
 note:SetPoint("TOPLEFT",70,-53)
-note:SetText("Auctionator scanned prices | "..#rows.." crates")
+note:SetText("Auctionator Scanned Prices | "..#rows.." crates")
 local status=frame:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
 status:SetPoint("BOTTOMLEFT",19,16)
 status:SetWidth(856)
@@ -222,7 +222,7 @@ local function SkinWoodButton(button)
   local font=button:GetFontString()
   if font then font:SetFontObject(GameFontNormalSmall);font:SetTextColor(1,.82,.05) end
 end
-local labels={"Crate / cheapest bundle", "Crate", "Mats", "Total", "Favour", "Net G/F", "Shop"}
+local labels={"Crate / Cheapest Bundle", "Crate", "Mats", "Total", "Favour", "Net G/F", "Shop"}
 local xpos={16,390,480,570,660,719,809}
 local columnWidths={374,90,90,90,59,90,57}
 local subheader=CreateFrame("Frame",nil,frame,"BackdropTemplate")
@@ -393,7 +393,7 @@ for i=1,#rows do
   hit:SetScript("OnLeave",function() rowShade:SetVertexColor(.40,.33,.27,i%2==0 and .22 or .13) end)
   hit:SetScript("OnClick",function()
     local c=hit.crate
-    if c then selectedCrate=c; status:SetText("Selected "..c.name..". Shift-click its item link into the box and press Bind item.") end
+    if c then selectedCrate=c; status:SetText("Selected "..c.name..". Shift-Click Its Item Link into the Box and Press Bind Item.") end
   end)
   selectButtons[i]=hit
   local shop=CreateFrame("Button",nil,scrollChild)
@@ -402,21 +402,21 @@ for i=1,#rows do
   shop:SetSize(54,18);shop:SetPoint("TOPLEFT",800,y+3);shop:SetText("Shop");SkinWoodButton(shop)
   shop:SetScript("OnClick",function()
     local r=displayedResults[i]
-    if not r or not r.b then status:SetText("No priced material bundle for this crate.");return end
+    if not r or not r.b then status:SetText("No Priced Material Bundle for This Crate.");return end
     local terms={}
     if not (MFO_DB.useOwned and r.crateOwned) then table.insert(terms,r.crate.name) end
     if not (MFO_DB.useOwned and r.missing==0) then table.insert(terms,r.b.name) end
-    if #terms==0 then status:SetText("You already own the crate and all required materials.");return end
+    if #terms==0 then status:SetText("You Already Own the Crate and All Required Materials.");return end
     if Auctionator and Auctionator.API and Auctionator.API.v1 and type(Auctionator.API.v1.MultiSearch)=="function" then
       if not (AuctionHouseFrame and AuctionHouseFrame:IsShown()) and not (AuctionFrame and AuctionFrame:IsShown()) then
-        status:SetText("Open the Auction House, then click Shop to search for the crate and "..r.b.qty.."x "..r.b.name..".")
+        status:SetText("Open the Auction House, Then Click Shop to Search for the Crate and "..r.b.qty.."x "..r.b.name..".")
         return
       end
       local ok,err=pcall(Auctionator.API.v1.MultiSearch,ADDON,terms)
-      if ok then status:SetText("Auctionator search: "..r.crate.name.." + "..(r.missing or r.b.qty).."x "..r.b.name..". Buy the indicated quantities.")
-      else status:SetText("Auctionator MultiSearch failed: "..tostring(err)) end
+      if ok then status:SetText("Auctionator Search: "..r.crate.name.." + "..(r.missing or r.b.qty).."x "..r.b.name..". Buy the Indicated Quantities.")
+      else status:SetText("Auctionator MultiSearch Failed: "..tostring(err)) end
     else
-      status:SetText("This Auctionator version does not expose MultiSearch. No shopping list was changed.")
+      status:SetText("This Auctionator Version Does Not Expose MultiSearch. No Shopping List Was Changed.")
     end
   end)
   shopButtons[i]=shop
@@ -429,23 +429,23 @@ for i=1,#rows do
     local r=displayedResults[i]
     if not r then return end
     GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
-    GameTooltip:AddLine("Net gold per Favour",1,.82,.2)
+    GameTooltip:AddLine("Net Gold per Favour",1,.82,.2)
     GameTooltip:AddLine(r.crate.name,1,1,1)
-    GameTooltip:AddLine("Crate purchase: "..money(r.cp),1,1,1)
-    GameTooltip:AddLine("Cheapest materials: "..money(r.bc),1,1,1)
+    GameTooltip:AddLine("Crate Purchase: "..money(r.cp),1,1,1)
+    GameTooltip:AddLine("Cheapest Materials: "..money(r.bc),1,1,1)
     local total=r.cp and r.bc and (r.cp+r.bc) or nil
-    GameTooltip:AddLine("Total purchase cost: "..money(total),1,1,1)
+    GameTooltip:AddLine("Total Purchase Cost: "..money(total),1,1,1)
     if r.crate.turnInCopper then
-      GameTooltip:AddLine("Turn-in money (deducted): -"..money(r.crate.turnInCopper),.35,1,.35)
+      GameTooltip:AddLine("Turn-In Money (Deducted): -"..money(r.crate.turnInCopper),.35,1,.35)
     else
-      GameTooltip:AddLine("Turn-in money: unconfirmed",.75,.75,.75)
+      GameTooltip:AddLine("Turn-In Money: Unconfirmed",.75,.75,.75)
     end
     local net=total and r.crate.turnInCopper and (total-r.crate.turnInCopper) or nil
-    GameTooltip:AddLine("Net cost: "..money(net),1,.82,.2)
-    GameTooltip:AddLine("Favour awarded: "..tostring(r.crate.favour or "?"),1,1,1)
-    GameTooltip:AddLine("Net cost / Favour: "..money(r.rate),1,.82,.2)
+    GameTooltip:AddLine("Net Cost: "..money(net),1,.82,.2)
+    GameTooltip:AddLine("Favour Awarded: "..tostring(r.crate.favour or "?"),1,1,1)
+    GameTooltip:AddLine("Net Cost / Favour: "..money(r.rate),1,.82,.2)
     if r.crate.turnInCopper then
-      GameTooltip:AddLine("Turn-in money is beta-reported, not yet verified in-game.",.7,.7,.7,true)
+      GameTooltip:AddLine("Turn-In Money Is Beta-Reported, Not Yet Verified In-Game.",.7,.7,.7,true)
     end
     GameTooltip:Show()
   end)
@@ -479,7 +479,7 @@ local function refresh()
   for i,r in ipairs(results) do
     local t=entries[i]
     selectButtons[i].crate=r.crate
-    t[1]:SetText(r.crate.name:gsub("Waylaid Crate: ","")..(r.b and (" ("..(MFO_DB.useOwned and ((r.missing or r.b.qty).." to buy / "..(r.owned or 0).." owned") or (r.b.qty.."x")).." "..r.b.name..")") or ""))
+    t[1]:SetText(r.crate.name:gsub("Waylaid Crate: ","")..(r.b and (" ("..(MFO_DB.useOwned and ((r.missing or r.b.qty).." to Buy / "..(r.owned or 0).." Owned") or (r.b.qty.."x")).." "..r.b.name..")") or ""))
     t[2]:SetText(money(r.cp));t[3]:SetText(money(r.bc));t[4]:SetText(money(r.cp and r.bc and (r.cp+r.bc) or nil));t[5]:SetText(r.crate.favour or "?");t[6]:SetText(money(r.rate))
     t[6]:SetTextColor(r.rate and .95 or .6,r.rate and .8 or .6,r.rate and .35 or .6)
   end
@@ -487,33 +487,33 @@ local function refresh()
   if MFO_DB.useOwned then
     if MFO_DB.bankScanTime then
       local elapsed=math.max(0,math.floor((time()-MFO_DB.bankScanTime)/3600))
-      bankInfo=" Bank snapshot: "..elapsed.."h old."
-    else bankInfo=" Bank not scanned yet." end
+      bankInfo=" Bank Snapshot: "..elapsed.."h old."
+    else bankInfo=" Bank Not Scanned Yet." end
   end
-  status:SetText(complete.."/"..#rows.." ranked | "..missingIDs.." unknown IDs | "..missingPrices.." missing crate prices. "..(MFO_DB.useOwned and "Owned items deducted." or "All items valued at AH prices.")..bankInfo)
+  status:SetText(complete.."/"..#rows.." Ranked | "..missingIDs.." Unknown IDs | "..missingPrices.." Missing Crate Prices. "..(MFO_DB.useOwned and "Owned Items Deducted." or "All Items Valued at AH Prices.")..bankInfo)
 end
 local refreshBtn=CreateFrame("Button",nil,frame);refreshBtn:SetSize(82,22);refreshBtn:SetPoint("TOPRIGHT",frame,"TOPRIGHT",-38,-44);refreshBtn:SetText("Refresh");SkinWoodButton(refreshBtn);refreshBtn:SetScript("OnClick",refresh)
-local ownedCheck=CreateFrame("CheckButton",nil,frame,"UICheckButtonTemplate")
+local OwnedCheck=CreateFrame("CheckButton",nil,frame,"UICheckButtonTemplate")
 ownedCheck:SetSize(24,24);ownedCheck:SetPoint("BOTTOMLEFT",475,44)
-local ownedLabel=frame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+local OwnedLabel=frame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
 ownedLabel:SetPoint("LEFT",ownedCheck,"RIGHT",3,0)
-ownedLabel:SetText("Use owned bag / bank items")
+ownedLabel:SetText("Use Owned bag / bank items")
 ownedCheck:SetScript("OnClick",function(self)
   MFO_DB.useOwned=self:GetChecked() and true or false
   refresh()
 end)
-local bindLabel=frame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall");bindLabel:SetPoint("BOTTOMLEFT",16,49);bindLabel:SetText("Item link:")
+local bindLabel=frame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall");bindLabel:SetPoint("BOTTOMLEFT",16,49);bindLabel:SetText("Item Link:")
 local edit=CreateFrame("EditBox",nil,frame,"InputBoxTemplate");edit:SetSize(205,22);edit:SetPoint("LEFT",bindLabel,"RIGHT",12,0);edit:SetAutoFocus(false)
-local bindBtn=CreateFrame("Button",nil,frame);bindBtn:SetSize(85,22);bindBtn:SetPoint("LEFT",edit,"RIGHT",8,0);bindBtn:SetText("Bind item");SkinWoodButton(bindBtn)
+local bindBtn=CreateFrame("Button",nil,frame);bindBtn:SetSize(85,22);bindBtn:SetPoint("LEFT",edit,"RIGHT",8,0);bindBtn:SetText("Bind Item");SkinWoodButton(bindBtn)
 local function bind()
   local s=edit:GetText();local id=tonumber(s:match("item:(%d+)"))
   local name=s:match("%[([^%]]+)%]")
-  if not id then status:SetText("Shift-click an item link into the box first.");return end
+  if not id then status:SetText("Shift-Click an Item Link into the Box First.");return end
   if not name and C_Item and C_Item.GetItemInfo then name=C_Item.GetItemInfo(id) end
-  if not name then status:SetText("Item name unavailable; hover the item and retry.");return end
+  if not name then status:SetText("Item Name Unavailable; Hover the Item and Retry.");return end
   if selectedCrate then
     local expected=selectedCrate.name
-    if name~=expected then status:SetText("Link is "..name.."; selected crate is "..expected..". Select matching crate and retry.");return end
+    if name~=expected then status:SetText("Link Is "..name.."; Selected Crate Is "..expected..". Select Matching Crate and Retry.");return end
     MFO_DB.ids[expected]=id; selectedCrate=nil
   else
     MFO_DB.ids[name]=id
@@ -566,9 +566,9 @@ end)
 minimapButton:SetScript("OnEnter",function(self)
   GameTooltip:SetOwner(self,"ANCHOR_LEFT")
   GameTooltip:AddLine("Merchant's Favour Optimiser",1,.82,.2)
-  GameTooltip:AddLine("Left-click: Toggle optimiser",1,1,1)
-  GameTooltip:AddLine("Right-click: Refresh prices",1,1,1)
-  GameTooltip:AddLine("Drag: Move around minimap",1,1,1)
+  GameTooltip:AddLine("Left-Click: Toggle Optimiser",1,1,1)
+  GameTooltip:AddLine("Right-Click: Refresh Prices",1,1,1)
+  GameTooltip:AddLine("Drag: Move Around Minimap",1,1,1)
   GameTooltip:Show()
 end)
 minimapButton:SetScript("OnLeave",function() GameTooltip:Hide() end)
@@ -607,7 +607,7 @@ events:SetScript("OnEvent",function(_,event,name)
  end
  if name~=ADDON then return end
  MFO_DB=MFO_DB or {};MFO_DB.ids=MFO_DB.ids or {}
- ownedCheck:SetChecked(MFO_DB.useOwned or false)
+ OwnedCheck:SetChecked(MFO_DB.useOwned or false)
  positionMinimapButton()
  refresh()
  print("|cffffcc66Merchant's Favour Optimiser|r loaded. Type /mfo")

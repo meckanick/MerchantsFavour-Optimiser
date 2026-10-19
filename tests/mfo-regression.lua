@@ -40,13 +40,15 @@ for _, crate in ipairs(MFO_DATA) do
   end
 end
 
-local textile, unverified
+local textile, fabrics, unverified
 for _, c in ipairs(MFO_DATA) do
   if c.id == 248688 then textile = c end
-  if c.id == 248705 then unverified = c end
+  if c.id == 248705 then fabrics = c end
+  if c.name == 'Waylaid Crate: Artisan Ore' then unverified = c end
 end
 check(textile ~= nil and textile.bundles[1].qty == 20, "Journeyman Textiles must require 20 Wool Cloth")
-check(unverified ~= nil and unverified.favour == nil, "Unverified reward must not be invented")
+check(fabrics ~= nil and fabrics.favour == 20, "Journeyman Fabrics must reward 20 Favour")
+check(unverified ~= nil and unverified.favour == nil, "Artisan reward must remain unverified")
 
 local crate = {
   name = "Test Crate", id = 9001, favour = 10,

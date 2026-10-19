@@ -1,18 +1,52 @@
 local ADDON = ...
 local rows = MFO_DATA
+local note -- forward declaration: updateScanNote is defined before the UI font string\nlocal knownIDs\nlocal price
 local function money(v)
   if not v then return "?" end
   v = math.floor(v + 0.5)
   return string.format("%dg %ds %dc", math.floor(v/10000), math.floor(v/100)%100, v%100)
 end
-local function price(id)
+-- Match What's Training? Professions: use Auctionator's public v1 API for per-item scan age.
+local function auctionatorAPI()
+  local a = _G.Auctionator
+  return type(a) == "table" and type(a.API) == "table" and a.API.v1 or nil
+end
+local function formatAgeDays(days)
+  days = math.floor(days)
+  if days == 0 then return "less than 1 day ago" end
+  return days .. (days == 1 and " day ago" or " days ago")
+end
+local function updateScanNote()
+  local api = auctionatorAPI()
+  if not api or type(api.GetAuctionAgeByItemID) ~= "function" then
+    note:SetText("Auctionator scanned prices | 21 crates | Scan age unavailable")
+    return
+  end
+  local oldestAge, checked = nil, 0
+  for _, itemID in pairs(knownIDs or {}) do
+    local priceValue = price(itemID)
+    if priceValue then
+      local ok, age = pcall(api.GetAuctionAgeByItemID, ADDON, itemID)
+      if ok and type(age) == "number" and age >= 0 then
+        checked = checked + 1
+        if not oldestAge or age > oldestAge then oldestAge = age end
+      end
+    end
+  end
+  if oldestAge then
+    note:SetText("Auctionator scanned prices | 21 crates | Oldest price: " .. formatAgeDays(oldestAge))
+  else
+    note:SetText("Auctionator scanned prices | 21 crates | Scan age unavailable")
+  end
+end
+price = function(id)
   if not id or not Auctionator or not Auctionator.API or not Auctionator.API.v1 or type(Auctionator.API.v1.GetAuctionPriceByItemID)~="function" then return nil end
   local ok, value = pcall(Auctionator.API.v1.GetAuctionPriceByItemID, ADDON, id)
   if ok and type(value)=="number" and value>0 then return value end
 end
 -- Stable item IDs avoid depending on the local item-name cache.
 -- Unknown IDs are never guessed; they can be learned using the binder.
-local knownIDs = {
+knownIDs = {
  ['Copper Ore']=2770, ['Tin Ore']=2771, ['Silver Ore']=2775, ['Iron Ore']=2772, ['Gold Ore']=2776, ['Mithril Ore']=3858,
  ['Copper Bar']=2840, ['Tin Bar']=3576, ['Bronze Bar']=2841, ['Silver Bar']=2842, ['Iron Bar']=3575, ['Steel Bar']=3859, ['Gold Bar']=3577, ['Mithril Bar']=3860,
  ['Linen Cloth']=2589, ['Wool Cloth']=2592, ['Silk Cloth']=4306, ['Mageweave Cloth']=4338,
@@ -151,7 +185,7 @@ close:SetNormalTexture(MFO_ART.."WTP_NativeClose")
 close:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square","ADD")
 close:SetFrameLevel(frame:GetFrameLevel()+10)
 close:SetScript("OnClick",function() frame:Hide() end)
-local note=frame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+note=frame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
 note:SetPoint("TOPLEFT",70,-53)
 note:SetText("Auctionator scanned prices | 21 crates")
 local status=frame:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
@@ -172,7 +206,7 @@ local labels={"Crate / cheapest bundle", "Crate", "Mats", "Total", "Favour", "Go
 local xpos={16,390,480,570,660,719,809}
 local columnWidths={374,90,90,90,59,90,57}
 local subheader=CreateFrame("Frame",nil,frame,"BackdropTemplate")
-subheader:SetPoint("TOPLEFT",frame,"TOPLEFT",8,-86)
+subheader:SetPoint("TOPLEFT",frame,"TOPLEFT",8,-76)
 subheader:SetSize(867,28)
 subheader:SetBackdrop({bgFile=MFO_ART.."WTP_ProfessionRow",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1})
 subheader:SetBackdropColor(1,1,1,1)
@@ -198,7 +232,7 @@ for i,label in ipairs(labels) do
 end
 -- A fixed-height scrolling viewport keeps all 21 rows available without a tall window.
 local scrollFrame=CreateFrame("ScrollFrame","MFOCompactScrollFrame",frame,"UIPanelScrollFrameTemplate")
-scrollFrame:SetPoint("TOPLEFT",frame,"TOPLEFT",12,-120)
+scrollFrame:SetPoint("TOPLEFT",frame,"TOPLEFT",12,-110)
 scrollFrame:SetPoint("BOTTOMRIGHT",frame,"BOTTOMRIGHT",-40,79)
 local scrollChild=CreateFrame("Frame",nil,scrollFrame)
 scrollChild:SetSize(846,21*19+4)
@@ -369,6 +403,7 @@ for i=1,21 do
   end
 end
 local function refresh()
+  updateScanNote()
   learnBagItems()
   scanBags()
   local results={};local complete=0;local missingIDs=0;local missingPrices=0

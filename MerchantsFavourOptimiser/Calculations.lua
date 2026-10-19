@@ -28,6 +28,7 @@ function MFO_Calculations.calculate(crate, getPrice, getOwnedCount, resolveItemI
   end
 
   local rate = effectiveCrateCost and best and bundleCost and
+    (type(crate.favour) == "number" and crate.favour > 0) and
     (effectiveCrateCost + bundleCost) / crate.favour or nil
   return rate, effectiveCrateCost, bundleName, bundleCost, missingQty, ownedQty, crateOwned
 end

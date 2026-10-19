@@ -451,6 +451,7 @@ for i=1,#rows do
     entries[i][j]=t
   end
 end
+local planFavour
 local function refresh()
   updateScanNote()
   learnBagItems()
@@ -483,59 +484,58 @@ local function refresh()
     else bankInfo=" Bank Not Scanned Yet." end
   end
   status:SetText(complete.."/"..#rows.." Ranked | "..missingIDs.." Unknown IDs | "..missingPrices.." Missing Crate Prices. "..(MFO_DB.useOwned and "Owned Items Deducted." or "All Items Valued at AH Prices.")..bankInfo)
+  if planFavour then planFavour() end
 end
 local refreshBtn=CreateFrame("Button",nil,frame);refreshBtn:SetSize(82,22);refreshBtn:SetPoint("TOPRIGHT",frame,"TOPRIGHT",-38,-44);refreshBtn:SetText("Refresh");SkinWoodButton(refreshBtn);refreshBtn:SetScript("OnClick",refresh)
--- Favour Planner: a separate panel keeps the compact rankings window unchanged.
-local planner=CreateFrame("Frame","MFOFavourPlanner",UIParent,"BackdropTemplate")
-planner:SetSize(680,435)
-planner:SetPoint("CENTER",UIParent,"CENTER",0,0)
-planner:SetMovable(true);planner:EnableMouse(true);planner:SetClampedToScreen(true)
-planner:RegisterForDrag("LeftButton")
-planner:SetScript("OnDragStart",function(self)self:StartMoving()end)
-planner:SetScript("OnDragStop",function(self)self:StopMovingOrSizing()end)
-planner:SetFrameStrata("DIALOG")
-planner:SetBackdrop({bgFile=MFO_ART.."MFO_WoodBackground",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Gold-Border",
-  tile=false,edgeSize=22,insets={left=8,right=8,top=8,bottom=8}})
-planner:SetBackdropColor(1,1,1,1)
+-- Inline planner: the target entry lives in the existing toolbar and
+-- replaces the rankings table only while a target is entered.
+local targetLabel=frame:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+targetLabel:SetPoint("RIGHT",refreshBtn,"LEFT",-208,0)
+targetLabel:SetText("Favour Needed:")
+local targetInput=CreateFrame("EditBox",nil,frame,"InputBoxTemplate")
+targetInput:SetSize(66,22)
+targetInput:SetPoint("LEFT",targetLabel,"RIGHT",12,0)
+targetInput:SetAutoFocus(false);targetInput:SetNumeric(true)
+local planner=CreateFrame("Frame","MFOFavourPlanner",frame)
+planner:SetPoint("TOPLEFT",frame,"TOPLEFT",12,-76)
+planner:SetPoint("BOTTOMRIGHT",frame,"BOTTOMRIGHT",-38,38)
 planner:Hide()
 local plannerTitle=planner:CreateFontString(nil,"OVERLAY","GameFontNormal")
-plannerTitle:SetPoint("TOP",0,-17);plannerTitle:SetText("Favour Planner")
-plannerTitle:SetTextColor(1,.82,.05)
-local plannerClose=CreateFrame("Button",nil,planner)
-plannerClose:SetSize(25,25);plannerClose:SetPoint("TOPRIGHT",-9,-7)
-plannerClose:SetNormalTexture(MFO_ART.."WTP_NativeClose")
-plannerClose:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square","ADD")
-plannerClose:SetScript("OnClick",function()planner:Hide()end)
-local targetLabel=planner:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
-targetLabel:SetPoint("TOPLEFT",25,-60);targetLabel:SetText("Favour Needed:")
-local targetInput=CreateFrame("EditBox",nil,planner,"InputBoxTemplate")
-targetInput:SetSize(75,22);targetInput:SetPoint("LEFT",targetLabel,"RIGHT",12,0)
-targetInput:SetAutoFocus(false);targetInput:SetNumeric(true)
-local calculateButton=CreateFrame("Button",nil,planner)
-calculateButton:SetSize(110,23);calculateButton:SetPoint("LEFT",targetInput,"RIGHT",13,0)
-calculateButton:SetText("Find Cheapest");SkinWoodButton(calculateButton)
+plannerTitle:SetPoint("TOPLEFT",12,-7)
+plannerTitle:SetText("Cheapest Crate Combination")
+plannerTitle:SetTextColor(1,.76,.13)
+local clearButton=CreateFrame("Button",nil,frame)
+clearButton:SetSize(68,22);clearButton:SetPoint("LEFT",targetInput,"RIGHT",9,0)
+clearButton:SetText("Clear");SkinWoodButton(clearButton)
+clearButton:SetScript("OnClick",function()targetInput:SetText("");targetInput:ClearFocus()end)
 local plannerInfo=planner:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-plannerInfo:SetPoint("TOPLEFT",25,-94);plannerInfo:SetWidth(625)
+plannerInfo:SetPoint("TOPLEFT",12,-37);plannerInfo:SetWidth(810)
 plannerInfo:SetJustifyH("LEFT");plannerInfo:SetText("Enter a Favour Target and Click Find Cheapest.")
 local plannerSummary=planner:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
-plannerSummary:SetPoint("TOPLEFT",25,-118);plannerSummary:SetWidth(625)
+plannerSummary:SetPoint("TOPLEFT",12,-60);plannerSummary:SetWidth(810)
 plannerSummary:SetJustifyH("LEFT")
 local plannerRows={}
 for i=1,11 do
   local line=planner:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-  line:SetPoint("TOPLEFT",28,-147-(i-1)*19)
-  line:SetWidth(610);line:SetJustifyH("LEFT")
+  line:SetPoint("TOPLEFT",15,-87-(i-1)*19)
+  line:SetWidth(800);line:SetJustifyH("LEFT")
   plannerRows[i]=line
 end
 local plannerWarning=planner:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-plannerWarning:SetPoint("BOTTOMLEFT",25,59);plannerWarning:SetWidth(625)
+plannerWarning:SetPoint("BOTTOMLEFT",12,40);plannerWarning:SetWidth(810)
 plannerWarning:SetJustifyH("LEFT")
 plannerWarning:SetText("Auctionator Prices Are Estimates; Turn-In Money Is Beta-Reported.")
 local plannerShop=CreateFrame("Button",nil,planner)
-plannerShop:SetSize(165,24);plannerShop:SetPoint("BOTTOMRIGHT",-24,23)
+plannerShop:SetSize(165,24);plannerShop:SetPoint("BOTTOMRIGHT",-12,9)
 plannerShop:SetText("Shop Planned Items");SkinWoodButton(plannerShop)
 local plannerShopping=nil
-local function planFavour()
+planFavour=function()
+  local raw=targetInput:GetText()
+  if raw=="" then
+    planner:Hide();subheader:Show();scrollFrame:Show()
+    return
+  end
+  planner:Show();subheader:Hide();scrollFrame:Hide()
   local target=tonumber(targetInput:GetText())
   if not target or target<1 or target>1000 or target~=math.floor(target) then
     plannerInfo:SetText("Enter a Whole-Number Favour Target Between 1 and 1000.")
@@ -631,8 +631,9 @@ local function planFavour()
     "Owned Items Counted Once; Mixed-Stock Optimisation Is an Estimate. Coin Rewards Are Beta-Reported." or
     "Minimum Net Cost at Current Prices; Turn-In Coin Rewards Are Beta-Reported.")
 end
-calculateButton:SetScript("OnClick",planFavour)
+targetInput:SetScript("OnTextChanged",function(self,userInput)if userInput then planFavour() end end)
 targetInput:SetScript("OnEnterPressed",function(self)self:ClearFocus();planFavour()end)
+targetInput:SetScript("OnEscapePressed",function(self)self:ClearFocus()end)
 plannerShop:SetScript("OnEnter",function(self)
   if not plannerShopping then return end
   GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
@@ -674,14 +675,6 @@ plannerShop:SetScript("OnClick",function()
   if ok then
     plannerInfo:SetText("Auctionator Search Opened. Hover Shop Planned Items for Exact Quantities.")
   else plannerInfo:SetText("Auctionator Search Failed: "..tostring(err)) end
-end)
-local plannerBtn=CreateFrame("Button",nil,frame)
-plannerBtn:SetSize(90,22);plannerBtn:SetPoint("RIGHT",refreshBtn,"LEFT",-8,0)
-plannerBtn:SetText("Planner");SkinWoodButton(plannerBtn)
-plannerBtn:SetScript("OnClick",function()
-  if planner:IsShown() then planner:Hide();return end
-  targetInput:SetText(tostring((MFO_DB and MFO_DB.plannerTarget) or 35))
-  planner:Show();planFavour()
 end)
 local ownedCheck=CreateFrame("CheckButton",nil,subheader,"UICheckButtonTemplate")
 -- Align the checkbox at the right edge of the first column, before its divider.

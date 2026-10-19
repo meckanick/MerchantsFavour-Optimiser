@@ -140,6 +140,28 @@ equal(noFavourRate, nil, "unverified favour cannot generate gold-per-favour rank
 check(noFavourBundle ~= nil, "unverified favour still allows cheapest bundle selection")
 
 
+-- Planner must minimise total spend rather than selecting the lowest per-Favour rate.
+local planOptions={
+  {key="five",favour=5,cost=90},
+  {key="ten",favour=10,cost=160},
+  {key="twenty",favour=20,cost=300},
+}
+local plan=MFO_Calculations.plan(25,planOptions)
+equal(plan.favour,25,"planner must reach the exact target when cheaper")
+equal(plan.cost,390,"planner must choose the cheapest combined cost")
+equal(plan.items.twenty,1,"planner should select one twenty-Favour crate")
+equal(plan.items.five,1,"planner should select one five-Favour crate")
+local overfill=MFO_Calculations.plan(18,{{key="fifteen",favour=15,cost=200},{key="ten",favour=10,cost=90}})
+equal(overfill.favour,20,"planner should allow cheaper overfill")
+equal(overfill.cost,180,"planner should minimise total cost with overfill")
+local missing=MFO_Calculations.plan(10,{{key="missing",favour=10,cost=nil}})
+equal(missing,nil,"planner must not treat missing prices as free")
+local invalid=MFO_Calculations.plan(1001,planOptions)
+equal(invalid,nil,"planner must bound target input")
+local forced=MFO_Calculations.plan(20,planOptions,planOptions[1])
+equal(forced.items.five,1,"forced planner seed should be retained")
+equal(forced.cost,330,"forced planner should find cheapest completion")
+
 -- Guard against accidental capitalization of case-sensitive Lua identifiers
 -- while editing player-facing text. This caught the v0.1.55 ownedCheck bug.
 local coreFile = assert(io.open("MerchantsFavourOptimiser/Core.lua", "r"))

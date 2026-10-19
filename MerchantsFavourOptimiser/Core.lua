@@ -222,7 +222,7 @@ local function SkinWoodButton(button)
   local font=button:GetFontString()
   if font then font:SetFontObject(GameFontNormalSmall);font:SetTextColor(1,.82,.05) end
 end
-local labels={"Crate / Cheapest Bundle", "Crate", "Mats", "Total", "Favour", "Net G/F", "Shop"}
+local labels={"Crate (Cheapest Bundle)", "Crate", "Mats", "Total", "Favour", "Net C/F", "Shop"}
 local xpos={16,390,480,570,660,719,809}
 local columnWidths={374,90,90,90,59,90,57}
 local subheader=CreateFrame("Frame",nil,frame,"BackdropTemplate")
@@ -420,7 +420,7 @@ for i=1,#rows do
     end
   end)
   shopButtons[i]=shop
-  -- Net G/F has its own hover target; the crate-name column stays tooltip-free.
+  -- Net C/F has its own hover target; the crate-name column stays tooltip-free.
   local netHover=CreateFrame("Frame",nil,scrollChild)
   netHover:SetPoint("TOPLEFT",scrollChild,"TOPLEFT",xpos[6]-5,y+2)
   netHover:SetSize(76,18)
@@ -429,7 +429,7 @@ for i=1,#rows do
     local r=displayedResults[i]
     if not r then return end
     GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
-    GameTooltip:AddLine("Net Gold per Favour",1,.82,.2)
+    GameTooltip:AddLine("Net Cost per Favour",1,.82,.2)
     GameTooltip:AddLine(r.crate.name,1,1,1)
     GameTooltip:AddLine("Crate Purchase: "..money(r.cp),1,1,1)
     GameTooltip:AddLine("Cheapest Materials: "..money(r.bc),1,1,1)
@@ -443,7 +443,7 @@ for i=1,#rows do
     local net=total and r.crate.turnInCopper and (total-r.crate.turnInCopper) or nil
     GameTooltip:AddLine("Net Cost: "..money(net),1,.82,.2)
     GameTooltip:AddLine("Favour Awarded: "..tostring(r.crate.favour or "?"),1,1,1)
-    GameTooltip:AddLine("Net Cost / Favour: "..money(r.rate),1,.82,.2)
+    GameTooltip:AddLine("Net Cost per Favour: "..money(r.rate),1,.82,.2)
     if r.crate.turnInCopper then
       GameTooltip:AddLine("Turn-In Money Is Beta-Reported, Not Yet Verified In-Game.",.7,.7,.7,true)
     end

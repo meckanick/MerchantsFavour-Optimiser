@@ -1,4 +1,4 @@
-Merchant's Favour Optimiser v0.1.55 - WoW Forever
+Merchant's Favour Optimiser v0.1.56 - WoW Forever
 
 Install the MerchantsFavourOptimiser folder in Interface/AddOns.
 Auctionator is required for auction pricing.

@@ -11,7 +11,7 @@ local function equal(actual, expected, message)
     ", got " .. tostring(actual) .. ")")
 end
 
-equal(#MFO_DATA, 21, "there must be exactly 21 crate definitions")
+equal(#MFO_DATA, 30, "there must be exactly 30 crate definitions")
 local ids, names = {}, {}
 for _, crate in ipairs(MFO_DATA) do
   check(type(crate.name) == "string" and crate.name ~= "", "crate name must exist")
@@ -19,7 +19,7 @@ for _, crate in ipairs(MFO_DATA) do
   check(not ids[crate.id], "duplicate crate item ID " .. tostring(crate.id))
   check(not names[crate.name], "duplicate crate name " .. crate.name)
   ids[crate.id], names[crate.name] = true, true
-  check(type(crate.favour) == "number" and crate.favour > 0, crate.name .. " must have positive favour")
+  check(crate.favour == nil or (type(crate.favour) == "number" and crate.favour > 0), crate.name .. " must have positive or unverified favour")
   check(type(crate.bundles) == "table" and #crate.bundles > 0, crate.name .. " must have bundles")
   for _, bundle in ipairs(crate.bundles) do
     check(type(bundle.name) == "string" and bundle.name ~= "", crate.name .. " has unnamed material")
@@ -27,6 +27,14 @@ for _, crate in ipairs(MFO_DATA) do
       crate.name .. " has invalid quantity for " .. tostring(bundle.name))
   end
 end
+
+local textile, unverified
+for _, c in ipairs(MFO_DATA) do
+  if c.id == 248688 then textile = c end
+  if c.id == 248705 then unverified = c end
+end
+check(textile ~= nil and textile.bundles[1].qty == 20, "Journeyman Textiles must require 20 Wool Cloth")
+check(unverified ~= nil and unverified.favour == nil, "Unverified reward must not be invented")
 
 local crate = {
   name = "Test Crate", id = 9001, favour = 10,
@@ -86,4 +94,10 @@ local unknownRate = MFO_Calculations.calculate(
   function(name) return nil end)
 equal(unknownRate, nil, "unresolved material IDs should remain unranked safely")
 
-print("PASS: 21 crate definitions and calculation regression scenarios")
+local noFavourRate, _, noFavourBundle = MFO_Calculations.calculate(
+  unverified, function() return 100 end, function() return 0 end,
+  function() return 100 end)
+equal(noFavourRate, nil, "unverified favour cannot generate gold-per-favour rank")
+check(noFavourBundle ~= nil, "unverified favour still allows cheapest bundle selection")
+
+print("PASS: 30 crate definitions and calculation regression scenarios")

@@ -389,23 +389,8 @@ for i=1,#rows do
   rowShade:SetPoint("TOPLEFT",scrollChild,"TOPLEFT",0,y+2)
   rowShade:SetSize(861,19)
   hit:SetPoint("TOPLEFT",0,y+2);hit:SetSize(365,18)
-  hit:SetScript("OnEnter",function(self)
-    rowShade:SetVertexColor(.85,.76,.59,.52)
-    local c=self.crate
-    if c then
-      GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
-      GameTooltip:AddLine(c.name,1,.82,.2)
-      if c.turnInCopper then
-        GameTooltip:AddLine("Reported turn-in money: "..money(c.turnInCopper),1,1,1)
-        GameTooltip:AddLine("Beta-reported reward; subject to in-game verification.",.75,.75,.75)
-        GameTooltip:AddLine("Net gold per Favour deducts this reward.",.75,.75,.75)
-      else
-        GameTooltip:AddLine("Turn-in money not confirmed.",.75,.75,.75)
-      end
-      GameTooltip:Show()
-    end
-  end)
-  hit:SetScript("OnLeave",function() rowShade:SetVertexColor(.40,.33,.27,i%2==0 and .22 or .13); GameTooltip:Hide() end)
+  hit:SetScript("OnEnter",function() rowShade:SetVertexColor(.85,.76,.59,.52) end)
+  hit:SetScript("OnLeave",function() rowShade:SetVertexColor(.40,.33,.27,i%2==0 and .22 or .13) end)
   hit:SetScript("OnClick",function()
     local c=hit.crate
     if c then selectedCrate=c; status:SetText("Selected "..c.name..". Shift-click its item link into the box and press Bind item.") end
@@ -435,6 +420,36 @@ for i=1,#rows do
     end
   end)
   shopButtons[i]=shop
+  -- Net G/F has its own hover target; the crate-name column stays tooltip-free.
+  local netHover=CreateFrame("Frame",nil,scrollChild)
+  netHover:SetPoint("TOPLEFT",scrollChild,"TOPLEFT",xpos[6]-5,y+2)
+  netHover:SetSize(76,18)
+  netHover:EnableMouse(true)
+  netHover:SetScript("OnEnter",function(self)
+    local r=displayedResults[i]
+    if not r then return end
+    GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
+    GameTooltip:AddLine("Net gold per Favour",1,.82,.2)
+    GameTooltip:AddLine(r.crate.name,1,1,1)
+    GameTooltip:AddLine("Crate purchase: "..money(r.cp),1,1,1)
+    GameTooltip:AddLine("Cheapest materials: "..money(r.bc),1,1,1)
+    local total=r.cp and r.bc and (r.cp+r.bc) or nil
+    GameTooltip:AddLine("Total purchase cost: "..money(total),1,1,1)
+    if r.crate.turnInCopper then
+      GameTooltip:AddLine("Turn-in money (deducted): -"..money(r.crate.turnInCopper),.35,1,.35)
+    else
+      GameTooltip:AddLine("Turn-in money: unconfirmed",.75,.75,.75)
+    end
+    local net=total and r.crate.turnInCopper and (total-r.crate.turnInCopper) or nil
+    GameTooltip:AddLine("Net cost: "..money(net),1,.82,.2)
+    GameTooltip:AddLine("Favour awarded: "..tostring(r.crate.favour or "?"),1,1,1)
+    GameTooltip:AddLine("Net cost / Favour: "..money(r.rate),1,.82,.2)
+    if r.crate.turnInCopper then
+      GameTooltip:AddLine("Turn-in money is beta-reported, not yet verified in-game.",.7,.7,.7,true)
+    end
+    GameTooltip:Show()
+  end)
+  netHover:SetScript("OnLeave",function() GameTooltip:Hide() end)
   for j=1,6 do
     local t=scrollChild:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
     -- Align numeric values under their existing header labels without moving the headers.

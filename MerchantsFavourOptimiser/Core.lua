@@ -699,11 +699,11 @@ ownedCheck:SetScript("OnLeave",function() GameTooltip:Hide() end)
 local plannerStockToggle=CreateFrame("CheckButton",nil,planner,"UICheckButtonTemplate")
 plannerStockToggle:SetSize(22,22)
 plannerStockToggle:SetPoint("TOPRIGHT",planner,"TOPRIGHT",-12,-2)
-local plannerOwnedLabel=planner:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
-plannerOwnedLabel:SetPoint("RIGHT",plannerStockToggle,"LEFT",-7,0)
-plannerOwnedLabel:SetText("Use Owned")
-if headerFont and headerSize then plannerOwnedLabel:SetFont(headerFont,headerSize+4,headerFlags) end
-plannerOwnedLabel:SetTextColor(1,.76,.13)
+local plannerStockLabel=planner:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+plannerStockLabel:SetPoint("RIGHT",plannerStockToggle,"LEFT",-7,0)
+plannerStockLabel:SetText("Use Owned")
+if headerFont and headerSize then plannerStockLabel:SetFont(headerFont,headerSize+4,headerFlags) end
+plannerStockLabel:SetTextColor(1,.76,.13)
 local function updateOwnedSetting(checked)
   MFO_DB.useOwned=checked and true or false
   ownedCheck:SetChecked(MFO_DB.useOwned)

@@ -382,8 +382,9 @@ for i=1,21 do
   end)
   selectButtons[i]=hit
   local shop=CreateFrame("Button",nil,scrollChild)
-  -- Keep the Shop button inside the 846px scroll child (797 + 48 = 845).
-  shop:SetSize(48,18);shop:SetPoint("TOPLEFT",797,y+3);shop:SetText("Shop");SkinWoodButton(shop)
+  -- Keep the original 54px wood button texture at full width while
+  -- fitting entirely inside the 846px scroll child (791 + 54 = 845).
+  shop:SetSize(54,18);shop:SetPoint("TOPLEFT",791,y+3);shop:SetText("Shop");SkinWoodButton(shop)
   shop:SetScript("OnClick",function()
     local r=displayedResults[i]
     if not r or not r.b then status:SetText("No priced material bundle for this crate.");return end

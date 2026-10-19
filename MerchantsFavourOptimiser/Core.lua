@@ -695,10 +695,31 @@ ownedCheck:SetScript("OnEnter",function(self)
   GameTooltip:Show()
 end)
 ownedCheck:SetScript("OnLeave",function() GameTooltip:Hide() end)
-ownedCheck:SetScript("OnClick",function(self)
-  MFO_DB.useOwned=self:GetChecked() and true or false
+-- Mirror the same saved setting inside the planner while the crate subheader is hidden.
+local plannerOwnedCheck=CreateFrame("CheckButton",nil,planner,"UICheckButtonTemplate")
+plannerOwnedCheck:SetSize(22,22)
+plannerOwnedCheck:SetPoint("TOPRIGHT",planner,"TOPRIGHT",-12,-2)
+local plannerOwnedLabel=planner:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+plannerOwnedLabel:SetPoint("RIGHT",plannerOwnedCheck,"LEFT",-7,0)
+plannerOwnedLabel:SetText("Use Owned")
+if headerFont and headerSize then plannerOwnedLabel:SetFont(headerFont,headerSize+4,headerFlags) end
+plannerOwnedLabel:SetTextColor(1,.76,.13)
+local function updateOwnedSetting(checked)
+  MFO_DB.useOwned=checked and true or false
+  ownedCheck:SetChecked(MFO_DB.useOwned)
+  plannerOwnedCheck:SetChecked(MFO_DB.useOwned)
   refresh()
-end)
+end
+local function showOwnedTooltip(self)
+  GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
+  GameTooltip:AddLine("Use Owned Bag / Bank Items",1,.82,.2)
+  GameTooltip:AddLine("Deduct Available Bag and Cached Bank Items From the Planner Shopping Cost.",1,1,1,true)
+  GameTooltip:Show()
+end
+plannerOwnedCheck:SetScript("OnEnter",showOwnedTooltip)
+plannerOwnedCheck:SetScript("OnLeave",function()GameTooltip:Hide()end)
+plannerOwnedCheck:SetScript("OnClick",function(self)updateOwnedSetting(self:GetChecked())end)
+ownedCheck:SetScript("OnClick",function(self)updateOwnedSetting(self:GetChecked())end)
 -- Lightweight minimap launcher: no external libraries required.
 local minimapButton=CreateFrame("Button", "MFOMinimapButton", Minimap)
 minimapButton:SetSize(32,32)
@@ -786,6 +807,7 @@ events:SetScript("OnEvent",function(_,event,name)
  if name~=ADDON then return end
  MFO_DB=MFO_DB or {};MFO_DB.ids=MFO_DB.ids or {}
  ownedCheck:SetChecked(MFO_DB.useOwned or false)
+ plannerOwnedCheck:SetChecked(MFO_DB.useOwned or false)
  positionMinimapButton()
  refresh()
  print("|cffffcc66Merchant's Favour Optimiser|r loaded. Type /mfo")

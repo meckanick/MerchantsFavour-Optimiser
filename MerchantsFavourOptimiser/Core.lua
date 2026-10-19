@@ -134,7 +134,7 @@ local function calc(crate)
   return MFO_Calculations.calculate(crate, price, ownedCount, resolve)
 end
 local frame=CreateFrame("Frame","MFOFrame",UIParent,"BackdropTemplate")
-frame:SetSize(900,440); frame:SetPoint("CENTER"); frame:SetMovable(true); frame:EnableMouse(true)
+frame:SetSize(918,440); frame:SetPoint("CENTER"); frame:SetMovable(true); frame:EnableMouse(true)
 frame:RegisterForDrag("LeftButton"); frame:SetScript("OnDragStart",function(self) self:StartMoving() end); frame:SetScript("OnDragStop",function(self) self:StopMovingOrSizing() end)
 
 -- Wood-and-gold frame inspired by the What's Training? profession interface.
@@ -213,11 +213,13 @@ local labels={"Crate / cheapest bundle", "Crate", "Mats", "Total", "Favour", "Go
 local xpos={16,390,480,570,660,719,809}
 local columnWidths={374,90,90,90,59,90,57}
 local subheader=CreateFrame("Frame",nil,frame,"BackdropTemplate")
+-- Stretch the subheading texture between the inner gold frame borders.
+-- No separate brown outline: the window's own gold trim defines its edges.
 subheader:SetPoint("TOPLEFT",frame,"TOPLEFT",8,-76)
-subheader:SetSize(867,28)
-subheader:SetBackdrop({bgFile=MFO_ART.."WTP_ProfessionRow",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1})
+subheader:SetPoint("TOPRIGHT",frame,"TOPRIGHT",-8,-76)
+subheader:SetHeight(28)
+subheader:SetBackdrop({bgFile=MFO_ART.."WTP_ProfessionRow"})
 subheader:SetBackdropColor(1,1,1,1)
-subheader:SetBackdropBorderColor(.50,.32,.14,.95)
 for i,label in ipairs(labels) do
   local textLabel=subheader:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
   textLabel:SetPoint("LEFT",subheader,"LEFT",xpos[i]-8+(i==1 and 16 or 7),0)
@@ -242,7 +244,7 @@ local scrollFrame=CreateFrame("ScrollFrame","MFOCompactScrollFrame",frame,"UIPan
 scrollFrame:SetPoint("TOPLEFT",frame,"TOPLEFT",12,-110)
 scrollFrame:SetPoint("BOTTOMRIGHT",frame,"BOTTOMRIGHT",-40,79)
 local scrollChild=CreateFrame("Frame",nil,scrollFrame)
-scrollChild:SetSize(846,21*19+4)
+scrollChild:SetSize(864,21*19+4)
 scrollFrame:SetScrollChild(scrollChild)
 -- Preserve Blizzard scrolling mechanics; tint controls to the bronze palette.
 local scrollBar=scrollFrame.ScrollBar or _G["MFOCompactScrollFrameScrollBar"]
@@ -372,7 +374,7 @@ for i=1,21 do
   rowShade:SetTexture(MFO_ART.."WTP_ProfessionRow")
   rowShade:SetVertexColor(.40,.33,.27,i%2==0 and .22 or .13)
   rowShade:SetPoint("TOPLEFT",scrollChild,"TOPLEFT",0,y+2)
-  rowShade:SetSize(843,19)
+  rowShade:SetSize(861,19)
   hit:SetPoint("TOPLEFT",0,y+2);hit:SetSize(365,18)
   hit:SetScript("OnEnter",function() rowShade:SetVertexColor(.85,.76,.59,.52) end)
   hit:SetScript("OnLeave",function() rowShade:SetVertexColor(.40,.33,.27,i%2==0 and .22 or .13) end)
@@ -382,7 +384,9 @@ for i=1,21 do
   end)
   selectButtons[i]=hit
   local shop=CreateFrame("Button",nil,scrollChild)
-  shop:SetSize(54,18);shop:SetPoint("TOPLEFT",789,y+3);shop:SetText("Shop");SkinWoodButton(shop)
+  -- Preserve the full-width wood button, align its center with the Shop
+  -- heading, and give it breathing room before the scrollbar.
+  shop:SetSize(54,18);shop:SetPoint("TOPLEFT",800,y+3);shop:SetText("Shop");SkinWoodButton(shop)
   shop:SetScript("OnClick",function()
     local r=displayedResults[i]
     if not r or not r.b then status:SetText("No priced material bundle for this crate.");return end
@@ -405,7 +409,9 @@ for i=1,21 do
   shopButtons[i]=shop
   for j=1,6 do
     local t=scrollChild:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-    t:SetPoint("TOPLEFT",xpos[j]-16,y);t:SetWidth(({365,82,82,82,50,82})[j]);t:SetJustifyH("LEFT");t:SetWordWrap(false)
+    -- Align numeric values under their existing header labels without moving the headers.
+    -- Move only the crate-name text and Shop buttons to match their header labels.
+    t:SetPoint("TOPLEFT",xpos[j]+(j==1 and 8 or -5),y);t:SetWidth(({341,76,76,76,48,76})[j]);t:SetJustifyH("LEFT");t:SetWordWrap(false)
     entries[i][j]=t
   end
 end

@@ -38,3 +38,19 @@ MFO_DATA = {
   {name='Waylaid Crate: Artisan Parts', id=248713, -- Favour reward not verified; excluded from gold/Favour ranking.
    bundles={{name='Thorium Widget', qty=5},{name='Truesilver Transformer', qty=5},{name='Thorium Tube', qty=2}}},
 }
+
+-- Beta-reported turn-in coin rewards, in copper (100 copper = 1 silver).
+-- Based on crate tier and common/uncommon Favour payout; Artisan remains unverified.
+local betaTurnInCopper = {
+  Apprentice = {[5] = 250, [10] = 500},
+  Journeyman = {[10] = 500, [20] = 1000},
+  Expert = {[15] = 750, [30] = 1500},
+}
+for _, crate in ipairs(MFO_DATA) do
+  for tier, payouts in pairs(betaTurnInCopper) do
+    if crate.name:find(tier, 1, true) then
+      crate.turnInCopper = payouts[crate.favour]
+      break
+    end
+  end
+end

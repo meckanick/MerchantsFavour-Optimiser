@@ -70,7 +70,14 @@ jobs:
           if missing:
               print("Missing texture assets: " + ", ".join(missing))
               sys.exit(1)
-          print(f"Texture references validated ({len(stems)} unique assets).")
+          # Prevent unused artwork from silently accumulating in the addon ZIP.
+          assets = {p.stem for p in root.iterdir()
+                    if p.is_file() and p.suffix.lower() in (".tga", ".blp", ".png")}
+          unused = sorted(assets - stems)
+          if unused:
+              print("Unused texture assets: " + ", ".join(unused))
+              sys.exit(1)
+          print(f"Texture references validated ({len(stems)} unique assets; none unused).")
           PY
       - name: Package addon ZIP
         shell: bash

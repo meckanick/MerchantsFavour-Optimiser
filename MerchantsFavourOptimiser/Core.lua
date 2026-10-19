@@ -486,10 +486,17 @@ local function refresh()
 end
 local refreshBtn=CreateFrame("Button",nil,frame);refreshBtn:SetSize(82,22);refreshBtn:SetPoint("TOPRIGHT",frame,"TOPRIGHT",-38,-44);refreshBtn:SetText("Refresh");SkinWoodButton(refreshBtn);refreshBtn:SetScript("OnClick",refresh)
 local ownedCheck=CreateFrame("CheckButton",nil,subheader,"UICheckButtonTemplate")
-ownedCheck:SetSize(22,22);ownedCheck:SetPoint("LEFT",subheader,"LEFT",232,0)
-local ownedLabel=subheader:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-ownedLabel:SetPoint("LEFT",ownedCheck,"RIGHT",3,0)
+-- Align the checkbox at the right edge of the first column, before its divider.
+ownedCheck:SetSize(22,22);ownedCheck:SetPoint("RIGHT",subheader,"LEFT",374,0)
+local ownedLabel=subheader:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+ownedLabel:SetPoint("RIGHT",ownedCheck,"LEFT",-7,0)
+ownedLabel:SetWidth(105)
+ownedLabel:SetJustifyH("RIGHT")
 ownedLabel:SetText("Use Owned")
+-- Match the header labels' font size, flags and gold tint.
+local headerFont,headerSize,headerFlags=GameFontHighlightSmall:GetFont()
+if headerFont and headerSize then ownedLabel:SetFont(headerFont,headerSize+4,headerFlags) end
+ownedLabel:SetTextColor(1,.76,.13)
 ownedCheck:SetScript("OnEnter",function(self)
   GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
   GameTooltip:AddLine("Use Owned Bag / Bank Items",1,.82,.2)

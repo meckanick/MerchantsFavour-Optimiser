@@ -375,8 +375,6 @@ if scrollBar then
   UpdateScrollAppearance()
 end
 local entries={}
-local selectedCrate=nil
-local selectButtons={}
 local shopButtons={}
 local displayedResults={}
 for i=1,#rows do
@@ -391,11 +389,6 @@ for i=1,#rows do
   hit:SetPoint("TOPLEFT",0,y+2);hit:SetSize(365,18)
   hit:SetScript("OnEnter",function() rowShade:SetVertexColor(.85,.76,.59,.52) end)
   hit:SetScript("OnLeave",function() rowShade:SetVertexColor(.40,.33,.27,i%2==0 and .22 or .13) end)
-  hit:SetScript("OnClick",function()
-    local c=hit.crate
-    if c then selectedCrate=c; status:SetText("Selected "..c.name..". Shift-Click Its Item Link into the Box and Press Bind Item.") end
-  end)
-  selectButtons[i]=hit
   local shop=CreateFrame("Button",nil,scrollChild)
   -- Preserve the full-width wood button, align its center with the Shop
   -- heading, and give it breathing room before the scrollbar.
@@ -478,7 +471,6 @@ local function refresh()
   displayedResults=results
   for i,r in ipairs(results) do
     local t=entries[i]
-    selectButtons[i].crate=r.crate
     t[1]:SetText(r.crate.name:gsub("Waylaid Crate: ","")..(r.b and (" ("..(MFO_DB.useOwned and ((r.missing or r.b.qty).." to Buy / "..(r.owned or 0).." Owned") or (r.b.qty.."x")).." "..r.b.name..")") or ""))
     t[2]:SetText(money(r.cp));t[3]:SetText(money(r.bc));t[4]:SetText(money(r.cp and r.bc and (r.cp+r.bc) or nil));t[5]:SetText(r.crate.favour or "?");t[6]:SetText(money(r.rate))
     t[6]:SetTextColor(r.rate and .95 or .6,r.rate and .8 or .6,r.rate and .35 or .6)
@@ -494,7 +486,7 @@ local function refresh()
 end
 local refreshBtn=CreateFrame("Button",nil,frame);refreshBtn:SetSize(82,22);refreshBtn:SetPoint("TOPRIGHT",frame,"TOPRIGHT",-38,-44);refreshBtn:SetText("Refresh");SkinWoodButton(refreshBtn);refreshBtn:SetScript("OnClick",refresh)
 local ownedCheck=CreateFrame("CheckButton",nil,frame,"UICheckButtonTemplate")
-ownedCheck:SetSize(24,24);ownedCheck:SetPoint("BOTTOMLEFT",475,44)
+ownedCheck:SetSize(24,24);ownedCheck:SetPoint("BOTTOMLEFT",frame,"BOTTOMLEFT",17,42)
 local ownedLabel=frame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
 ownedLabel:SetPoint("LEFT",ownedCheck,"RIGHT",3,0)
 ownedLabel:SetText("Use Owned Bag / Bank Items")
@@ -502,25 +494,6 @@ ownedCheck:SetScript("OnClick",function(self)
   MFO_DB.useOwned=self:GetChecked() and true or false
   refresh()
 end)
-local bindLabel=frame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall");bindLabel:SetPoint("BOTTOMLEFT",16,49);bindLabel:SetText("Item Link:")
-local edit=CreateFrame("EditBox",nil,frame,"InputBoxTemplate");edit:SetSize(205,22);edit:SetPoint("LEFT",bindLabel,"RIGHT",12,0);edit:SetAutoFocus(false)
-local bindBtn=CreateFrame("Button",nil,frame);bindBtn:SetSize(85,22);bindBtn:SetPoint("LEFT",edit,"RIGHT",8,0);bindBtn:SetText("Bind Item");SkinWoodButton(bindBtn)
-local function bind()
-  local s=edit:GetText();local id=tonumber(s:match("item:(%d+)"))
-  local name=s:match("%[([^%]]+)%]")
-  if not id then status:SetText("Shift-Click an Item Link into the Box First.");return end
-  if not name and C_Item and C_Item.GetItemInfo then name=C_Item.GetItemInfo(id) end
-  if not name then status:SetText("Item Name Unavailable; Hover the Item and Retry.");return end
-  if selectedCrate then
-    local expected=selectedCrate.name
-    if name~=expected then status:SetText("Link Is "..name.."; Selected Crate Is "..expected..". Select Matching Crate and Retry.");return end
-    MFO_DB.ids[expected]=id; selectedCrate=nil
-  else
-    MFO_DB.ids[name]=id
-  end
-  edit:SetText("");refresh()
-end
-bindBtn:SetScript("OnClick",bind);edit:SetScript("OnEnterPressed",function(self)bind();self:ClearFocus()end)
 -- Lightweight minimap launcher: no external libraries required.
 local minimapButton=CreateFrame("Button", "MFOMinimapButton", Minimap)
 minimapButton:SetSize(32,32)

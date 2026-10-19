@@ -382,7 +382,7 @@ for i=1,21 do
   end)
   selectButtons[i]=hit
   local shop=CreateFrame("Button",nil,scrollChild)
-  shop:SetSize(54,18);shop:SetPoint("TOPLEFT",789,y+3);shop:SetText("Shop");SkinWoodButton(shop)
+  shop:SetSize(54,18);shop:SetPoint("TOPLEFT",797,y+3);shop:SetText("Shop");SkinWoodButton(shop)
   shop:SetScript("OnClick",function()
     local r=displayedResults[i]
     if not r or not r.b then status:SetText("No priced material bundle for this crate.");return end
@@ -406,8 +406,8 @@ for i=1,21 do
   for j=1,6 do
     local t=scrollChild:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
     -- Align numeric values under their existing header labels without moving the headers.
-    -- Keep the wide crate-name column and Shop buttons in their original positions.
-    t:SetPoint("TOPLEFT",xpos[j]-(j==1 and 16 or 5),y);t:SetWidth(({365,76,76,76,48,76})[j]);t:SetJustifyH("LEFT");t:SetWordWrap(false)
+    -- Move only the crate-name text and Shop buttons to match their header labels.
+    t:SetPoint("TOPLEFT",xpos[j]+(j==1 and 8 or -5),y);t:SetWidth(({341,76,76,76,48,76})[j]);t:SetJustifyH("LEFT");t:SetWordWrap(false)
     entries[i][j]=t
   end
 end

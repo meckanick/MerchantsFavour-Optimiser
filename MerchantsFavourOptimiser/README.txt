@@ -1,4 +1,4 @@
-Merchant's Favour Optimiser v0.1.53 - WoW Forever
+Merchant's Favour Optimiser v0.1.54 - WoW Forever
 
 Install the MerchantsFavourOptimiser folder in Interface/AddOns.
 Auctionator is required for auction pricing.
@@ -15,3 +15,5 @@ Unknown auction prices appear as ?.
 
 Net G/F subtracts beta-reported turn-in coin rewards; hover Net G/F values for the full cost and payout breakdown.
 Purchase Total is unchanged. Artisan turn-in rewards remain unverified.
+
+Interface labels, status messages and tooltips use WoW-style title capitalization.

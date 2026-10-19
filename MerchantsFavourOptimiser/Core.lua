@@ -187,9 +187,6 @@ local emblem=CreateFrame("Frame",nil,frame)
 emblem:SetSize(64,64)
 emblem:SetPoint("TOPLEFT",frame,"TOPLEFT",-7,8)
 emblem:SetFrameLevel(frame:GetFrameLevel()+5)
-local medallion=emblem:CreateTexture(nil,"ARTWORK")
-medallion:SetTexture(nil)
-medallion:SetAllPoints()
 local merchantIcon=emblem:CreateTexture(nil,"OVERLAY")
 merchantIcon:SetTexture(MFO_ART.."MFO_CoinBadge3D")
 merchantIcon:SetSize(68,68)
@@ -579,7 +576,7 @@ events:SetScript("OnEvent",function(_,event,name)
   return
  end
  if name~=ADDON then return end
- MFO_DB=MFO_DB or {};MFO_DB.ids=MFO_DB.ids or {};MFO_DB.useSnapshot=nil
+ MFO_DB=MFO_DB or {};MFO_DB.ids=MFO_DB.ids or {}
  ownedCheck:SetChecked(MFO_DB.useOwned or false)
  positionMinimapButton()
  refresh()

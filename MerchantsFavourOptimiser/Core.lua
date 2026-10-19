@@ -1,5 +1,6 @@
 local ADDON = ...
 local rows = MFO_DATA
+local note -- forward declaration: updateScanNote is defined before the UI font string
 local function money(v)
   if not v then return "?" end
   v = math.floor(v + 0.5)
@@ -177,7 +178,7 @@ close:SetNormalTexture(MFO_ART.."WTP_NativeClose")
 close:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square","ADD")
 close:SetFrameLevel(frame:GetFrameLevel()+10)
 close:SetScript("OnClick",function() frame:Hide() end)
-local note=frame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+note=frame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
 note:SetPoint("TOPLEFT",70,-53)
 note:SetText("Auctionator scanned prices | 21 crates")
 local status=frame:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")

@@ -142,12 +142,12 @@ local function scanBank()
   MFO_DB.bankCounts=counts
   MFO_DB.bankScanTime=time()
 end
-local function OwnedCount(id)
+local function ownedCount(id)
   if not MFO_DB or not MFO_DB.useOwned then return 0 end
   return (bagCounts[id] or 0)+(MFO_DB.bankCounts and MFO_DB.bankCounts[id] or 0)
 end
 local function calc(crate)
-  return MFO_Calculations.calculate(crate, price, OwnedCount, resolve)
+  return MFO_Calculations.calculate(crate, price, ownedCount, resolve)
 end
 local frame=CreateFrame("Frame","MFOFrame",UIParent,"BackdropTemplate")
 frame:SetSize(918,440); frame:SetPoint("CENTER"); frame:SetMovable(true); frame:EnableMouse(true)

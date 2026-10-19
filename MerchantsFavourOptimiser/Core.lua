@@ -633,6 +633,24 @@ local function planFavour()
 end
 calculateButton:SetScript("OnClick",planFavour)
 targetInput:SetScript("OnEnterPressed",function(self)self:ClearFocus();planFavour()end)
+plannerShop:SetScript("OnEnter",function(self)
+  if not plannerShopping then return end
+  GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
+  GameTooltip:AddLine("Planned Shopping Quantities",1,.82,.2)
+  local items={}
+  for _,entry in ipairs(plannerShopping.details) do
+    local o=entry.option
+    items[o.id]=o.name
+    items[o.materialID]=o.bundle.name
+  end
+  local sorted={}
+  for id,qty in pairs(plannerShopping.items) do sorted[#sorted+1]={id=id,qty=qty,name=items[id] or tostring(id)} end
+  table.sort(sorted,function(a,b)return a.name<b.name end)
+  for _,item in ipairs(sorted) do GameTooltip:AddLine(item.name.." x "..item.qty,1,1,1) end
+  GameTooltip:AddLine("Auctionator MultiSearch Does Not Automatically Buy Quantities.",.8,.8,.8,true)
+  GameTooltip:Show()
+end)
+plannerShop:SetScript("OnLeave",function()GameTooltip:Hide()end)
 plannerShop:SetScript("OnClick",function()
   if not plannerShopping then plannerInfo:SetText("Calculate a Plan First.");return end
   local terms,seen={},{}
@@ -654,7 +672,7 @@ plannerShop:SetScript("OnClick",function()
   end
   local ok,err=pcall(api.MultiSearch,ADDON,terms)
   if ok then
-    plannerInfo:SetText("Auctionator Search Opened. Buy Quantities Listed in the Plan.")
+    plannerInfo:SetText("Auctionator Search Opened. Hover Shop Planned Items for Exact Quantities.")
   else plannerInfo:SetText("Auctionator Search Failed: "..tostring(err)) end
 end)
 local plannerBtn=CreateFrame("Button",nil,frame)

@@ -24,6 +24,31 @@ for _, crate in ipairs(MFO_DATA) do
 end
 equal(artisanCount, 8, "eight unconfirmed Artisan definitions must be retained")
 equal(visibleCount, 22, "exactly 22 confirmed-tier crates should remain visible")
+local expectedCoin = {
+  Apprentice = {[5] = 250, [10] = 500},
+  Journeyman = {[10] = 500, [20] = 1000},
+  Expert = {[15] = 750, [30] = 1500},
+}
+for _, c in ipairs(MFO_DATA) do
+  if c.name:find("Artisan", 1, true) then
+    equal(c.turnInCopper, nil, "Artisan coin rewards must remain unverified")
+  else
+    local tier = c.name:match("Apprentice") or c.name:match("Journeyman") or c.name:match("Expert")
+    check(tier ~= nil, c.name .. " must have a known tier")
+    equal(c.turnInCopper, expectedCoin[tier][c.favour], c.name .. " reported coin reward")
+  end
+end
+local netTestCrate = {id=9001, name="Net payout test", favour=10, turnInCopper=500,
+  bundles={{name="Test Material",qty=1}}}
+local netRate = MFO_Calculations.calculate(netTestCrate,
+  function(id) return id == 9001 and 1000 or 1000 end,
+  function() return 0 end,
+  function() return 101 end)
+equal(netRate, 150, "net gold per Favour must deduct turn-in money")
+netTestCrate.turnInCopper = 2500
+netRate = MFO_Calculations.calculate(netTestCrate,
+  function() return 1000 end, function() return 0 end, function() return 101 end)
+equal(netRate, -50, "turn-in coin reward may exceed purchase cost")
 local ids, names = {}, {}
 for _, crate in ipairs(MFO_DATA) do
   check(type(crate.name) == "string" and crate.name ~= "", "crate name must exist")
@@ -114,4 +139,21 @@ local noFavourRate, _, noFavourBundle = MFO_Calculations.calculate(
 equal(noFavourRate, nil, "unverified favour cannot generate gold-per-favour rank")
 check(noFavourBundle ~= nil, "unverified favour still allows cheapest bundle selection")
 
-print("PASS: 30 crate definitions and calculation regression scenarios")
+
+-- Guard against accidental capitalization of case-sensitive Lua identifiers
+-- while editing player-facing text. This caught the v0.1.55 ownedCheck bug.
+local coreFile = assert(io.open("MerchantsFavourOptimiser/Core.lua", "r"))
+local coreSource = coreFile:read("*a")
+coreFile:close()
+for _, identifier in ipairs({"ownedCheck", "ownedLabel", "ownedCount"}) do
+  check((coreSource:find("local " .. identifier, 1, true) ~= nil or
+    coreSource:find("local function " .. identifier, 1, true) ~= nil),
+    "UI identifier " .. identifier .. " must retain its original case")
+end
+check(not coreSource:find("OwnedCheck", 1, true), "wrong-case OwnedCheck reference")
+check(not coreSource:find("OwnedLabel", 1, true), "wrong-case OwnedLabel reference")
+check(not coreSource:find("OwnedCount", 1, true), "wrong-case OwnedCount reference")
+check(coreSource:find('Crate (Cheapest Bundle)', 1, true) ~= nil, "crate column heading must be preserved")
+check(coreSource:find('Net C/F', 1, true) ~= nil, "net cost heading must be preserved")
+
+print("PASS: 30 crate definitions, calculations and UI capitalization guards")

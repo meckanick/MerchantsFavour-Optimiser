@@ -1,4 +1,4 @@
-Merchant's Favour Optimiser v0.1.57 - WoW Forever
+Merchant's Favour Optimiser v0.1.60 - WoW Forever
 
 Install the MerchantsFavourOptimiser folder in Interface/AddOns.
 Auctionator is required for auction pricing.
@@ -19,3 +19,9 @@ Purchase Total is unchanged. Artisan turn-in rewards remain unverified.
 Interface labels, status messages and tooltips use WoW-style title capitalization.
 
 Case-sensitive Lua identifier guards added to CI after capitalization audit.
+
+Removed obsolete Item Link / Bind Item controls; owned-items toggle moved to the left footer. Refresh remains available.
+
+The compact Use Owned checkbox is now in the Crate (Cheapest Bundle) header, with a tooltip explaining its purpose. Footer and window height reduced.
+
+Use Owned now matches header gold typography, with the checkbox right-aligned before the first column divider.

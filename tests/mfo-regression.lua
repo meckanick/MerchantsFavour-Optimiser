@@ -155,5 +155,8 @@ check(not coreSource:find("OwnedLabel", 1, true), "wrong-case OwnedLabel referen
 check(not coreSource:find("OwnedCount", 1, true), "wrong-case OwnedCount reference")
 check(coreSource:find('Crate (Cheapest Bundle)', 1, true) ~= nil, "crate column heading must be preserved")
 check(coreSource:find('Net C/F', 1, true) ~= nil, "net cost heading must be preserved")
+check(not coreSource:find("Bind Item", 1, true), "obsolete manual bind button must be absent")
+check(not coreSource:find("Item Link:", 1, true), "obsolete item link box must be absent")
+check(coreSource:find('refreshBtn:SetScript("OnClick",refresh)', 1, true) ~= nil, "refresh control must remain")
 
 print("PASS: 30 crate definitions, calculations and UI capitalization guards")

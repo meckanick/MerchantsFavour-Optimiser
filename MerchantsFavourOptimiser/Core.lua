@@ -150,7 +150,7 @@ local function calc(crate)
   return MFO_Calculations.calculate(crate, price, ownedCount, resolve)
 end
 local frame=CreateFrame("Frame","MFOFrame",UIParent,"BackdropTemplate")
-frame:SetSize(918,440); frame:SetPoint("CENTER"); frame:SetMovable(true); frame:EnableMouse(true)
+frame:SetSize(918,410); frame:SetPoint("CENTER"); frame:SetMovable(true); frame:EnableMouse(true)
 frame:RegisterForDrag("LeftButton"); frame:SetScript("OnDragStart",function(self) self:StartMoving() end); frame:SetScript("OnDragStop",function(self) self:StopMovingOrSizing() end)
 
 -- Wood-and-gold frame inspired by the What's Training? profession interface.
@@ -180,7 +180,7 @@ local footer=frame:CreateTexture(nil,"ARTWORK")
 footer:SetTexture(MFO_ART.."WTP_NativeHeader")
 footer:SetPoint("BOTTOMLEFT",frame,"BOTTOMLEFT",9,7)
 footer:SetPoint("BOTTOMRIGHT",frame,"BOTTOMRIGHT",-9,7)
-footer:SetHeight(34)
+footer:SetHeight(28)
 footer:SetTexCoord(0,1,1,0)
 
 local emblem=CreateFrame("Frame",nil,frame)
@@ -236,7 +236,7 @@ subheader:SetBackdropColor(1,1,1,1)
 for i,label in ipairs(labels) do
   local textLabel=subheader:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
   textLabel:SetPoint("LEFT",subheader,"LEFT",xpos[i]-8+(i==1 and 16 or 7),0)
-  textLabel:SetWidth(columnWidths[i]-(i==1 and 22 or 12))
+  textLabel:SetWidth(i==1 and 210 or columnWidths[i]-12)
   textLabel:SetJustifyH("LEFT")
   textLabel:SetText(label)
   -- Keep the headers exactly four font points above the row text.
@@ -255,7 +255,7 @@ end
 -- A fixed-height scrolling viewport supports every crate without enlarging the window.
 local scrollFrame=CreateFrame("ScrollFrame","MFOCompactScrollFrame",frame,"UIPanelScrollFrameTemplate")
 scrollFrame:SetPoint("TOPLEFT",frame,"TOPLEFT",12,-110)
-scrollFrame:SetPoint("BOTTOMRIGHT",frame,"BOTTOMRIGHT",-40,79)
+scrollFrame:SetPoint("BOTTOMRIGHT",frame,"BOTTOMRIGHT",-40,45)
 local scrollChild=CreateFrame("Frame",nil,scrollFrame)
 scrollChild:SetSize(864,#rows*19+4)
 scrollFrame:SetScrollChild(scrollChild)
@@ -375,8 +375,6 @@ if scrollBar then
   UpdateScrollAppearance()
 end
 local entries={}
-local selectedCrate=nil
-local selectButtons={}
 local shopButtons={}
 local displayedResults={}
 for i=1,#rows do
@@ -391,11 +389,6 @@ for i=1,#rows do
   hit:SetPoint("TOPLEFT",0,y+2);hit:SetSize(365,18)
   hit:SetScript("OnEnter",function() rowShade:SetVertexColor(.85,.76,.59,.52) end)
   hit:SetScript("OnLeave",function() rowShade:SetVertexColor(.40,.33,.27,i%2==0 and .22 or .13) end)
-  hit:SetScript("OnClick",function()
-    local c=hit.crate
-    if c then selectedCrate=c; status:SetText("Selected "..c.name..". Shift-Click Its Item Link into the Box and Press Bind Item.") end
-  end)
-  selectButtons[i]=hit
   local shop=CreateFrame("Button",nil,scrollChild)
   -- Preserve the full-width wood button, align its center with the Shop
   -- heading, and give it breathing room before the scrollbar.
@@ -478,7 +471,6 @@ local function refresh()
   displayedResults=results
   for i,r in ipairs(results) do
     local t=entries[i]
-    selectButtons[i].crate=r.crate
     t[1]:SetText(r.crate.name:gsub("Waylaid Crate: ","")..(r.b and (" ("..(MFO_DB.useOwned and ((r.missing or r.b.qty).." to Buy / "..(r.owned or 0).." Owned") or (r.b.qty.."x")).." "..r.b.name..")") or ""))
     t[2]:SetText(money(r.cp));t[3]:SetText(money(r.bc));t[4]:SetText(money(r.cp and r.bc and (r.cp+r.bc) or nil));t[5]:SetText(r.crate.favour or "?");t[6]:SetText(money(r.rate))
     t[6]:SetTextColor(r.rate and .95 or .6,r.rate and .8 or .6,r.rate and .35 or .6)
@@ -493,34 +485,29 @@ local function refresh()
   status:SetText(complete.."/"..#rows.." Ranked | "..missingIDs.." Unknown IDs | "..missingPrices.." Missing Crate Prices. "..(MFO_DB.useOwned and "Owned Items Deducted." or "All Items Valued at AH Prices.")..bankInfo)
 end
 local refreshBtn=CreateFrame("Button",nil,frame);refreshBtn:SetSize(82,22);refreshBtn:SetPoint("TOPRIGHT",frame,"TOPRIGHT",-38,-44);refreshBtn:SetText("Refresh");SkinWoodButton(refreshBtn);refreshBtn:SetScript("OnClick",refresh)
-local ownedCheck=CreateFrame("CheckButton",nil,frame,"UICheckButtonTemplate")
-ownedCheck:SetSize(24,24);ownedCheck:SetPoint("BOTTOMLEFT",475,44)
-local ownedLabel=frame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-ownedLabel:SetPoint("LEFT",ownedCheck,"RIGHT",3,0)
-ownedLabel:SetText("Use Owned Bag / Bank Items")
+local ownedCheck=CreateFrame("CheckButton",nil,subheader,"UICheckButtonTemplate")
+-- Align the checkbox at the right edge of the first column, before its divider.
+ownedCheck:SetSize(22,22);ownedCheck:SetPoint("RIGHT",subheader,"LEFT",374,0)
+local ownedLabel=subheader:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+ownedLabel:SetPoint("RIGHT",ownedCheck,"LEFT",-7,0)
+ownedLabel:SetWidth(105)
+ownedLabel:SetJustifyH("RIGHT")
+ownedLabel:SetText("Use Owned")
+-- Match the header labels' font size, flags and gold tint.
+local headerFont,headerSize,headerFlags=GameFontHighlightSmall:GetFont()
+if headerFont and headerSize then ownedLabel:SetFont(headerFont,headerSize+4,headerFlags) end
+ownedLabel:SetTextColor(1,.76,.13)
+ownedCheck:SetScript("OnEnter",function(self)
+  GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
+  GameTooltip:AddLine("Use Owned Bag / Bank Items",1,.82,.2)
+  GameTooltip:AddLine("Deduct Owned Materials From the Cheapest Bundle Cost.",1,1,1,true)
+  GameTooltip:Show()
+end)
+ownedCheck:SetScript("OnLeave",function() GameTooltip:Hide() end)
 ownedCheck:SetScript("OnClick",function(self)
   MFO_DB.useOwned=self:GetChecked() and true or false
   refresh()
 end)
-local bindLabel=frame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall");bindLabel:SetPoint("BOTTOMLEFT",16,49);bindLabel:SetText("Item Link:")
-local edit=CreateFrame("EditBox",nil,frame,"InputBoxTemplate");edit:SetSize(205,22);edit:SetPoint("LEFT",bindLabel,"RIGHT",12,0);edit:SetAutoFocus(false)
-local bindBtn=CreateFrame("Button",nil,frame);bindBtn:SetSize(85,22);bindBtn:SetPoint("LEFT",edit,"RIGHT",8,0);bindBtn:SetText("Bind Item");SkinWoodButton(bindBtn)
-local function bind()
-  local s=edit:GetText();local id=tonumber(s:match("item:(%d+)"))
-  local name=s:match("%[([^%]]+)%]")
-  if not id then status:SetText("Shift-Click an Item Link into the Box First.");return end
-  if not name and C_Item and C_Item.GetItemInfo then name=C_Item.GetItemInfo(id) end
-  if not name then status:SetText("Item Name Unavailable; Hover the Item and Retry.");return end
-  if selectedCrate then
-    local expected=selectedCrate.name
-    if name~=expected then status:SetText("Link Is "..name.."; Selected Crate Is "..expected..". Select Matching Crate and Retry.");return end
-    MFO_DB.ids[expected]=id; selectedCrate=nil
-  else
-    MFO_DB.ids[name]=id
-  end
-  edit:SetText("");refresh()
-end
-bindBtn:SetScript("OnClick",bind);edit:SetScript("OnEnterPressed",function(self)bind();self:ClearFocus()end)
 -- Lightweight minimap launcher: no external libraries required.
 local minimapButton=CreateFrame("Button", "MFOMinimapButton", Minimap)
 minimapButton:SetSize(32,32)

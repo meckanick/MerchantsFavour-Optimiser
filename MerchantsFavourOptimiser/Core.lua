@@ -209,7 +209,7 @@ local function SkinWoodButton(button)
   local font=button:GetFontString()
   if font then font:SetFontObject(GameFontNormalSmall);font:SetTextColor(1,.82,.05) end
 end
-local labels={"Crate / cheapest bundle", "Crate", "Mats", "Total", "Favour", "Gold Per\nFavour", "Shop"}
+local labels={"Crate / cheapest bundle", "Crate", "Mats", "Total", "Favour", "Gold/Fav", "Shop"}
 local xpos={16,390,480,570,660,719,809}
 local columnWidths={374,90,90,90,59,90,57}
 local subheader=CreateFrame("Frame",nil,frame,"BackdropTemplate")
@@ -220,23 +220,21 @@ subheader:SetBackdropColor(1,1,1,1)
 subheader:SetBackdropBorderColor(.50,.32,.14,.95)
 for i,label in ipairs(labels) do
   local textLabel=subheader:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
-  -- Use the same horizontal origin as the data rows (which are offset
-  -- by the scroll viewport), avoiding the former 11px header drift.
-  textLabel:SetPoint("LEFT",subheader,"LEFT",xpos[i]-12,0)
-  textLabel:SetWidth(columnWidths[i]-(i==1 and 8 or 2))
-  textLabel:SetJustifyH(i==1 and "LEFT" or "CENTER")
+  textLabel:SetPoint("LEFT",subheader,"LEFT",xpos[i]-8+(i==1 and 16 or 7),0)
+  textLabel:SetWidth(columnWidths[i]-(i==1 and 22 or 12))
+  textLabel:SetJustifyH("LEFT")
   textLabel:SetText(label)
   -- Keep the headers exactly four font points above the row text.
   local bodyFont,bodySize,bodyFlags=GameFontHighlightSmall:GetFont()
   if bodyFont and bodySize then
-    textLabel:SetFont(bodyFont,bodySize+(i==6 and 1 or 4),bodyFlags)
+    textLabel:SetFont(bodyFont,bodySize+4,bodyFlags)
   end
   textLabel:SetTextColor(1,.76,.13)
   if i>1 then
     local divider=subheader:CreateTexture(nil,"ARTWORK")
     divider:SetColorTexture(.42,.27,.11,.75)
     divider:SetSize(1,15)
-    divider:SetPoint("LEFT",subheader,"LEFT",xpos[i]-14,-1)
+    divider:SetPoint("LEFT",subheader,"LEFT",xpos[i]-8,-1)
   end
 end
 -- A fixed-height scrolling viewport keeps all 21 rows available without a tall window.

@@ -225,8 +225,9 @@ for _,crate in ipairs(MFO_DATA or {}) do
 end
 local function update()
  if not panel or not panel:IsShown() then return end
+ local shopping=AH.Shopping()
  local items={}
- for id,v in pairs(AH.Shopping()) do
+ for id,v in pairs(shopping) do
   if type(id)=="number" and type(v)=="table" and (v.qty or 0)>0 then
    items[#items+1]={id=id,name=v.name or tostring(id),qty=v.qty}
   end
@@ -246,14 +247,16 @@ local function update()
  panel.items=items
  panel.offset=math.min(panel.offset,math.max(0,#items-#rows))
  local total=0
+ local prices={}
  for _,v in ipairs(items) do
   local price=AH.Price(v.id)
+  prices[v.id]=price
   if price then total=total+price*v.qty end
  end
  panel.total:SetText(#items.." items  |  Estimated total: "..gold(total))
- local current=selected and AH.Shopping()[selected]
+ local current=selected and shopping[selected]
  if panel.detail then
-  local selectedPrice=current and AH.Price(selected)
+  local selectedPrice=current and prices[selected]
   panel.detail:SetText(current and (current.name.."\nRequired quantity: "..current.qty.."\nCached unit price: "..gold(selectedPrice).."\nEstimated total: "..gold((selectedPrice or 0)*current.qty)) or "")
  end
  if panel.itemIcon then
@@ -270,7 +273,7 @@ local function update()
   if item then
    row.label:SetText((selected==item.id and "|cffffd45a> |r" or "")..item.name.." x"..item.qty)
    if selected==item.id then row.highlight:Show() else row.highlight:Hide() end
-   local price=AH.Price(item.id)
+   local price=prices[item.id]
    row.cost:SetText(price and gold(price*item.qty) or "No price")
    row:Show()
   else row.highlight:Hide();row:Hide() end

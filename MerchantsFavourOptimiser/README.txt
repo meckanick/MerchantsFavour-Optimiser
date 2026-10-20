@@ -1,4 +1,4 @@
-Merchant's Favour Optimiser v0.1.67 - WoW Forever
+Merchant's Favour Optimiser v0.1.68 - WoW Forever
 
 Install the MerchantsFavourOptimiser folder in Interface/AddOns.
 Auctionator is required for auction pricing.
@@ -39,3 +39,5 @@ Top toolbar tidied: Auctionator scan-age details moved to the Refresh button too
 Footer: bottom-right AH Scan indicator shows oldest available Auctionator price age in hours/days, colored green (<1 day), yellow (1-3 days), orange (3-7 days), red (7+ days), or grey if unavailable.
 
 Footer now displays concise crate counts and only actionable warnings, plus Last AH Scan: [elapsed hours/days/weeks/months] Ago in freshness colors. Refresh tooltip removed. Scan age is inferred from the oldest available Auctionator price record, not a separate scan timestamp.
+
+Scan-age fix: footer now reads Auctionator Forever's AUCTIONATOR_LAST_SCAN_TIME (completed full scans), not the oldest cached item-price age. Shows Unknown if Auctionator has not recorded a full scan.

@@ -253,3 +253,6 @@ check(not ahTab:find('PlaceBid',1,true),"AH tab must not auto-buy")
 check(ahTab:find('AuctionTabTemplate',1,true)~=nil,"AH shop must register a native auction tab")
 check(ahTab:find('PanelTemplates_SetNumTabs',1,true)~=nil,"AH shop must register tab count")
 check(ahTab:find('AuctionFrameBrowse:Hide()',1,true)~=nil,"AH shop must replace Blizzard browse pane when selected")
+
+check(ahTab:find('addon=="Blizzard_AuctionUI"',1,true)~=nil,"MFO tab must attach when Blizzard Auction UI loads")
+check(ahTab:find('AUCTION_HOUSE_SHOW',1,true)~=nil,"MFO tab must handle opening the auction house")

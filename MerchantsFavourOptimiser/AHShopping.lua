@@ -59,6 +59,43 @@ local function restoreNative()
  end
  wipe(hiddenPanels)
 end
+-- Temporarily replace the native Auction House title; restore it on tab exit.
+local originalTitles={}
+local function setNativeTitle(parent)
+ wipe(originalTitles)
+ local seen={}
+ local function inspect(region)
+  if not region or seen[region] or not region.GetObjectType or region:GetObjectType()~="FontString" then return end
+  seen[region]=true
+  local value=region:GetText()
+  if value=="Auctions" or value=="Browse Auctions" or value=="Auction House" then
+   local _,y=region:GetCenter()
+   local _,py=parent:GetCenter()
+   if y and py and y>py+parent:GetHeight()*.32 then
+    originalTitles[#originalTitles+1]={region,value}
+    region:SetText("MFO - Shopping")
+   end
+  end
+ end
+ local function scan(frame,depth)
+  if not frame or depth>3 then return end
+  if frame.GetRegions then
+   for _,region in ipairs({frame:GetRegions()}) do inspect(region) end
+  end
+  if frame.GetChildren then
+   for _,child in ipairs({frame:GetChildren()}) do
+    if child~=panel and child~=tab then scan(child,depth+1) end
+   end
+  end
+ end
+ scan(parent,0)
+end
+local function restoreNativeTitle()
+ for _,entry in ipairs(originalTitles) do
+  if entry[1] and entry[1].SetText then entry[1]:SetText(entry[2]) end
+ end
+ wipe(originalTitles)
+end
 local function gold(c)
  if not c then return "No price" end
  return string.format("%dg %ds %dc",math.floor(c/10000),math.floor(c/100)%100,c%100)
@@ -125,6 +162,7 @@ end
 local function close()
  if panel then panel:Hide() end
  restoreNative()
+ restoreNativeTitle()
  if tab then tab:SetButtonState("NORMAL",false) end
 end
 local function attach(parent)
@@ -267,6 +305,7 @@ local function attach(parent)
  done:SetScript("OnClick",close)
  local function activate()
   hideNative(parent)
+  setNativeTitle(parent)
   panel:Show()
   tab:SetButtonState("PUSHED",true)
   update()

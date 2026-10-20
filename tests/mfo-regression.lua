@@ -194,7 +194,7 @@ check(not coreSource:find("Bind Item", 1, true), "obsolete manual bind button mu
 check(not coreSource:find("Item Link:", 1, true), "obsolete item link box must be absent")
 check(coreSource:find('refreshBtn:SetScript("OnClick",refresh)', 1, true) ~= nil, "refresh control must remain")
 check(coreSource:find('note:Hide()',1,true)~=nil, "scan note must not clutter toolbar")
-check(coreSource:find('GameTooltip:AddLine(note:GetText()',1,true)~=nil, "scan-age info must remain accessible on Refresh hover")
+check(not coreSource:find('GameTooltip:AddLine(note:GetText()',1,true), "Refresh must not display scan-age tooltip")
 check(coreSource:find('clearButton:SetPoint("RIGHT",refreshBtn,"LEFT",-10,0)',1,true)~=nil,
   "Clear button must sit beside Refresh")
 check(coreSource:find('targetInput:SetPoint("RIGHT",clearButton,"LEFT",-10,0)',1,true)~=nil,
@@ -205,7 +205,14 @@ print("PASS: 30 crate definitions, calculations and UI capitalization guards")
 
 check(coreSource:find('scanAgeFooter:SetPoint("BOTTOMRIGHT"',1,true)~=nil,
   "scan-age indicator must sit at bottom-right")
-check(coreSource:find('scanAgeFooter:SetText("AH Scan: "..ageText.." Old")',1,true)~=nil,
+check(coreSource:find('scanAgeFooter:SetText("Last AH Scan: "..ageText.." Ago")',1,true)~=nil,
   "scan-age indicator must display measured elapsed age")
 check(coreSource:find('if oldestAge<1 then scanAgeFooter:SetTextColor',1,true)~=nil,
   "scan-age indicator must use freshness colors")
+
+check(coreSource:find('footerParts={complete.."/"..#rows.." Crates"}',1,true)~=nil,
+  "footer must show concise crate count")
+check(coreSource:find('if missingIDs>0 then footerParts',1,true)~=nil,
+  "footer should only show missing ID warnings when relevant")
+check(coreSource:find('if missingPrices>0 then footerParts',1,true)~=nil,
+  "footer should only show missing price warnings when relevant")

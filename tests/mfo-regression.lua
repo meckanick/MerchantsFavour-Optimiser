@@ -242,3 +242,10 @@ check(coreSource:find('scanOverlay:Hide()',1,true)~=nil,
   "AH scan overlay must disappear after completion")
 check(not coreSource:find('local scanBar=CreateFrame',1,true),
   "old horizontal AH scan progress bar must be removed")
+
+local ahTab=assert(io.open("MerchantsFavourOptimiser/AHShopping.lua","r")):read("*a")
+check(ahTab:find('AH.Shopping()',1,true)~=nil,"AH tab must read MFO shopping list")
+check(ahTab:find('AH.Price(',1,true)~=nil,"AH tab must display stored prices")
+check(ahTab:find('C_AuctionHouse.SendSearchQuery',1,true)~=nil,"AH tab must support modern item search")
+check(ahTab:find('QueryAuctionItems',1,true)~=nil,"AH tab must support legacy item search")
+check(not ahTab:find('PlaceBid',1,true),"AH tab must not auto-buy")

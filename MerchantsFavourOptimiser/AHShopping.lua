@@ -3,6 +3,7 @@ local AH=MFO_AH
 local host,tab,panel,selected
 local tabIndex
 local nativeTabsHooked=false
+local tabSwitchHooked=false
 local rows={}
 local function gold(c)
  if not c then return "No price" end
@@ -70,18 +71,26 @@ end
 local function attach(parent)
  if parent==host then return end
  host=parent
- if parent==AuctionFrame and type(parent.numTabs)=="number" and type(PanelTemplates_SetNumTabs)=="function" then
+ if parent==AuctionFrame and type(PanelTemplates_SetNumTabs)=="function" then
   -- Follow Auctionator's native AuctionTabTemplate registration, after existing addon tabs.
-  tabIndex=parent.numTabs+1
+  tabIndex=math.max(3,tonumber(parent.numTabs) or 3)+1
   tab=CreateFrame("Button","AuctionFrameTab"..tabIndex,parent,"AuctionTabTemplate")
   tab:SetID(tabIndex)
   tab:SetText("MFO Shop")
+  if type(PanelTemplates_TabResize)=="function" then PanelTemplates_TabResize(tab,0) end
   local prior=_G["AuctionFrameTab"..(tabIndex-1)]
   if prior then tab:SetPoint("LEFT",prior,"RIGHT",-8,0)
   else tab:SetPoint("BOTTOMLEFT",parent,"BOTTOMLEFT",30,-10) end
   PanelTemplates_SetNumTabs(parent,tabIndex)
   if type(PanelTemplates_EnableTab)=="function" then PanelTemplates_EnableTab(parent,tabIndex) end
   tab:Show()
+  if not tabSwitchHooked and type(hooksecurefunc)=="function" and type(AuctionFrameTab_OnClick)=="function" then
+   tabSwitchHooked=true
+   hooksecurefunc("AuctionFrameTab_OnClick",function(clicked)
+    local index=type(clicked)=="number" and clicked or (type(clicked)=="table" and clicked.GetID and clicked:GetID())
+    if index and index~=tabIndex and panel and panel:IsShown() then close() end
+   end)
+  end
  else
   -- Some Forever AH builds expose a different frame/tab API.
   tab=button(parent,"MFO Shop",95)
@@ -174,6 +183,16 @@ local function attach(parent)
  parent:HookScript("OnHide",close)
 end
 local watcher=CreateFrame("Frame")
+pcall(watcher.RegisterEvent,watcher,"ADDON_LOADED")
+pcall(watcher.RegisterEvent,watcher,"AUCTION_HOUSE_SHOW")
+watcher:SetScript("OnEvent",function(_,event,addon)
+ if event=="ADDON_LOADED" and addon=="Blizzard_AuctionUI" and AuctionFrame then
+  attach(AuctionFrame)
+ elseif event=="AUCTION_HOUSE_SHOW" then
+  local current=activeAH()
+  if current and current~=host then attach(current) end
+ end
+end)
 local timer=0
 watcher:SetScript("OnUpdate",function(_,dt)
  timer=timer+dt

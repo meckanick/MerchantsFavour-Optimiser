@@ -1,6 +1,23 @@
 name: Publish MFO to CurseForge
 
 on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+      changelog:
+        required: true
+        type: string
+      release_type:
+        required: true
+        type: string
+      dry_run:
+        default: true
+        type: boolean
+    secrets:
+      CF_API_TOKEN:
+        required: true
   workflow_dispatch:
     inputs:
       version:
@@ -37,6 +54,9 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
       - name: Find validated package for this exact main commit
         id: build
         uses: actions/github-script@v7
@@ -67,3 +87,4 @@ jobs:
           RELEASE_TYPE: ${{ inputs.release_type }}
           DRY_RUN: ${{ inputs.dry_run }}
         run: python3 scripts/publish-curseforge.py
+

@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v4
+      - name: Test CurseForge release request validation
+        run: python3 tests/test-curseforge-request.py
       - name: Install Lua 5.1 and zip
         run: |
           sudo apt-get update
@@ -125,3 +127,4 @@ jobs:
           path: ${{ env.PACKAGE }}
           if-no-files-found: error
           retention-days: 30
+

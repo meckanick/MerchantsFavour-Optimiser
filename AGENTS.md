@@ -33,3 +33,13 @@
 3. Run Lua syntax, manifest, asset-reference and ZIP checks.
 4. Provide the generated artifact for user testing in WoW Forever.
 5. Merge to `main` only after the user confirms the change works.
+
+## CurseForge release requests
+- When the user explicitly says to publish MFO to CurseForge, follow `docs/CURSEFORGE.md`.
+- Read the version from the current main TOC and confirm its push build passed.
+- Write player-facing release notes from addon changes since the previous published version; exclude unmerged development changes and CI-only work.
+- Check recent release-request records and CurseForge uploads before submitting, to avoid duplicate releases.
+- Submit the documented owner-authored GitHub issue request with the exact main SHA, notes, release channel and explicit `publish` mode. This triggers the workflow without requiring the user to fill in the form.
+- For connection tests use `preview` mode. Never publish merely because setup was requested or a change was merged.
+- Monitor the resulting workflow and report its upload file ID or failure. Do not blindly retry failed or timed-out uploads; check whether CurseForge received the file first.
+

@@ -253,22 +253,26 @@ local function attach(parent)
  tabText:SetPoint("CENTER",tab,"CENTER",0,0)
  tabText:SetText("MFO Shop")
  tab:SetFontString(tabText)
- -- Native selected Buy tab uses a brighter face and a continuous gold edge.
- -- Use a fitted rectangular highlight instead of the circular action-button glow.
- local selectedFace=tab:CreateTexture(nil,"BACKGROUND",nil,1)
- selectedFace:SetPoint("TOPLEFT",tab,"TOPLEFT",3,-2)
- selectedFace:SetPoint("BOTTOMRIGHT",tab,"BOTTOMRIGHT",-3,3)
- selectedFace:SetColorTexture(.56,.37,.10,.65)
- selectedFace:Hide()
+ -- Build the tab face from horizontal strips to match Forever's grey
+ -- inactive state and its top-brown-to-bottom-gold active gradient.
+ -- Avoid SetGradient: older Forever client builds may not expose it.
+ local face={}
+ for i=1,12 do
+  local strip=tab:CreateTexture(nil,"BACKGROUND",nil,1)
+  strip:SetPoint("TOPLEFT",tab,"TOPLEFT",4,-3-(i-1)*2)
+  strip:SetPoint("TOPRIGHT",tab,"TOPRIGHT",-4,-3-(i-1)*2)
+  strip:SetHeight(3)
+  face[i]=strip
+ end
  local selectedGlow=CreateFrame("Frame",nil,tab,"BackdropTemplate")
- selectedGlow:SetPoint("TOPLEFT",tab,"TOPLEFT",-3,4)
- selectedGlow:SetPoint("BOTTOMRIGHT",tab,"BOTTOMRIGHT",3,-4)
+ selectedGlow:SetPoint("TOPLEFT",tab,"TOPLEFT",-2,2)
+ selectedGlow:SetPoint("BOTTOMRIGHT",tab,"BOTTOMRIGHT",2,-2)
  selectedGlow:SetBackdrop({
   edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",
-  edgeSize=16,
+  edgeSize=12,
   insets={left=0,right=0,top=0,bottom=0}
  })
- selectedGlow:SetBackdropBorderColor(1,.72,.05,.95)
+ selectedGlow:SetBackdropBorderColor(1,.79,.07,1)
  selectedGlow:Hide()
  local tabHover=tab:CreateTexture(nil,"ARTWORK")
  tabHover:SetAllPoints(tab)
@@ -277,24 +281,33 @@ local function attach(parent)
  tab:SetScript("OnEnter",function()tabHover:Show()end)
  tab:SetScript("OnLeave",function()tabHover:Hide()end)
  setTabSelected=function(active)
+  -- Native selected AH tabs extend below the normal tab baseline.
+  tab:SetHeight(active and 35 or 29)
   if active then
-   tab:SetBackdropColor(.40,.27,.09,1)
-   tab:SetBackdropBorderColor(1,.90,.18,1)
-   tabText:SetTextColor(1,.96,.73,1)
-   selectedFace:Show()
+   tab:SetBackdropColor(.20,.15,.085,1)
+   tab:SetBackdropBorderColor(.90,.67,.10,1)
+   tabText:SetTextColor(1,1,.91,1)
+   for i,strip in ipairs(face) do
+    local t=(i-1)/11
+    strip:SetColorTexture(.22+.40*t,.16+.23*t,.09+.025*t,1)
+   end
    selectedGlow:Show()
   else
-   tab:SetBackdropColor(.09,.075,.058,1)
-   tab:SetBackdropBorderColor(.38,.31,.23,1)
-   tabText:SetTextColor(1,.77,.18,1)
-   selectedFace:Hide()
+   tab:SetBackdropColor(.10,.10,.10,1)
+   tab:SetBackdropBorderColor(.27,.26,.24,1)
+   tabText:SetTextColor(1,.79,.18,1)
+   for i,strip in ipairs(face) do
+    local t=(i-1)/11
+    local grey=.24-.10*t
+    strip:SetColorTexture(grey,grey,grey,1)
+   end
    selectedGlow:Hide()
   end
  end
  setTabSelected(false)
  tab:SetFrameLevel(parent:GetFrameLevel()+12)
  if last then
-  tab:SetPoint("LEFT",last,"RIGHT",-7,0)
+  tab:SetPoint("TOPLEFT",last,"TOPRIGHT",-7,0)
  else
   tab:SetPoint("BOTTOMLEFT",parent,"BOTTOMLEFT",338,-16)
  end

@@ -4,6 +4,11 @@ MFO_AH = {}
 local AH=MFO_AH
 local queue,position,busy,waiting,started,page,lowest={},1,false,false,0,0,nil
 local priced,attempts,scanTotal=0,0,0
+local missing={}
+local function recordMissing(entry)
+  if entry then missing[#missing+1]={id=entry.id,name=entry.name} end
+end
+function AH.Missing() return missing end
 local function db()
   MFO_DB=MFO_DB or {}
   MFO_DB.prices=MFO_DB.prices or {}
@@ -82,7 +87,7 @@ function AH.Scan(items)
   end
   table.sort(queue,function(a,b)return a.name<b.name end)
   if #queue==0 then return false,"No resolved items to scan" end
-  position=1;page=0;lowest=nil;busy=true;waiting=false;priced=0;scanTotal=#queue
+  position=1;page=0;lowest=nil;busy=true;waiting=false;priced=0;scanTotal=#queue;missing={}
   AH.message="Scanning "..#queue.." items"
   nextQuery()
   return true,AH.message
@@ -93,7 +98,7 @@ local function modernNext()
   if not busy or waiting then return end
   if position>#queue then
     busy=false;db().lastAHScan=time()
-    AH.message="AH scan complete: "..#queue.." items checked"
+    AH.message="AH scan complete: "..priced.."/"..#queue.." priced"
     if AH.onUpdate then AH.onUpdate() end
     return
   end
@@ -151,6 +156,8 @@ modernEvents:SetScript("OnEvent",function(_,event,arg)
   if price then
     db().prices[entry.id]={price=price,updated=time()}
     priced=priced+1
+  else
+    recordMissing(entry)
   end
   attempts=0
   waiting=false;position=position+1
@@ -168,7 +175,7 @@ AH.Scan=function(items)
   end
   table.sort(queue,function(a,b)return a.name<b.name end)
   if #queue==0 then return false,"No resolved items to scan" end
-  position=1;busy=true;waiting=false;priced=0;scanTotal=#queue;attempts=0
+  position=1;busy=true;waiting=false;priced=0;scanTotal=#queue;attempts=0;missing={}
   AH.message="Scanning "..#queue.." items"
   modernNext()
   return true,AH.message
@@ -198,7 +205,8 @@ events:SetScript("OnEvent",function()
   if type(total)=="number" and (page+1)*50<total then
     page=page+1
   else
-    if lowest then db().prices[entry.id]={price=lowest,updated=time()} end
+    if lowest then db().prices[entry.id]={price=lowest,updated=time()};priced=priced+1
+    else recordMissing(entry) end
     position=position+1;page=0;lowest=nil
   end
   if AH.onUpdate then AH.onUpdate() end

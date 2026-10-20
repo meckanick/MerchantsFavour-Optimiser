@@ -398,3 +398,10 @@ check(ahTab:find('\\\\nBuy quantity:',1,true)==nil,"Purchase text must not displ
 check(ahTab:find('\\nBuy quantity:',1,true)~=nil,"Purchase text must contain a Lua newline escape")
 check(ahTab:find('api.StartCommoditiesPurchase(selected,qty)',1,true)~=nil,"Keep commodity start in direct click handler")
 check(ahTab:find('C_AuctionHouse.ConfirmCommoditiesPurchase(order.id,order.qty)',1,true)~=nil,"Keep commodity confirm in direct click handler")
+
+-- AH reliability: no throttle event may be interpreted as a search result.
+check(ahTab:find('if event=="AUCTION_HOUSE_THROTTLED_SYSTEM_READY" then',1,true)~=nil,"Throttle ready event must be handled separately")
+check(ahTab:find('return -- Throttle notifications are not auction result payloads.',1,true)~=nil,"Throttle event must not clear live search")
+check(ahTab:find('if live.elapsed>=15 then',1,true)~=nil,"Stalled live searches must expire")
+check(ahTab:find('Auction search timed out. Select the item again to retry.',1,true)~=nil,"Search timeout must show recovery instruction")
+check(ahTab:find('live.offers={};live.waiting=false;selectedOffer=nil',1,true)~=nil,"Purchase completion must invalidate stale offers")

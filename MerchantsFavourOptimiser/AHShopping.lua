@@ -476,14 +476,16 @@ local function attach(parent)
  local liveRows={}
  local offerOffset=0
  local visibleOffers=4
- local offerScroll=CreateFrame("Slider",nil,right,"UIPanelScrollBarTemplate")
+ local offerScroll=CreateFrame("Slider",nil,right)
  panel.offerScroll=offerScroll
- offerScroll:SetPoint("TOPRIGHT",right,"TOPRIGHT",-7,-186)
- offerScroll:SetPoint("BOTTOMRIGHT",right,"BOTTOMRIGHT",-7,47)
+ offerScroll:SetPoint("TOPRIGHT",right,"TOPRIGHT",-9,-205)
+ offerScroll:SetPoint("BOTTOMRIGHT",right,"BOTTOMRIGHT",-9,74)
  offerScroll:SetWidth(16)
+ offerScroll:SetOrientation("VERTICAL")
  offerScroll:SetMinMaxValues(0,0)
  offerScroll:SetValueStep(1)
  offerScroll:SetObeyStepOnDrag(true)
+ offerScroll:SetThumbTexture(ART.."WTP_ScrollThumb")
  offerScroll:SetValue(0)
  offerScroll:SetScript("OnValueChanged",function(_,value)
   local nextOffset=math.floor(value+.5)
@@ -493,8 +495,14 @@ local function attach(parent)
   end
  end)
  -- Match the MFO main window scrollbar artwork and interaction states.
- local up=offerScroll.ScrollUpButton
- local down=offerScroll.ScrollDownButton
+ local up=CreateFrame("Button",nil,right)
+ up:SetSize(14,14)
+ up:SetPoint("BOTTOM",offerScroll,"TOP",0,1)
+ local down=CreateFrame("Button",nil,right)
+ down:SetSize(14,14)
+ down:SetPoint("TOP",offerScroll,"BOTTOM",0,-1)
+ up:SetScript("OnClick",function() offerScroll:SetValue(math.max(0,offerOffset-1)) end)
+ down:SetScript("OnClick",function() offerScroll:SetValue(math.min(math.max(0,#live.offers-visibleOffers),offerOffset+1)) end)
  local thumb=offerScroll.GetThumbTexture and offerScroll:GetThumbTexture()
  if up then
   up:SetSize(14,14)
@@ -599,7 +607,7 @@ local function attach(parent)
  updateScrollSkin()
  local offerViewport=CreateFrame("Frame",nil,right)
  offerViewport:SetPoint("TOPLEFT",right,"TOPLEFT",16,-182)
- offerViewport:SetPoint("BOTTOMRIGHT",right,"BOTTOMRIGHT",-30,47)
+ offerViewport:SetPoint("BOTTOMRIGHT",right,"BOTTOMRIGHT",-34,80)
  offerViewport:EnableMouseWheel(true)
  offerViewport:SetScript("OnMouseWheel",function(_,delta)
   offerScroll:SetValue(math.max(0,math.min(math.max(0,#live.offers-visibleOffers),offerOffset-delta)))
@@ -640,7 +648,7 @@ local function attach(parent)
   if msg:find("Checking Auction House price",1,true) then msg="Checking AH price..." end
   liveStatus:SetText(msg)
   offerScroll:SetMinMaxValues(0,math.max(0,#live.offers-visibleOffers))
-  if #live.offers>visibleOffers then offerScroll:Show() else offerScroll:Hide() end
+  if #live.offers>visibleOffers then offerScroll:Show();up:Show();down:Show() else offerScroll:Hide();up:Hide();down:Hide() end
   for i,row in ipairs(liveRows) do
    local offer=live.offers[offerOffset+i]
    row.price:SetText(offer and gold(offer.price) or "")

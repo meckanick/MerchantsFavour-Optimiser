@@ -188,7 +188,21 @@ local function update()
    items[#items+1]={id=id,name=v.name or tostring(id),qty=v.qty}
   end
  end
- table.sort(items,function(a,b)return a.name<b.name end)
+ -- Always list Waylaid Crates before their required materials.
+ -- Prefer the addon crate IDs; the name prefix also covers future crates.
+ local crateIDs={}
+ for _,crate in ipairs(MFO_DATA or {}) do
+  if type(crate.id)=="number" then crateIDs[crate.id]=true end
+ end
+ local function isCrate(item)
+  return crateIDs[item.id] or item.name:find("^Waylaid Crate:")~=nil
+ end
+ table.sort(items,function(a,b)
+  local aCrate,bCrate=isCrate(a),isCrate(b)
+  if aCrate~=bCrate then return aCrate end
+  if a.name~=b.name then return a.name<b.name end
+  return a.id<b.id
+ end)
  panel.items=items
  panel.offset=math.min(panel.offset,math.max(0,#items-#rows))
  local total=0

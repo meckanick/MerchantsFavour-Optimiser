@@ -69,6 +69,26 @@ function AH.Shop(items)
   end
   return true
 end
+-- Replace the current market's shopping list in one operation. Build the
+-- replacement first so invalid or empty input never erases a valid list.
+function AH.ReplaceShopping(items)
+  if type(items)~="table" then return false,"Invalid shopping items" end
+  local replacement={}
+  for id,entry in pairs(items) do
+    if type(id)=="number" and type(entry)=="table" then
+      local qty=tonumber(entry.qty)
+      if qty and qty>=1 then
+        qty=math.floor(qty)
+        if qty>0 then
+          replacement[id]={name=entry.name or tostring(id),qty=qty}
+        end
+      end
+    end
+  end
+  if not next(replacement) then return false,"No valid items to shop for" end
+  db().shopping=replacement
+  return true
+end
 function AH.Shopping()
   return db().shopping
 end

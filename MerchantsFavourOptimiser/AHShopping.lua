@@ -890,7 +890,7 @@ local function attach(parent)
   setNativeTitle(parent)
   panel:Show()
   live.message="Select a shopping-list item."
-  commodityOrder=nil;awaitingPurchase=false;purchaseElapsed=0;purchaseWarningShown=false
+  if not awaitingPurchase then commodityOrder=nil end
   if resetPurchaseDialogs then resetPurchaseDialogs() end
   live.offers={};live.waiting=false;live.elapsed=0;live.id=nil
   selectedOffer=nil;selected=nil

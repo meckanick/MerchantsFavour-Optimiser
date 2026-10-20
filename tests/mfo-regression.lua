@@ -217,7 +217,11 @@ check(coreSource:find('if missingIDs>0 then footerParts',1,true)~=nil,
 check(coreSource:find('if missingPrices>0 then footerParts',1,true)~=nil,
   "footer should only show missing price warnings when relevant")
 
-check(coreSource:find('local scannedAt=AUCTIONATOR_LAST_SCAN_TIME',1,true)~=nil,
-  "scan footer must use Auctionator full-scan completion timestamp")
+check(coreSource:find('local scannedAt=MFO_AH and MFO_AH.LastScan()',1,true)~=nil,
+  "scan footer must use standalone full-scan completion timestamp")
 check(not coreSource:find('GetAuctionAgeByItemID',1,true),
   "scan footer must not mistake oldest item price age for last full scan")
+
+check(coreSource:find('MFO_AH.Scan(items)',1,true)~=nil,"MFO must scan without Auctionator")
+check(coreSource:find('MFO_AH.Shop(items)',1,true)~=nil,"MFO must save its own shopping list")
+check(not coreSource:find('Auctionator.API.v1.MultiSearch',1,true),"MFO shopping must not depend on Auctionator")

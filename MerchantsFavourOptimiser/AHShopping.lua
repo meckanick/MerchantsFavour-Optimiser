@@ -253,13 +253,23 @@ local function attach(parent)
  tabText:SetPoint("CENTER",tab,"CENTER",0,0)
  tabText:SetText("MFO Shop")
  tab:SetFontString(tabText)
- local tabGlow=tab:CreateTexture(nil,"BACKGROUND")
- tabGlow:SetPoint("TOPLEFT",tab,"TOPLEFT",-4,5)
- tabGlow:SetPoint("BOTTOMRIGHT",tab,"BOTTOMRIGHT",4,-2)
- tabGlow:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
- tabGlow:SetBlendMode("ADD")
- tabGlow:SetVertexColor(1,.73,.12,.75)
- tabGlow:Hide()
+ -- Native selected Buy tab uses a brighter face and a continuous gold edge.
+ -- Use a fitted rectangular highlight instead of the circular action-button glow.
+ local selectedFace=tab:CreateTexture(nil,"BACKGROUND",nil,1)
+ selectedFace:SetPoint("TOPLEFT",tab,"TOPLEFT",3,-2)
+ selectedFace:SetPoint("BOTTOMRIGHT",tab,"BOTTOMRIGHT",-3,3)
+ selectedFace:SetColorTexture(.56,.37,.10,.65)
+ selectedFace:Hide()
+ local selectedGlow=CreateFrame("Frame",nil,tab,"BackdropTemplate")
+ selectedGlow:SetPoint("TOPLEFT",tab,"TOPLEFT",-3,4)
+ selectedGlow:SetPoint("BOTTOMRIGHT",tab,"BOTTOMRIGHT",3,-4)
+ selectedGlow:SetBackdrop({
+  edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",
+  edgeSize=16,
+  insets={left=0,right=0,top=0,bottom=0}
+ })
+ selectedGlow:SetBackdropBorderColor(1,.72,.05,.95)
+ selectedGlow:Hide()
  local tabHover=tab:CreateTexture(nil,"ARTWORK")
  tabHover:SetAllPoints(tab)
  tabHover:SetColorTexture(1,.76,.2,.10)
@@ -268,15 +278,17 @@ local function attach(parent)
  tab:SetScript("OnLeave",function()tabHover:Hide()end)
  setTabSelected=function(active)
   if active then
-   tab:SetBackdropColor(.28,.18,.06,1)
-   tab:SetBackdropBorderColor(1,.77,.14,1)
-   tabText:SetTextColor(1,.92,.62,1)
-   tabGlow:Show()
+   tab:SetBackdropColor(.40,.27,.09,1)
+   tab:SetBackdropBorderColor(1,.90,.18,1)
+   tabText:SetTextColor(1,.96,.73,1)
+   selectedFace:Show()
+   selectedGlow:Show()
   else
    tab:SetBackdropColor(.09,.075,.058,1)
    tab:SetBackdropBorderColor(.38,.31,.23,1)
    tabText:SetTextColor(1,.77,.18,1)
-   tabGlow:Hide()
+   selectedFace:Hide()
+   selectedGlow:Hide()
   end
  end
  setTabSelected(false)

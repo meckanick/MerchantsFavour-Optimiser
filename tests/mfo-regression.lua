@@ -343,6 +343,9 @@ check(ahTab:find('pcall(api.StartCommoditiesPurchase',1,true)==nil,"Protected pu
 
 check(ahTab:find('api.PlaceBid(order.auctionID,order.buyout)',1,true)==nil,"No protected bid call")
 
-check(ahTab:find('panel.buyOffer=button(right,"Test Commodity Buy",150)',1,true)~=nil,"Primary button commodity diagnostic present")
+check(ahTab:find('panel.buyOffer=button(right,"Buy Selected",115)',1,true)~=nil,"Primary button commodity diagnostic present")
 check(ahTab:find('api.StartCommoditiesPurchase(selected,qty)',1,true)~=nil,"Commodity test uses primary button")
 check(ahTab:find('api.PlaceBid(order.auctionID,order.buyout)',1,true)==nil,"Regular buyouts remain disabled")
+
+check(ahTab:find('local qty=math.floor(tonumber(item.qty) or 0)',1,true)~=nil,"Commodity buy uses full outstanding quantity")
+check(ahTab:find('math.min(item.qty,offer.qty)',1,true)==nil,"Commodity quantity must not be capped by one listing")

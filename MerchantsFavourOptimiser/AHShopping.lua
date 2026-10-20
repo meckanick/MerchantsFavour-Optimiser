@@ -7,20 +7,54 @@ local tabSwitchHooked=false
 local rows={}
 local hiddenPanels={}
 local switching=false
+-- Hide native AH content instead of trying to paint over active widgets.
+-- Keep the parent frame, its portrait, outer border, close control and bottom tabs.
+local function isBottomTab(child,parent)
+ if not child or not child.GetText or not child.GetBottom or not parent.GetBottom then return false end
+ local ok,label=pcall(child.GetText,child)
+ if not ok or (label~="Buy" and label~="Sell" and label~="Auctions" and label~="MFO Shop") then return false end
+ local cb,pb=child:GetBottom(),parent:GetBottom()
+ return cb and pb and cb<=pb+32
+end
 local function hideNative(parent)
  wipe(hiddenPanels)
- local candidates={_G.AuctionFrameBrowse,_G.AuctionFrameBid,_G.AuctionFrameAuctions,
+ local seen={}
+ local function hide(f)
+  if not f or f==panel or f==tab or seen[f] then return end
+  if not f.IsShown or not f:IsShown() then return end
+  seen[f]=true
+  hiddenPanels[#hiddenPanels+1]=f
+  f:Hide()
+ end
+ -- Native auction content roots, where exposed by the client.
+ for _,f in pairs({_G.AuctionFrameBrowse,_G.AuctionFrameBid,_G.AuctionFrameAuctions,
   _G.AuctionHouseFrameBrowse,_G.AuctionHouseFrameBuy,_G.AuctionHouseFrameSell,
   _G.AuctionHouseFrameAuctions,_G.AuctionHouseFrameBrowseFrame,
-  parent.BrowseFrame,parent.BuyFrame,parent.SellFrame,parent.AuctionsFrame}
- for _,f in pairs(candidates) do
-  if f and f~=panel and f.IsShown and f:IsShown() then
-   hiddenPanels[#hiddenPanels+1]=f;f:Hide()
+  parent.BrowseFrame,parent.BuyFrame,parent.SellFrame,parent.AuctionsFrame}) do hide(f) end
+ -- WoW Forever uses different native child names: identify content by geometry.
+ -- Preserve outer chrome, currency, bottom tabs and the window close button.
+ if parent.GetChildren then
+  local px,py=parent:GetCenter()
+  local pw,ph=parent:GetWidth(),parent:GetHeight()
+  if px and py and pw and ph then
+   for _,child in ipairs({parent:GetChildren()}) do
+    if child~=panel and child~=tab and not isBottomTab(child,parent)
+     and child.GetCenter and child.GetWidth and child.GetHeight then
+     local x,y=child:GetCenter()
+     local w,h=child:GetWidth(),child:GetHeight()
+     if x and y and w and h and w>60 and h>20
+      and w<pw*.97 and h<ph*.92
+      and y>py-ph*.42 and y<py+ph*.40 then
+      hide(child)
+     end
+    end
+   end
   end
  end
 end
 local function restoreNative()
- for _,f in ipairs(hiddenPanels) do
+ for i=#hiddenPanels,1,-1 do
+  local f=hiddenPanels[i]
   if f and f.Show then f:Show() end
  end
  wipe(hiddenPanels)
@@ -133,12 +167,10 @@ local function attach(parent)
  -- The parent retains its native border, portrait and close button.
  local background=panel:CreateTexture(nil,"BACKGROUND")
  background:SetAllPoints(panel)
- background:SetTexture("Interface\\AuctionFrame\\AuctionHouse")
- background:SetTexCoord(0.02,0.98,0.04,0.95)
- background:SetVertexColor(.48,.43,.36,1)
+ background:SetColorTexture(.105,.089,.071,1)
  local tint=panel:CreateTexture(nil,"BORDER")
  tint:SetAllPoints(panel)
- tint:SetColorTexture(.11,.09,.075,.86)
+ tint:SetColorTexture(.11,.09,.075,1)
  local function inset(left,top,right,bottom)
   local f=CreateFrame("Frame",nil,panel,"BackdropTemplate")
   f:SetPoint("TOPLEFT",panel,"TOPLEFT",left,top)
@@ -234,6 +266,7 @@ local function attach(parent)
  done:SetPoint("LEFT",find,"RIGHT",8,0)
  done:SetScript("OnClick",close)
  local function activate()
+  hideNative(parent)
   panel:Show()
   tab:SetButtonState("PUSHED",true)
   update()

@@ -534,19 +534,24 @@ local function attach(parent)
   dismiss()
  end)
  accept:SetScript("OnClick",function()
-  -- WoW Forever reports ADDON_ACTION_BLOCKED for the commodity purchase
-  -- API even on a hardware click. Do not call any protected buyout API
-  -- until a client-compatible secure purchase integration is verified.
+   local order=pending
+  if not order or order.stage~="commodity-confirm" or not commodityOrder then return end
+  if selected~=order.id or commodityOrder.id~=order.id then dismiss();return end
   dismiss()
   commodityOrder=nil
-  live.message="Direct purchases are blocked by this client. Use the native Buy tab for now."
+  if C_AuctionHouse and type(C_AuctionHouse.ConfirmCommoditiesPurchase)=="function" then
+   C_AuctionHouse.ConfirmCommoditiesPurchase(order.id,order.qty)
+   live.message="Commodity confirmation submitted. Check Auction House result."
+  else
+   live.message="Commodity confirmation API unavailable."
+  end
   refreshOffers()
  end)
  confirm:Hide()
  confirmCommodity=function()
   local order=commodityOrder
   local api=C_AuctionHouse
-  if not order or not api or not api.GetCommoditySearchResultInfo then return end
+  if not order or not api then return end
   local total=order.estimated
   if type(api.GetCommodityPrice)=="function" then
    local info=api.GetCommodityPrice(order.id)
@@ -555,30 +560,39 @@ local function attach(parent)
   end
   pending={id=order.id,qty=order.qty,total=total,stage="commodity-confirm"}
   confirmText:SetText("Confirm commodity purchase\nQuantity: "..order.qty.."\nAuction House total: "..gold(total))
-  accept:SetText("OK")
+  accept:SetText("Confirm Buy")
   confirm:Show()
  end
- panel.buyOffer=button(right,"Purchase Details",120)
+ panel.buyOffer=button(right,"Test Commodity Buy",150)
  panel.buyOffer:SetPoint("BOTTOMRIGHT",right,"BOTTOMRIGHT",-14,12)
  panel.buyOffer:SetEnabled(false)
  panel.buyOffer:SetScript("OnClick",function()
+  -- Isolated diagnostic: primary physical click invokes the commodity API
+  -- before changing any frame state. Regular auction purchases remain off.
   local offer=selectedOffer and live.offers[selectedOffer]
   local item=selected and AH.Shopping()[selected]
   if not offer or not item or live.id~=selected or live.waiting then return end
-  local qty=offer.commodity and math.min(item.qty,offer.qty) or offer.qty
-  if qty<1 then return end
-  if not offer.commodity and not offer.auctionID and not offer.legacyIndex then
-   live.message="This listing has no valid buyout identifier."
-   refreshOffers();return
+  if not offer.commodity then
+   live.message="Test only supports commodities. Regular buyouts remain disabled."
+   refreshOffers()
+   return
   end
-  pending={id=selected,qty=qty,commodity=offer.commodity,
-   auctionID=offer.auctionID,legacyIndex=offer.legacyIndex,
-   buyout=offer.buyout or offer.price*offer.qty,
-   total=offer.commodity and offer.price*qty or offer.buyout}
-  confirmText:SetText("Buy "..item.name.." x"..qty.."\nEstimated total: "..gold(pending.total).."\nUse native AH Buy tab to complete purchase.")
-  accept:SetText("OK")
-  confirm:Show()
+  local qty=math.min(item.qty,offer.qty)
+  if qty<1 then return end
+  local api=C_AuctionHouse
+  if not api or type(api.StartCommoditiesPurchase)~="function" then
+   live.message="Commodity purchase API unavailable."
+   refreshOffers()
+   return
+  end
+  -- A failed protected action may still generate ADDON_ACTION_BLOCKED.
+  -- Do not retry or automatically confirm any purchase.
+  commodityOrder={id=selected,qty=qty,estimated=offer.price*qty}
+  api.StartCommoditiesPurchase(selected,qty)
+  live.message="Commodity request sent from primary button; awaiting price."
+  refreshOffers()
  end)
+
  panel:Hide()
  panel.offset=0
  for i=1,9 do

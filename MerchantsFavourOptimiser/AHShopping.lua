@@ -731,6 +731,7 @@ local function attach(parent)
   dismiss()
   commodityOrder=nil
   if C_AuctionHouse and type(C_AuctionHouse.ConfirmCommoditiesPurchase)=="function" then
+   awaitingPurchase=true
    C_AuctionHouse.ConfirmCommoditiesPurchase(order.id,order.qty)
    live.message="Commodity confirmation submitted. Check Auction House result."
   else
@@ -830,6 +831,11 @@ local function attach(parent)
   preflight:Show()
  end)
 
+ resetPurchaseDialogs=function()
+  pending=nil
+  confirm:Hide()
+  preflight:Hide()
+ end
  skinPurchaseDialog(confirm,"Confirm Purchase")
  skinPurchaseDialog(preflight,"Purchase Item")
  panel:Hide()
@@ -874,6 +880,8 @@ local function attach(parent)
   setNativeTitle(parent)
   panel:Show()
   live.message="Select a shopping-list item."
+  commodityOrder=nil;awaitingPurchase=false
+  if resetPurchaseDialogs then resetPurchaseDialogs() end
   live.offers={};live.waiting=false;live.elapsed=0;live.id=nil
   selectedOffer=nil;selected=nil
   setTabSelected(true)

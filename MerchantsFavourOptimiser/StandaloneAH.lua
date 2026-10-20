@@ -40,6 +40,7 @@ local function auctionOpen()
     (AuctionHouseFrame and AuctionHouseFrame.IsShown and AuctionHouseFrame:IsShown())
 end
 local function nextQuery()
+  if modern then return end
   if not busy or waiting then return end
   if position>#queue then
     busy=false
@@ -82,6 +83,72 @@ function AH.Scan(items)
   nextQuery()
   return true,AH.message
 end
+-- WoW Forever uses the modern C_AuctionHouse API, unlike legacy Classic.
+local modern = C_AuctionHouse and type(C_AuctionHouse.SendSearchQuery)=="function"
+local function modernNext()
+  if not busy or waiting then return end
+  if position>#queue then
+    busy=false;db().lastAHScan=time()
+    AH.message="AH scan complete: "..#queue.." items checked"
+    if AH.onUpdate then AH.onUpdate() end
+    return
+  end
+  local entry=queue[position]
+  local key=C_AuctionHouse.MakeItemKey and C_AuctionHouse.MakeItemKey(entry.id) or {itemID=entry.id}
+  if C_AuctionHouse.GetItemKeyInfo and not C_AuctionHouse.GetItemKeyInfo(key) then
+    if type(GetItemInfo)=="function" then GetItemInfo(entry.id) end
+    return
+  end
+  local ok=pcall(C_AuctionHouse.SendSearchQuery,key,{},false)
+  if not ok then busy=false;AH.message="Modern AH query failed";return end
+  waiting=true;started=GetTime and GetTime() or 0
+end
+local modernEvents=CreateFrame("Frame")
+local modernOK=pcall(modernEvents.RegisterEvent,modernEvents,"ITEM_SEARCH_RESULTS_UPDATED")
+local commodityOK=pcall(modernEvents.RegisterEvent,modernEvents,"COMMODITY_SEARCH_RESULTS_UPDATED")
+modernEvents:SetScript("OnEvent",function(_,event,arg)
+  if not busy or not waiting or not modern then return end
+  local entry=queue[position]
+  local id=type(arg)=="table" and arg.itemID or arg
+  if id~=entry.id then return end
+  local key=C_AuctionHouse.MakeItemKey and C_AuctionHouse.MakeItemKey(entry.id) or {itemID=entry.id}
+  local price=nil
+  if event=="COMMODITY_SEARCH_RESULTS_UPDATED" and C_AuctionHouse.GetCommoditySearchResults then
+    local results=C_AuctionHouse.GetCommoditySearchResults(entry.id)
+    for _,item in ipairs(results or {}) do
+      if type(item.unitPrice)=="number" and item.unitPrice>0 and (not price or item.unitPrice<price) then price=item.unitPrice end
+    end
+  elseif event=="ITEM_SEARCH_RESULTS_UPDATED" and C_AuctionHouse.GetItemSearchResults then
+    local results=C_AuctionHouse.GetItemSearchResults(key)
+    for _,item in ipairs(results or {}) do
+      local p=item.buyoutAmount
+      if type(p)=="number" and p>0 then
+        p=math.ceil(p/math.max(1,item.quantity or 1))
+        if not price or p<price then price=p end
+      end
+    end
+  end
+  if price then db().prices[entry.id]={price=price,updated=time()} end
+  waiting=false;position=position+1
+  if AH.onUpdate then AH.onUpdate() end
+end)
+local legacyScan=AH.Scan
+AH.Scan=function(items)
+  if not modern then return legacyScan(items) end
+  if busy then return false,"Scan already running" end
+  if not auctionOpen() then return false,"Open the Auction House first" end
+  if not modernOK and not commodityOK then return false,"Modern AH result events unavailable" end
+  queue={}
+  for id,name in pairs(items) do
+    if type(id)=="number" and type(name)=="string" then queue[#queue+1]={id=id,name=name} end
+  end
+  table.sort(queue,function(a,b)return a.name<b.name end)
+  if #queue==0 then return false,"No resolved items to scan" end
+  position=1;busy=true;waiting=false
+  AH.message="Scanning "..#queue.." items"
+  modernNext()
+  return true,AH.message
+end
 local events=CreateFrame("Frame")
 local eventOK=pcall(events.RegisterEvent,events,"AUCTION_ITEM_LIST_UPDATE")
 if not eventOK then
@@ -114,6 +181,7 @@ events:SetScript("OnEvent",function()
 end)
 events:SetScript("OnUpdate",function(_,elapsed)
   if not busy then return end
+  if modern and not waiting then modernNext();return end
   if waiting then
     if GetTime and GetTime()-started>15 then
       busy=false;waiting=false;AH.message="Scan timed out; completion time unchanged"

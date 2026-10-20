@@ -867,15 +867,42 @@ local scanBarText=scanBar:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall
 scanBarText:SetPoint("CENTER",scanBar,"CENTER",0,0)
 scanBarText:SetText("AH Scan: 0%")
 scanBar:Hide()
+local scanSummary=CreateFrame("Frame",nil,frame)
+scanSummary:SetSize(250,22)
+scanSummary:SetPoint("LEFT",scanButton,"RIGHT",12,0)
+scanSummary:EnableMouse(true)
+local scanSummaryText=scanSummary:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+scanSummaryText:SetPoint("LEFT",scanSummary,"LEFT",0,0)
+scanSummaryText:SetJustifyH("LEFT")
+scanSummary:Hide()
+scanSummary:SetScript("OnEnter",function(self)
+  local missing=MFO_AH.Missing()
+  GameTooltip:SetOwner(self,"ANCHOR_BOTTOMRIGHT")
+  GameTooltip:AddLine("Auction House Scan Results",1,.82,.2)
+  if #missing==0 then GameTooltip:AddLine("All searched items were priced.",.4,1,.4)
+  else
+    GameTooltip:AddLine("No price found for:",1,.55,.4)
+    for _,item in ipairs(missing) do GameTooltip:AddLine(item.name.." ("..item.id..")",1,1,1) end
+    GameTooltip:AddLine("These items may have no buyout listings.",.7,.7,.7,true)
+  end
+  GameTooltip:Show()
+end)
+scanSummary:SetScript("OnLeave",function() GameTooltip:Hide() end)
 local function updateScanProgress()
   local percent,running,priced,total=MFO_AH.Progress()
   scanBar:SetValue(percent)
-  scanBarText:SetText("AH Scan: "..percent.."% ("..priced.." priced)")
-  if running then scanBar:Show()
-  elseif total>0 then
-    scanBar:SetValue(100)
-    scanBarText:SetText("AH Scan: 100% ("..priced.."/"..total.." priced)")
+  scanBarText:SetText("AH Scan: "..percent.."%")
+  if running then
+    scanSummary:Hide()
     scanBar:Show()
+  elseif total>0 then
+    scanBar:Hide()
+    local missing=MFO_AH.Missing()
+    scanSummaryText:SetText("Scan Complete: "..priced.."/"..total.." Priced"..(#missing>0 and (" | "..#missing.." Missing") or ""))
+    scanSummary:Show()
+  else
+    scanBar:Hide()
+    scanSummary:Hide()
   end
 end
 MFO_AH.onUpdate=function()

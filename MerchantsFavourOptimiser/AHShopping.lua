@@ -494,7 +494,7 @@ local function attach(parent)
  -- available and the legacy WoW tab-switch sound ID as a fallback.
  local function playTabClick()
   if type(PlaySound)~="function" then return end
-  local sound=(SOUNDKIT and (SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON or SOUNDKIT.IG_MAINMENU_OPTION)) or 856
+  local sound=(SOUNDKIT and (SOUNDKIT.IG_CHARACTER_INFO_TAB or SOUNDKIT.IG_MAINMENU_OPTION)) or 841
   pcall(PlaySound,sound)
  end
  tab:SetScript("OnClick",function()

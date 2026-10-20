@@ -769,7 +769,7 @@ local function attach(parent)
   local item=selected and AH.Shopping()[selected]
   if offer and item then
    local qty=chainBuy and item.qty or math.min(item.qty,offer.qty)
-   preflightText:SetText(item.name.."\\nBuy quantity: "..qty.."    Needed: "..item.qty)
+   preflightText:SetText(item.name.."\nBuy quantity: "..qty.."    Needed: "..item.qty)
   end
  end)
  local proceed=button(preflight,"Buy",100)
@@ -809,7 +809,7 @@ local function attach(parent)
   local item=selected and AH.Shopping()[selected]
   if not offer or not item or live.id~=selected or live.waiting then return end
   local qty=chainBuy and item.qty or math.min(item.qty,offer.qty)
-  preflightText:SetText(item.name.."\\nBuy quantity: "..qty.." / Needed: "..item.qty)
+  preflightText:SetText(item.name.."\nBuy quantity: "..qty.." / Needed: "..item.qty)
   preflight:Show()
  end)
 

@@ -303,5 +303,5 @@ check(ahTab:find('tab=CreateFrame("Button",nil,parent,"BackdropTemplate")',1,tru
 check(ahTab:find('setTabSelected(true)',1,true)~=nil,"MFO tab must show selected state")
 
 check(ahTab:find('tab=CreateFrame("Button",nil,parent,"BackdropTemplate")',1,true)~=nil,"MFO Shop must not use red button template")
-check(ahTab:find('tabGlow:Show()',1,true)~=nil,"Selected tab must display gold glow")
+check(ahTab:find('selectedGlow:Show()',1,true)~=nil,"Selected tab must display rectangular gold glow")
 check(ahTab:find('tab=CreateFrame("Button",nil,parent,"UIPanelButtonTemplate")',1,true)==nil,"MFO Shop tab must not use default red button skin")

@@ -355,7 +355,7 @@ check(ahTab:find('chainToggle:SetChecked(false)',1,true)~=nil,"Chain Buy default
 check(ahTab:find('chainBuy and needed or math.min(needed,available)',1,true)~=nil,"Chain Buy quantity selection retained")
 check(ahTab:find('row.quantity:SetText',1,true)~=nil,"Listing quantities use separate aligned column")
 
-check(ahTab:find('dialogFill:SetTexture(ART.."MFO_WoodBackground")',1,true)~=nil,"Pre-purchase dialog must use MFO wood texture")
+check(ahTab:find('dialogFill:SetColorTexture(.065,.042,.02,1)',1,true)~=nil,"Pre-purchase dialog must retain opaque inner fill")
 
 check(ahTab:find('local visibleOffers=4',1,true)~=nil,"Auction listing viewport limits visible rows")
 check(ahTab:find('CreateFrame("Slider",nil,right)',1,true)~=nil,"Auction listing uses independent slider compatible with Forever")

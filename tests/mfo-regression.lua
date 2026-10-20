@@ -417,7 +417,7 @@ check(ahTab:find('if not commodityOrder and not awaitingPurchase then return end
 check(ahTab:find('if not awaitingPurchase then return end',1,true)~=nil,"Ignore unrelated commodity success events")
 check(ahTab:find('resetPurchaseDialogs=function()',1,true)~=nil,"Dialog cleanup must be initialized")
 check(ahTab:find('if resetPurchaseDialogs then resetPurchaseDialogs() end',1,true)~=nil,"Purchase cleanup must dismiss stale dialogs")
-check(ahTab:find('awaitingPurchase=true\n   C_AuctionHouse.ConfirmCommoditiesPurchase',1,true)~=nil,"Confirmation must track pending result before API call")
+check(ahTab:find('awaitingPurchase=true;purchaseElapsed=0;purchaseWarningShown=false\n   C_AuctionHouse.ConfirmCommoditiesPurchase',1,true)~=nil,"Confirmation must track pending result before API call")
 
 -- In-flight purchases cannot be resubmitted while awaiting AH acknowledgement.
 check(ahTab:find('if commodityOrder or awaitingPurchase then',1,true)~=nil,"Search and purchase must guard active commodity transactions")

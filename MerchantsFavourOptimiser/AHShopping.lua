@@ -258,6 +258,10 @@ local function update()
 end
 local function close()
  if panel then panel:Hide() end
+ -- Discard results and selections from the previous AH session.
+ live.id=nil;live.offers={};live.waiting=false;live.elapsed=0
+ selectedOffer=nil;selected=nil
+ if refreshOffers then refreshOffers() end
  restoreNative()
  restoreNativeTitle()
  if tab then setTabSelected(false) end
@@ -861,7 +865,8 @@ local function attach(parent)
   setNativeTitle(parent)
   panel:Show()
   live.message="Select a shopping-list item."
-  live.offers={};live.waiting=false;live.id=nil
+  live.offers={};live.waiting=false;live.elapsed=0;live.id=nil
+  selectedOffer=nil;selected=nil
   setTabSelected(true)
   update()
   refreshOffers()
@@ -918,6 +923,10 @@ watcher:SetScript("OnUpdate",function(_,dt)
    if refreshOffers then refreshOffers() end
   end
  end
- if panel and panel:IsShown() then update() end
+ -- Rebuild the shopping list once per second while visible, rather than twice.
+ if panel and panel:IsShown() then
+  watcher.uiElapsed=(watcher.uiElapsed or 0)+.5
+  if watcher.uiElapsed>=1 then watcher.uiElapsed=0;update() end
+ else watcher.uiElapsed=0 end
 end)
 

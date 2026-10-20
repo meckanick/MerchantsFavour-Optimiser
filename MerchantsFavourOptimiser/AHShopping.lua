@@ -124,7 +124,7 @@ local commodityOrder
 local confirmCommodity
 local function startLiveSearch(id)
  commodityOrder=nil
- if panel and panel.offerScroll then panel.offerScroll:SetValue(0) end
+ if panel and panel.offerScroll then panel.offerScroll:SetValue(select(2,panel.offerScroll:GetMinMaxValues()) or 0) end
  live.id=id;live.offers={};live.waiting=false;selectedOffer=nil
  if not id then live.message="Select an item to search.";return end
  if select(2,AH.Progress()) then live.message="Wait for the MFO price scan to finish.";return end
@@ -488,7 +488,8 @@ local function attach(parent)
  offerScroll:SetThumbTexture(ART.."WTP_ScrollThumb")
  offerScroll:SetValue(0)
  offerScroll:SetScript("OnValueChanged",function(_,value)
-  local nextOffset=math.floor(value+.5)
+  local maximum=math.max(0,#live.offers-visibleOffers)
+  local nextOffset=math.max(0,math.min(maximum,math.floor(maximum-value+.5)))
   if nextOffset~=offerOffset then
    offerOffset=nextOffset
    if refreshOffers then refreshOffers() end
@@ -501,8 +502,8 @@ local function attach(parent)
  local down=CreateFrame("Button",nil,right)
  down:SetSize(14,14)
  down:SetPoint("TOP",offerScroll,"BOTTOM",0,-1)
- up:SetScript("OnClick",function() offerScroll:SetValue(math.max(0,offerOffset-1)) end)
- down:SetScript("OnClick",function() offerScroll:SetValue(math.min(math.max(0,#live.offers-visibleOffers),offerOffset+1)) end)
+ up:SetScript("OnClick",function() offerScroll:SetValue(math.min(math.max(0,#live.offers-visibleOffers),math.max(0,#live.offers-visibleOffers)-offerOffset+1)) end)
+ down:SetScript("OnClick",function() offerScroll:SetValue(math.max(0,math.max(0,#live.offers-visibleOffers)-offerOffset-1)) end)
  local thumb=offerScroll.GetThumbTexture and offerScroll:GetThumbTexture()
  if up then
   up:SetSize(14,14)
@@ -567,8 +568,8 @@ local function attach(parent)
   local low,high=offerScroll:GetMinMaxValues()
   low,high=low or 0,high or 0
   local value=offerScroll:GetValue() or 0
-  local canUp=value>low+.5
-  local canDown=value<high-.5
+  local canUp=offerOffset>0
+  local canDown=offerOffset<high
   grey(up,not canUp)
   grey(down,not canDown)
   toggle(upGlow,canUp and up and up:IsMouseOver())
@@ -582,7 +583,7 @@ local function attach(parent)
     local height=topEdge-bottomEdge
     if height>0 then
      local gripHeight=math.min(90,height)
-     local fraction=high>low and math.max(0,math.min(1,(value-low)/(high-low))) or 0
+     local fraction=high>low and math.max(0,math.min(1,offerOffset/(high-low))) or 0
      local centerY=topEdge-gripHeight/2-fraction*(height-gripHeight)
      if grip:GetHeight()~=gripHeight then grip:SetHeight(gripHeight) end
      grip:ClearAllPoints()
@@ -610,7 +611,7 @@ local function attach(parent)
  offerViewport:SetPoint("BOTTOMRIGHT",right,"BOTTOMRIGHT",-34,80)
  offerViewport:EnableMouseWheel(true)
  offerViewport:SetScript("OnMouseWheel",function(_,delta)
-  offerScroll:SetValue(math.max(0,math.min(math.max(0,#live.offers-visibleOffers),offerOffset-delta)))
+  offerScroll:SetValue(math.max(0,math.min(math.max(0,#live.offers-visibleOffers),math.max(0,#live.offers-visibleOffers)-offerOffset+delta)))
  end)
  for i=1,visibleOffers do
   local row=CreateFrame("Button",nil,offerViewport)
@@ -648,6 +649,7 @@ local function attach(parent)
   if msg:find("Checking Auction House price",1,true) then msg="Checking AH price..." end
   liveStatus:SetText(msg)
   offerScroll:SetMinMaxValues(0,math.max(0,#live.offers-visibleOffers))
+  offerScroll:SetValue(math.max(0,#live.offers-visibleOffers)-offerOffset)
   if #live.offers>visibleOffers then offerScroll:Show();up:Show();down:Show() else offerScroll:Hide();up:Hide();down:Hide() end
   for i,row in ipairs(liveRows) do
    local offer=live.offers[offerOffset+i]

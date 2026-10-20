@@ -313,3 +313,6 @@ check(ahTab:find('strip:SetColorTexture(.22+.40*t,.16+.23*t,.09+.025*t,1)',1,tru
 check(ahTab:find('AuctionHouseFrameDisplayModeTabTemplate',1,true)~=nil,"Forever modern AH tab template must be preferred")
 check(ahTab:find('PanelTemplates_SelectTab(tab)',1,true)~=nil,"Modern tab must use native selected state")
 check(ahTab:find('else\n  tab=CreateFrame("Button",nil,parent,"BackdropTemplate")',1,true)~=nil,"Forever custom fallback must remain")
+
+check(ahTab:find('SOUNDKIT.IG_CHARACTER_INFO_TAB',1,true)~=nil,"MFO tab should use native tab click sound")
+check(ahTab:find('playTabClick()',1,true)~=nil,"MFO tab click must trigger tab sound")

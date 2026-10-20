@@ -844,7 +844,8 @@ local function showShopping()
   table.sort(sorted,function(a,b)return a.name<b.name end)
   for i,line in ipairs(shoppingLines) do
     local item=sorted[i]
-    line:SetText(item and (item.name.." x "..item.qty.." ("..money(MFO_AH.Price(item.id) and MFO_AH.Price(item.id)*item.qty)..")") or "")
+    local price=item and MFO_AH.Price(item.id)
+    line:SetText(item and (item.name.." x "..item.qty.." ("..money(price and price*item.qty)..")") or "")
   end
   shoppingFrame:Show()
 end

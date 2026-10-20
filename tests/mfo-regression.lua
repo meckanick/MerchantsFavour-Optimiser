@@ -458,3 +458,8 @@ check(coreSource:find('money(price and price*item.qty)',1,true)~=nil,"Legacy sho
 check(coreSource:find('if not crate.id then',1,true)~=nil,"Only crates without IDs should need name resolution")
 check(coreSource:find('if not resolve(crate.name) then missingIDs=missingIDs+1',1,true)~=nil,"Unresolved crates must still be counted")
 check(coreSource:find('elseif cp==nil then missingPrices=missingPrices+1 end',1,true)~=nil,"Known crates must still count missing prices")
+
+-- Planner refresh reuses inventory freshly scanned by the main rankings refresh.
+check(coreSource:find('if planFavour then planFavour(true) end',1,true)~=nil,"Rankings refresh should pass fresh-inventory hint")
+check(coreSource:find('planFavour=function(inventoryFresh)',1,true)~=nil,"Planner should accept fresh-inventory hint")
+check(coreSource:find('if not inventoryFresh then learnBagItems();scanBags() end',1,true)~=nil,"Independent planner changes must still rescan bags")

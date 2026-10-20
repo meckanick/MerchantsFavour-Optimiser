@@ -207,7 +207,7 @@ check(coreSource:find('scanAgeFooter:SetPoint("BOTTOMRIGHT"',1,true)~=nil,
   "scan-age indicator must sit at bottom-right")
 check(coreSource:find('scanAgeFooter:SetText("Last AH Scan: "..ageText.." Ago")',1,true)~=nil,
   "scan-age indicator must display measured elapsed age")
-check(coreSource:find('if oldestAge<1 then scanAgeFooter:SetTextColor',1,true)~=nil,
+check(coreSource:find('if days<1 then scanAgeFooter:SetTextColor',1,true)~=nil,
   "scan-age indicator must use freshness colors")
 
 check(coreSource:find('footerParts={complete.."/"..#rows.." Crates"}',1,true)~=nil,
@@ -216,3 +216,8 @@ check(coreSource:find('if missingIDs>0 then footerParts',1,true)~=nil,
   "footer should only show missing ID warnings when relevant")
 check(coreSource:find('if missingPrices>0 then footerParts',1,true)~=nil,
   "footer should only show missing price warnings when relevant")
+
+check(coreSource:find('local scannedAt=AUCTIONATOR_LAST_SCAN_TIME',1,true)~=nil,
+  "scan footer must use Auctionator full-scan completion timestamp")
+check(not coreSource:find('GetAuctionAgeByItemID',1,true),
+  "scan footer must not mistake oldest item price age for last full scan")

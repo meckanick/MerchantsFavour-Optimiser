@@ -492,6 +492,111 @@ local function attach(parent)
    if refreshOffers then refreshOffers() end
   end
  end)
+ -- Match the MFO main window scrollbar artwork and interaction states.
+ local up=offerScroll.ScrollUpButton
+ local down=offerScroll.ScrollDownButton
+ local thumb=offerScroll.GetThumbTexture and offerScroll:GetThumbTexture()
+ if up then
+  up:SetSize(14,14)
+  up:SetNormalTexture(ART.."WTP_ScrollUp")
+  up:SetPushedTexture(ART.."WTP_ScrollUp")
+  up:SetDisabledTexture(ART.."WTP_ScrollUp")
+ end
+ if down then
+  down:SetSize(14,14)
+  down:SetNormalTexture(ART.."WTP_ScrollDown")
+  down:SetPushedTexture(ART.."WTP_ScrollDown")
+  down:SetDisabledTexture(ART.."WTP_ScrollDown")
+ end
+ local track=offerScroll:CreateTexture(nil,"BACKGROUND")
+ track:SetTexture(ART.."WTP_ScrollTrack")
+ track:SetWidth(10)
+ track:SetPoint("TOP",up or offerScroll,"BOTTOM",0,-1)
+ track:SetPoint("BOTTOM",down or offerScroll,"TOP",0,1)
+ local grip,gripGlow
+ if thumb then
+  thumb:SetTexture(ART.."WTP_ScrollThumb")
+  thumb:SetWidth(10)
+  grip=offerScroll:CreateTexture(nil,"ARTWORK")
+  grip:SetTexture(ART.."WTP_ScrollThumb")
+  grip:SetWidth(10)
+  grip:SetHeight(90)
+  thumb:SetAlpha(0)
+ end
+ local function glow(target,texture)
+  if not target then return end
+  local owner=(target==up or target==down) and target or offerScroll
+  local g=owner:CreateTexture(nil,"OVERLAY")
+  g:SetAllPoints(target)
+  g:SetTexture(ART..texture)
+  g:SetBlendMode("ADD")
+  g:SetAlpha(.22)
+  g:Hide()
+  return g
+ end
+ local upGlow=glow(up,"WTP_ScrollUp")
+ local downGlow=glow(down,"WTP_ScrollDown")
+ if grip then gripGlow=glow(grip,"WTP_ScrollThumb") end
+ local function toggle(g,active)
+  if g then if active then g:Show() else g:Hide() end end
+ end
+ local function grey(button,disabled)
+  if not button then return end
+  for _,method in ipairs({"GetNormalTexture","GetPushedTexture","GetDisabledTexture"}) do
+   local t=button[method] and button[method](button)
+   if t and t.SetDesaturated then t:SetDesaturated(disabled) end
+  end
+ end
+ local dragging=false
+ offerScroll:HookScript("OnMouseDown",function(_,button)
+  if button=="LeftButton" then dragging=true end
+ end)
+ offerScroll:HookScript("OnMouseUp",function(_,button)
+  if button=="LeftButton" then dragging=false end
+ end)
+ local function updateScrollSkin()
+  if dragging and IsMouseButtonDown and not IsMouseButtonDown("LeftButton") then dragging=false end
+  local low,high=offerScroll:GetMinMaxValues()
+  low,high=low or 0,high or 0
+  local value=offerScroll:GetValue() or 0
+  local canUp=value>low+.5
+  local canDown=value<high-.5
+  grey(up,not canUp)
+  grey(down,not canDown)
+  toggle(upGlow,canUp and up and up:IsMouseOver())
+  toggle(downGlow,canDown and down and down:IsMouseOver())
+  if grip and thumb then
+   local topEdge=up and up:GetBottom()
+   local bottomEdge=down and down:GetTop()
+   local barBottom=offerScroll:GetBottom()
+   if topEdge and bottomEdge and barBottom then
+    topEdge,bottomEdge=topEdge-2,bottomEdge+2
+    local height=topEdge-bottomEdge
+    if height>0 then
+     local gripHeight=math.min(90,height)
+     local fraction=high>low and math.max(0,math.min(1,(value-low)/(high-low))) or 0
+     local centerY=topEdge-gripHeight/2-fraction*(height-gripHeight)
+     if grip:GetHeight()~=gripHeight then grip:SetHeight(gripHeight) end
+     grip:ClearAllPoints()
+     grip:SetPoint("CENTER",offerScroll,"BOTTOM",0,centerY-barBottom)
+     if thumb:IsShown() then grip:Show() else grip:Hide() end
+    else grip:Hide() end
+   else grip:Hide() end
+   local hovering=false
+   if grip:IsShown() and GetCursorPosition then
+    local x,y=GetCursorPosition()
+    local scale=offerScroll:GetEffectiveScale()
+    if scale and scale>0 then
+     x,y=x/scale,y/scale
+     local l,r,b,t=grip:GetLeft(),grip:GetRight(),grip:GetBottom(),grip:GetTop()
+     hovering=l and r and b and t and x>=l and x<=r and y>=b and y<=t or false
+    end
+   end
+   toggle(gripGlow,thumb:IsShown() and high>low and (hovering or thumb:IsMouseOver() or dragging))
+  end
+ end
+ offerScroll:HookScript("OnUpdate",updateScrollSkin)
+ updateScrollSkin()
  local offerViewport=CreateFrame("Frame",nil,right)
  offerViewport:SetPoint("TOPLEFT",right,"TOPLEFT",16,-182)
  offerViewport:SetPoint("BOTTOMRIGHT",right,"BOTTOMRIGHT",-30,47)

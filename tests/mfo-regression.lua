@@ -233,3 +233,12 @@ check(ahSource:find("root.legacyAHData",1,true)~=nil,
   "legacy account-wide data must be backed up before migration")
 check(coreSource:find("MFO_AH.Market()",1,true)~=nil,
   "active market must be visible in the interface")
+
+check(coreSource:find('scanOverlay:SetPoint("TOPLEFT",scrollFrame',1,true)~=nil,
+  "AH scan overlay must cover the crate table")
+check(coreSource:find('scanPercent:SetText(math.floor(percent).."%"',1,true)~=nil,
+  "radial scan progress must display a percentage")
+check(coreSource:find('scanOverlay:Hide()',1,true)~=nil,
+  "AH scan overlay must disappear after completion")
+check(not coreSource:find('local scanBar=CreateFrame',1,true),
+  "old horizontal AH scan progress bar must be removed")

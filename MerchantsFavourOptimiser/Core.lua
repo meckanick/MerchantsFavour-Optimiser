@@ -864,17 +864,38 @@ scanButton:SetScript("OnEnter",function(self)
   GameTooltip:Show()
 end)
 scanButton:SetScript("OnLeave",function() GameTooltip:Hide() end)
-local scanBar=CreateFrame("StatusBar",nil,frame)
-scanBar:SetSize(180,13)
-scanBar:SetPoint("LEFT",scanButton,"RIGHT",12,0)
-scanBar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
-scanBar:SetStatusBarColor(.77,.59,.23)
-scanBar:SetMinMaxValues(0,100)
-scanBar:SetValue(0)
-local scanBarText=scanBar:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-scanBarText:SetPoint("CENTER",scanBar,"CENTER",0,0)
-scanBarText:SetText("AH Scan: 0%")
-scanBar:Hide()
+-- Dim the crate table while scanning, with a centred radial progress display.
+local scanOverlay=CreateFrame("Frame",nil,frame)
+scanOverlay:SetPoint("TOPLEFT",scrollFrame,"TOPLEFT",0,0)
+scanOverlay:SetPoint("BOTTOMRIGHT",scrollFrame,"BOTTOMRIGHT",0,0)
+scanOverlay:SetFrameStrata(frame:GetFrameStrata())
+scanOverlay:SetFrameLevel(scrollFrame:GetFrameLevel()+20)
+scanOverlay:EnableMouse(true) -- prevent interacting with dimmed rows mid-scan
+local scanShade=scanOverlay:CreateTexture(nil,"BACKGROUND")
+scanShade:SetAllPoints(scanOverlay)
+scanShade:SetColorTexture(0,0,0,.72)
+local scanRing=CreateFrame("Frame",nil,scanOverlay)
+scanRing:SetSize(130,130)
+scanRing:SetPoint("CENTER",scanOverlay,"CENTER",0,4)
+local scanSegments={}
+local scanSegmentCount=48
+for i=1,scanSegmentCount do
+  local angle=2*math.pi*(i-1)/scanSegmentCount
+  local segment=scanRing:CreateTexture(nil,"ARTWORK")
+  segment:SetTexture("Interface\\Buttons\\WHITE8X8")
+  segment:SetSize(6,15)
+  segment:SetPoint("CENTER",scanRing,"CENTER",math.sin(angle)*51,math.cos(angle)*51)
+  if segment.SetRotation then segment:SetRotation(-angle) end
+  segment:SetVertexColor(.29,.24,.16,.85)
+  scanSegments[i]=segment
+end
+local scanPercent=scanRing:CreateFontString(nil,"OVERLAY","GameFontNormalHuge")
+scanPercent:SetPoint("CENTER",scanRing,"CENTER",0,5)
+scanPercent:SetText("0%")
+local scanCaption=scanRing:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+scanCaption:SetPoint("TOP",scanPercent,"BOTTOM",0,-6)
+scanCaption:SetText("Scanning AH")
+scanOverlay:Hide()
 local scanSummary=CreateFrame("Frame",nil,frame)
 scanSummary:SetSize(250,22)
 scanSummary:SetPoint("LEFT",scanButton,"RIGHT",12,0)
@@ -898,18 +919,23 @@ end)
 scanSummary:SetScript("OnLeave",function() GameTooltip:Hide() end)
 local function updateScanProgress()
   local percent,running,priced,total=MFO_AH.Progress()
-  scanBar:SetValue(percent)
-  scanBarText:SetText("AH Scan: "..percent.."%")
+  percent=math.max(0,math.min(100,tonumber(percent) or 0))
+  scanPercent:SetText(math.floor(percent).."%")
+  local lit=math.floor(percent*scanSegmentCount/100+.5)
+  for i=1,scanSegmentCount do
+    if i<=lit then scanSegments[i]:SetVertexColor(.95,.73,.30,1)
+    else scanSegments[i]:SetVertexColor(.29,.24,.16,.85) end
+  end
   if running then
     scanSummary:Hide()
-    scanBar:Show()
+    scanOverlay:Show()
   elseif total>0 then
-    scanBar:Hide()
+    scanOverlay:Hide()
     local missing=MFO_AH.Missing()
     scanSummaryText:SetText("Scan Complete: "..priced.."/"..total.." Priced"..(#missing>0 and (" | "..#missing.." Missing") or ""))
     scanSummary:Show()
   else
-    scanBar:Hide()
+    scanOverlay:Hide()
     scanSummary:Hide()
   end
 end

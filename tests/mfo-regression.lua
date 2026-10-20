@@ -291,7 +291,7 @@ check(ahTab:find('local row=CreateFrame("Button",nil,left)',1,true)~=nil,"Shoppi
 check(ahTab:find('local liveStatus=right:CreateFontString',1,true)~=nil,"Live search status must render above right inset backdrop")
 
 check(ahTab:find('button(right,"Search AH"',1,true)==nil,"No redundant manual search button")
-check(ahTab:find('for i=1,6 do',1,true)~=nil,"Results fit above footer")
+check(ahTab:find('for i=1,visibleOffers do',1,true)~=nil,"Results fit above footer")
 
 check(ahTab:find('ART.."MFO_WoodBackground"',1,true)~=nil,"Shopping must reuse MFO wood texture")
 check(ahTab:find('ART.."MFO_CoinBackground"',1,true)~=nil,"Shopping must reuse MFO coin watermark")

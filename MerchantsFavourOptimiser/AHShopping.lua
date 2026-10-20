@@ -116,11 +116,14 @@ local function activeAH()
  if AuctionHouseFrame and AuctionHouseFrame:IsShown() then return AuctionHouseFrame end
  if AuctionFrame and AuctionFrame:IsShown() then return AuctionFrame end
 end
--- Read-only live search. Do not buy, reserve, or modify shopping quantities.
+-- Live auction search; purchases require a separate explicit hardware click.
 local live={id=nil,waiting=false,offers={},message="Select an item to search."}
 local refreshOffers
 local selectedOffer
+local commodityOrder
+local confirmCommodity
 local function startLiveSearch(id)
+ commodityOrder=nil
  live.id=id;live.offers={};live.waiting=false;selectedOffer=nil
  if not id then live.message="Select an item to search.";return end
  if select(2,AH.Progress()) then live.message="Wait for the MFO price scan to finish.";return end
@@ -177,10 +180,22 @@ local function collectLive(event,arg)
  if refreshOffers then refreshOffers() end
 end
 local liveEvents=CreateFrame("Frame")
-for _,name in ipairs({"ITEM_SEARCH_RESULTS_UPDATED","COMMODITY_SEARCH_RESULTS_UPDATED","AUCTION_ITEM_LIST_UPDATE"}) do
+for _,name in ipairs({"ITEM_SEARCH_RESULTS_UPDATED","COMMODITY_SEARCH_RESULTS_UPDATED","AUCTION_ITEM_LIST_UPDATE","COMMODITY_PRICE_UPDATED","COMMODITY_PRICE_UNAVAILABLE","COMMODITY_PURCHASE_SUCCEEDED","COMMODITY_PURCHASE_FAILED","AUCTION_HOUSE_THROTTLED_SYSTEM_READY"}) do
  pcall(liveEvents.RegisterEvent,liveEvents,name)
 end
-liveEvents:SetScript("OnEvent",function(_,event,arg) collectLive(event,arg) end)
+liveEvents:SetScript("OnEvent",function(_,event,arg)
+ if event=="COMMODITY_PRICE_UPDATED" then
+  if commodityOrder and confirmCommodity then confirmCommodity() end
+ elseif event=="COMMODITY_PRICE_UNAVAILABLE" or event=="COMMODITY_PURCHASE_FAILED" then
+  commodityOrder=nil
+  live.message="Commodity price changed or purchase failed. Search again before buying."
+  if refreshOffers then refreshOffers() end
+ elseif event=="COMMODITY_PURCHASE_SUCCEEDED" then
+  commodityOrder=nil
+  live.message="Commodity purchase succeeded. Refresh your shopping list quantities."
+  if refreshOffers then refreshOffers() end
+ else collectLive(event,arg) end
+end)
 local function update()
  if not panel or not panel:IsShown() then return end
  local items={}
@@ -489,11 +504,11 @@ local function attach(parent)
    panel.buyOffer:SetEnabled(selectedOffer~=nil and live.offers[selectedOffer]~=nil and not live.waiting)
   end
  end
- -- The preview requires selecting a live auction and confirming the
- -- exact quantity and total. It never invokes protected purchase APIs.
+ -- Original MFO transaction UI: protected calls are made directly from
+ -- genuine button clicks, never via pcall, timers or programmatic clicks.
  local pending
  local confirm=CreateFrame("Frame",nil,panel,"BackdropTemplate")
- confirm:SetSize(360,145)
+ confirm:SetSize(370,150)
  confirm:SetPoint("CENTER",panel,"CENTER")
  confirm:SetFrameStrata("DIALOG")
  confirm:SetFrameLevel(panel:GetFrameLevel()+30)
@@ -502,42 +517,95 @@ local function attach(parent)
   insets={left=8,right=8,top=8,bottom=8}})
  local confirmText=confirm:CreateFontString(nil,"OVERLAY","GameFontHighlight")
  confirmText:SetPoint("TOP",confirm,"TOP",0,-22)
- confirmText:SetWidth(320)
- local accept=button(confirm,"OK",90)
- accept:SetPoint("BOTTOMLEFT",confirm,"BOTTOMLEFT",32,20)
- local cancel=button(confirm,"Cancel",85)
- cancel:SetPoint("BOTTOMRIGHT",confirm,"BOTTOMRIGHT",-32,20)
- cancel:SetScript("OnClick",function()pending=nil;confirm:Hide()end)
+ confirmText:SetWidth(330)
+ local accept=button(confirm,"Buy",105)
+ accept:SetPoint("BOTTOMLEFT",confirm,"BOTTOMLEFT",42,20)
+ local cancel=button(confirm,"Cancel",90)
+ cancel:SetPoint("BOTTOMRIGHT",confirm,"BOTTOMRIGHT",-42,20)
+ local function dismiss()
+  pending=nil
+  confirm:Hide()
+ end
+ cancel:SetScript("OnClick",function()
+  if commodityOrder and C_AuctionHouse and C_AuctionHouse.CancelCommoditiesPurchase then
+   C_AuctionHouse.CancelCommoditiesPurchase()
+  end
+  commodityOrder=nil
+  dismiss()
+ end)
  accept:SetScript("OnClick",function()
-  if not pending then return end
   local order=pending
-  pending=nil;confirm:Hide()
-  -- Forever protects auction purchase functions. A regular addon callback
-  -- cannot start a transaction, even through pcall. Keep the selected
-  -- auction visible and direct the player to the secure native AH purchase.
-  live.message="WoW Forever protects auction purchases. Use the native Buy tab to complete this purchase."
+  if not order or not panel:IsShown() then return end
+  -- Never purchase a different item if the selection changed.
+  if selected~=order.id or live.id~=order.id then dismiss();return end
+  local api=C_AuctionHouse
+  if order.stage=="commodity-confirm" then
+   if not commodityOrder or commodityOrder.id~=order.id then dismiss();return end
+   dismiss()
+   if api and type(api.ConfirmCommoditiesPurchase)=="function" then
+    api.ConfirmCommoditiesPurchase(order.id,order.qty)
+    live.message="Commodity purchase submitted; awaiting Auction House result."
+   else
+    live.message="Commodity confirmation API unavailable."
+   end
+  elseif order.commodity then
+   dismiss()
+   if api and type(api.StartCommoditiesPurchase)=="function" then
+    commodityOrder={id=order.id,qty=order.qty,estimated=order.total}
+    api.StartCommoditiesPurchase(order.id,order.qty)
+    live.message="Checking commodity price with Auction House..."
+   else
+    live.message="Commodity purchase API unavailable."
+   end
+  else
+   dismiss()
+   if order.auctionID and api and type(api.PlaceBid)=="function" then
+    api.PlaceBid(order.auctionID,order.buyout)
+    live.message="Auction buyout submitted; check Auction House result."
+   elseif order.legacyIndex and type(PlaceAuctionBid)=="function" then
+    PlaceAuctionBid("list",order.legacyIndex,order.buyout)
+    live.message="Auction buyout submitted; check Auction House result."
+   else
+    live.message="Buyout API unavailable on this client."
+   end
+  end
   refreshOffers()
  end)
  confirm:Hide()
- panel.buyOffer=button(right,"Purchase Details",120)
+ confirmCommodity=function()
+  local order=commodityOrder
+  local api=C_AuctionHouse
+  if not order or not api or not api.GetCommoditySearchResultInfo then return end
+  local total=order.estimated
+  if type(api.GetCommodityPrice)=="function" then
+   local info=api.GetCommodityPrice(order.id)
+   if type(info)=="table" then total=info.totalPrice or total
+   elseif type(info)=="number" then total=info end
+  end
+  pending={id=order.id,qty=order.qty,total=total,stage="commodity-confirm"}
+  confirmText:SetText("Confirm commodity purchase\\nQuantity: "..order.qty.."\\nAuction House total: "..gold(total))
+  accept:SetText("Confirm Buy")
+  confirm:Show()
+ end
+ panel.buyOffer=button(right,"Buy Selected",115)
  panel.buyOffer:SetPoint("BOTTOMRIGHT",right,"BOTTOMRIGHT",-14,12)
  panel.buyOffer:SetEnabled(false)
  panel.buyOffer:SetScript("OnClick",function()
   local offer=selectedOffer and live.offers[selectedOffer]
   local item=selected and AH.Shopping()[selected]
   if not offer or not item or live.id~=selected or live.waiting then return end
-  local qty=math.min(item.qty,offer.qty)
+  local qty=offer.commodity and math.min(item.qty,offer.qty) or offer.qty
   if qty<1 then return end
-  -- Non-commodity auctions are indivisible stacks.
-  if not offer.commodity then qty=offer.qty end
   if not offer.commodity and not offer.auctionID and not offer.legacyIndex then
-   live.message="This listing cannot be purchased through the available API."
+   live.message="This listing has no valid buyout identifier."
    refreshOffers();return
   end
   pending={id=selected,qty=qty,commodity=offer.commodity,
    auctionID=offer.auctionID,legacyIndex=offer.legacyIndex,
-   buyout=offer.buyout or offer.price*offer.qty}
-  confirmText:SetText("Purchase details: "..item.name.." x"..qty.."\nTotal: "..gold(offer.commodity and offer.price*qty or pending.buyout).."\nUse native AH Buy tab to purchase.")
+   buyout=offer.buyout or offer.price*offer.qty,
+   total=offer.commodity and offer.price*qty or offer.buyout}
+  confirmText:SetText("Buy "..item.name.." x"..qty.."\\nEstimated total: "..gold(pending.total).."\\nProceed to Auction House purchase?")
+  accept:SetText("Buy")
   confirm:Show()
  end)
  panel:Hide()

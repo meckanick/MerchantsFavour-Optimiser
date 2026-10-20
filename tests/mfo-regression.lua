@@ -453,3 +453,8 @@ check(ahSource:find('if not ok then busy=false;waiting=false;AH.message="Modern 
 local coreSource=assert(io.open("MerchantsFavourOptimiser/Core.lua","r")):read("*a")
 check(coreSource:find('local price=item and MFO_AH.Price(item.id)',1,true)~=nil,"Legacy shopping popup must cache each item price")
 check(coreSource:find('money(price and price*item.qty)',1,true)~=nil,"Legacy shopping popup must reuse cached price")
+
+-- Known crate IDs must avoid redundant item-name lookups during UI redraw.
+check(coreSource:find('if not crate.id then',1,true)~=nil,"Only crates without IDs should need name resolution")
+check(coreSource:find('if not resolve(crate.name) then missingIDs=missingIDs+1',1,true)~=nil,"Unresolved crates must still be counted")
+check(coreSource:find('elseif cp==nil then missingPrices=missingPrices+1 end',1,true)~=nil,"Known crates must still count missing prices")

@@ -371,3 +371,6 @@ check(ahTab:find('UIPanelScrollBarTemplate',1,true)==nil,"Do not use secure scro
 check(ahTab:find('offerScroll:SetPoint("BOTTOMRIGHT",right,"BOTTOMRIGHT",-9,47)',1,true)~=nil,"Scrollbar stays above buy footer")
 
 check(ahTab:find('offerScroll:SetPoint("TOPRIGHT",right,"TOPRIGHT",-9,-184)',1,true)~=nil,"Scrollbar starts below Available heading")
+
+check(ahTab:find('math.floor(maximum-value+.5)',1,true)~=nil,"Invert native vertical slider value to match downwards drag")
+check(ahTab:find('offerOffset/(high-low)',1,true)~=nil,"Visible grip follows listing offset")

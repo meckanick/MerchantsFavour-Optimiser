@@ -124,6 +124,7 @@ local commodityOrder
 local confirmCommodity
 local function startLiveSearch(id)
  commodityOrder=nil
+ if panel and panel.offerScroll then panel.offerScroll:SetValue(0) end
  live.id=id;live.offers={};live.waiting=false;selectedOffer=nil
  if not id then live.message="Select an item to search.";return end
  if select(2,AH.Progress()) then live.message="Wait for the MFO price scan to finish.";return end
@@ -476,6 +477,7 @@ local function attach(parent)
  local offerOffset=0
  local visibleOffers=4
  local offerScroll=CreateFrame("Slider",nil,right,"UIPanelScrollBarTemplate")
+ panel.offerScroll=offerScroll
  offerScroll:SetPoint("TOPRIGHT",right,"TOPRIGHT",-7,-186)
  offerScroll:SetPoint("BOTTOMRIGHT",right,"BOTTOMRIGHT",-7,47)
  offerScroll:SetWidth(16)

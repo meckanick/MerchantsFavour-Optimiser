@@ -7,7 +7,9 @@ for _, crate in ipairs(MFO_DATA) do
     rows[#rows + 1] = crate
   end
 end
-local note -- forward declaration: updateScanNote is defined before the UI font string\nlocal knownIDs\nlocal price
+local note -- forward declaration
+local knownIDs
+local price
 local function money(v)
   if not v then return "?" end
   v = math.floor(v + 0.5)
@@ -851,7 +853,7 @@ local clearShopping=CreateFrame("Button",nil,shoppingFrame,"UIPanelButtonTemplat
 clearShopping:SetSize(95,22);clearShopping:SetPoint("BOTTOM",0,15);clearShopping:SetText("Clear List")
 clearShopping:SetScript("OnClick",function()MFO_AH.ClearShopping();showShopping()end)
 local scanButton=CreateFrame("Button",nil,frame,"UIPanelButtonTemplate")
-scanButton:SetSize(75,22);scanButton:SetPoint("RIGHT",refreshBtn,"LEFT",-10,0)
+scanButton:SetSize(75,22);scanButton:SetPoint("TOPLEFT",frame,"TOPLEFT",38,-44)
 scanButton:SetText("Scan AH");scanButton:SetScript("OnClick",scanRelevantItems)
 MFO_AH.onUpdate=function()
   if frame:IsShown() then refresh() end

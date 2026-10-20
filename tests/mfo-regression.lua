@@ -418,3 +418,10 @@ check(ahTab:find('if not awaitingPurchase then return end',1,true)~=nil,"Ignore 
 check(ahTab:find('resetPurchaseDialogs=function()',1,true)~=nil,"Dialog cleanup must be initialized")
 check(ahTab:find('if resetPurchaseDialogs then resetPurchaseDialogs() end',1,true)~=nil,"Purchase cleanup must dismiss stale dialogs")
 check(ahTab:find('awaitingPurchase=true\n   C_AuctionHouse.ConfirmCommoditiesPurchase',1,true)~=nil,"Confirmation must track pending result before API call")
+
+-- In-flight purchases cannot be resubmitted while awaiting AH acknowledgement.
+check(ahTab:find('if commodityOrder or awaitingPurchase then',1,true)~=nil,"Search and purchase must guard active commodity transactions")
+check(ahTab:find('or commodityOrder or awaitingPurchase then return end',1,true)~=nil,"Buy Selected must reject duplicate in-flight purchases")
+check(ahTab:find('purchaseElapsed>=20',1,true)~=nil,"Delayed purchase must be reported")
+check(ahTab:find('Check your inventory or AH before trying again.',1,true)~=nil,"Delayed purchase warning must discourage blind retries")
+check(ahTab:find('if not awaitingPurchase then commodityOrder=nil end',1,true)~=nil,"Reactivating shopping must preserve an in-flight confirmation")

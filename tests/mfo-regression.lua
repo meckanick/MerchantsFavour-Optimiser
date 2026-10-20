@@ -428,7 +428,7 @@ check(ahTab:find('if not awaitingPurchase then commodityOrder=nil end',1,true)~=
 
 -- Performance: avoid reconstructing static crate metadata and duplicate detail price reads.
 check(ahTab:find('local crateIDs={}',1,true)~=nil,"Crate membership must be cached")
-check(ahTab:find('local selectedPrice=current and AH.Price(selected)',1,true)~=nil,"Selected price must be fetched once per detail update")
+check(ahTab:find('local selectedPrice=current and prices[selected]',1,true)~=nil,"Selected price must be fetched once per detail update")
 check(ahTab:find('gold((selectedPrice or 0)*current.qty)',1,true)~=nil,"Selected total must reuse cached selected price")
 
 -- First-search race: arm waiting state before dispatching an AH query.
@@ -436,3 +436,8 @@ local armed=assert(ahTab:find('live.waiting=true;live.message="Searching live au
 local dispatched=assert(ahTab:find('pcall(C_AuctionHouse.SendSearchQuery,key,{},false)',1,true))
 check(armed<dispatched,"AH listener must be armed before search dispatch")
 check(ahTab:find('live.waiting=false\n live.message="Live search unavailable in this client."',1,true)~=nil,"Failed search dispatch must clear waiting state")
+
+-- Per-refresh prices are shared by totals, detail, and visible rows.
+check(ahTab:find('local shopping=AH.Shopping()',1,true)~=nil,"Shopping data should be fetched once per refresh")
+check(ahTab:find('prices[v.id]=price',1,true)~=nil,"Price snapshot must be populated during total calculation")
+check(ahTab:find('local price=prices[item.id]',1,true)~=nil,"Visible rows should reuse calculated prices")

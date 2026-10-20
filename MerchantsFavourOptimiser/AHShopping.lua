@@ -464,18 +464,30 @@ local function attach(parent)
  panel.itemIcon:SetScript("OnLeave",function()GameTooltip:Hide()end)
  panel.itemIcon:Hide()
  local liveHeader=right:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
- liveHeader:SetPoint("TOPLEFT",right,"TOPLEFT",16,-153)
- liveHeader:SetText("Auction House Listings  |  Unit Price                  Available")
+ liveHeader:SetPoint("TOPLEFT",right,"TOPLEFT",18,-166)
+ liveHeader:SetText("Auction House Listings")
+ local priceHeader=right:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+ priceHeader:SetPoint("TOPLEFT",right,"TOPLEFT",18,-188)
+ priceHeader:SetText("Unit Price")
+ local quantityHeader=right:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+ quantityHeader:SetPoint("TOPRIGHT",right,"TOPRIGHT",-28,-188)
+ quantityHeader:SetText("Available")
  local liveRows={}
  for i=1,6 do
   local row=CreateFrame("Button",nil,right)
-  row:SetHeight(25)
-  row:SetPoint("TOPLEFT",right,"TOPLEFT",16,-176-(i-1)*28)
+  row:SetHeight(26)
+  row:SetPoint("TOPLEFT",right,"TOPLEFT",16,-211-(i-1)*29)
   row:SetPoint("RIGHT",right,"RIGHT",-16,0)
-  local label=row:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-  label:SetAllPoints(row)
-  label:SetJustifyH("LEFT")
-  row.label=label
+  local price=row:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+  price:SetPoint("LEFT",row,"LEFT",4,0)
+  price:SetWidth(170)
+  price:SetJustifyH("LEFT")
+  row.price=price
+  local quantity=row:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+  quantity:SetPoint("RIGHT",row,"RIGHT",-12,0)
+  quantity:SetWidth(70)
+  quantity:SetJustifyH("RIGHT")
+  row.quantity=quantity
   local highlight=row:CreateTexture(nil,"BACKGROUND")
   highlight:SetAllPoints(row)
   highlight:SetColorTexture(.63,.41,.08,.32)
@@ -487,16 +499,19 @@ local function attach(parent)
   liveRows[i]=row
  end
  local liveStatus=right:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
- liveStatus:SetPoint("BOTTOMLEFT",right,"BOTTOMLEFT",16,18)
- liveStatus:SetPoint("RIGHT",right,"RIGHT",-16,0)
+ liveStatus:SetPoint("BOTTOMLEFT",right,"BOTTOMLEFT",16,20)
+ liveStatus:SetWidth(265)
  liveStatus:SetJustifyH("LEFT")
  liveStatus:SetWordWrap(false)
  refreshOffers=function()
   if not panel or not panel:IsShown() then return end
-  liveStatus:SetText(live.message or "")
+  local msg=live.message or ""
+  if msg:find("Checking Auction House price",1,true) then msg="Checking AH price..." end
+  liveStatus:SetText(msg)
   for i,row in ipairs(liveRows) do
    local offer=live.offers[i]
-   row.label:SetText(offer and (gold(offer.price).."                         x"..offer.qty) or "")
+   row.price:SetText(offer and gold(offer.price) or "")
+   row.quantity:SetText(offer and ("x"..offer.qty) or "")
    if offer then row:Show() else row:Hide() end
    if selectedOffer==i then row.highlight:Show() else row.highlight:Hide() end
   end
@@ -563,40 +578,48 @@ local function attach(parent)
   accept:SetText("Confirm Buy")
   confirm:Show()
  end
- -- Chain Buy controls whether a commodity order spans multiple listings.
- -- Off: only the selected listing quantity. On: the full outstanding need.
+ -- Pre-purchase dialog: Chain Buy is selected here, before the
+ -- player's explicit purchase click. Keep the working API call first.
  local chainBuy=false
- local chainToggle=CreateFrame("CheckButton",nil,right,"UICheckButtonTemplate")
+ local preflight=CreateFrame("Frame",nil,panel,"BackdropTemplate")
+ preflight:SetSize(350,184)
+ preflight:SetPoint("CENTER",panel,"CENTER")
+ preflight:SetFrameStrata("DIALOG")
+ preflight:SetFrameLevel(panel:GetFrameLevel()+31)
+ preflight:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",
+  edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",edgeSize=22,
+  insets={left=8,right=8,top=8,bottom=8}})
+ local preflightText=preflight:CreateFontString(nil,"OVERLAY","GameFontHighlight")
+ preflightText:SetPoint("TOP",preflight,"TOP",0,-22)
+ preflightText:SetWidth(310)
+ local chainToggle=CreateFrame("CheckButton",nil,preflight,"UICheckButtonTemplate")
  chainToggle:SetSize(24,24)
- chainToggle:SetPoint("BOTTOMRIGHT",right,"BOTTOMRIGHT",-134,11)
+ chainToggle:SetPoint("TOPLEFT",preflight,"TOPLEFT",38,-87)
  chainToggle:SetChecked(false)
- local chainLabel=right:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
- chainLabel:SetPoint("RIGHT",chainToggle,"LEFT",-2,0)
- chainLabel:SetText("Chain Buy")
+ local chainLabel=preflight:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+ chainLabel:SetPoint("LEFT",chainToggle,"RIGHT",4,0)
+ chainLabel:SetText("Chain Buy - full required quantity")
  chainToggle:SetScript("OnClick",function(self)
   chainBuy=self:GetChecked() and true or false
-  if refreshOffers then refreshOffers() end
+  local offer=selectedOffer and live.offers[selectedOffer]
+  local item=selected and AH.Shopping()[selected]
+  if offer and item then
+   local qty=chainBuy and item.qty or math.min(item.qty,offer.qty)
+   preflightText:SetText(item.name.."\\nBuy quantity: "..qty.." / Needed: "..item.qty)
+  end
  end)
- chainToggle:SetScript("OnEnter",function(self)
-  GameTooltip:SetOwner(self,"ANCHOR_TOP")
-  GameTooltip:AddLine("Chain Buy",1,.82,.05)
-  GameTooltip:AddLine("Off: buy only the selected listing quantity.",1,1,1)
-  GameTooltip:AddLine("On: buy the full required quantity across available commodity listings, cheapest first.",1,1,1,true)
-  GameTooltip:Show()
- end)
- chainToggle:SetScript("OnLeave",function()GameTooltip:Hide()end)
- panel.buyOffer=button(right,"Buy Selected",115)
- panel.buyOffer:SetPoint("BOTTOMRIGHT",right,"BOTTOMRIGHT",-14,12)
- panel.buyOffer:SetEnabled(false)
- panel.buyOffer:SetScript("OnClick",function()
-  -- The verified primary hardware-click flow remains unchanged.\n  -- Chain Buy changes only the quantity passed to the commodity API.
+ local proceed=button(preflight,"Buy",100)
+ proceed:SetPoint("BOTTOMLEFT",preflight,"BOTTOMLEFT",35,20)
+ local back=button(preflight,"Cancel",100)
+ back:SetPoint("BOTTOMRIGHT",preflight,"BOTTOMRIGHT",-35,20)
+ back:SetScript("OnClick",function()preflight:Hide()end)
+ proceed:SetScript("OnClick",function()
   local offer=selectedOffer and live.offers[selectedOffer]
   local item=selected and AH.Shopping()[selected]
   if not offer or not item or live.id~=selected or live.waiting then return end
   if not offer.commodity then
-   live.message="Regular auction buyouts remain disabled; select a commodity."
-   refreshOffers()
-   return
+   live.message="Regular auction buyouts remain disabled."
+   preflight:Hide();refreshOffers();return
   end
   local needed=math.floor(tonumber(item.qty) or 0)
   local available=math.floor(tonumber(offer.qty) or 0)
@@ -605,15 +628,25 @@ local function attach(parent)
   local api=C_AuctionHouse
   if not api or type(api.StartCommoditiesPurchase)~="function" then
    live.message="Commodity purchase API unavailable."
-   refreshOffers()
-   return
+   preflight:Hide();refreshOffers();return
   end
-  -- A failed protected action may still generate ADDON_ACTION_BLOCKED.
-  -- Do not retry or automatically confirm any purchase.
   commodityOrder={id=selected,qty=qty,estimated=offer.price*qty}
   api.StartCommoditiesPurchase(selected,qty)
-  live.message="Checking Auction House price for "..qty.." units..."
+  preflight:Hide()
+  live.message="Checking AH price..."
   refreshOffers()
+ end)
+ preflight:Hide()
+ panel.buyOffer=button(right,"Buy Selected",115)
+ panel.buyOffer:SetPoint("BOTTOMRIGHT",right,"BOTTOMRIGHT",-14,12)
+ panel.buyOffer:SetEnabled(false)
+ panel.buyOffer:SetScript("OnClick",function()
+  local offer=selectedOffer and live.offers[selectedOffer]
+  local item=selected and AH.Shopping()[selected]
+  if not offer or not item or live.id~=selected or live.waiting then return end
+  local qty=chainBuy and item.qty or math.min(item.qty,offer.qty)
+  preflightText:SetText(item.name.."\\nBuy quantity: "..qty.." / Needed: "..item.qty)
+  preflight:Show()
  end)
 
  panel:Hide()

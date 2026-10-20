@@ -355,7 +355,7 @@ check(ahTab:find('chainToggle:SetChecked(false)',1,true)~=nil,"Chain Buy default
 check(ahTab:find('chainBuy and needed or math.min(needed,available)',1,true)~=nil,"Chain Buy quantity selection retained")
 check(ahTab:find('row.quantity:SetText',1,true)~=nil,"Listing quantities use separate aligned column")
 
-check(ahTab:find('dialogFill:SetColorTexture(.065,.042,.02,1)',1,true)~=nil,"Pre-purchase dialog must be opaque")
+check(ahTab:find('dialogFill:SetTexture(ART.."MFO_WoodBackground")',1,true)~=nil,"Pre-purchase dialog must use MFO wood texture")
 
 check(ahTab:find('local visibleOffers=4',1,true)~=nil,"Auction listing viewport limits visible rows")
 check(ahTab:find('CreateFrame("Slider",nil,right)',1,true)~=nil,"Auction listing uses independent slider compatible with Forever")
@@ -381,3 +381,20 @@ check(ahTab:find("math.min(api.GetNumCommoditySearchResults",1,true)==nil,"Commo
 check(ahTab:find("math.min(api.GetNumItemSearchResults",1,true)==nil,"Item results are not capped at 100")
 check(ahTab:find("showing 6 lowest",1,true)==nil,"No misleading six-listing status")
 check(ahTab:find("scroll to see all",1,true)~=nil,"All-listings status is shown")
+
+-- Purchase-dialog regressions: both skins must be applied while their local frames exist.
+local skinDefinition=assert(ahTab:find('local function skinPurchaseDialog(frame,title)',1,true),"Dialog skin helper missing")
+local confirmDefinition=assert(ahTab:find('local confirm=CreateFrame("Frame"',1,true),"Purchase confirmation frame missing")
+local preflightDefinition=assert(ahTab:find('local preflight=CreateFrame("Frame"',1,true),"Pre-purchase frame missing")
+local skinConfirm=assert(ahTab:find('skinPurchaseDialog(confirm,"Confirm Purchase")',1,true),"Confirmation skin invocation missing")
+local skinPreflight=assert(ahTab:find('skinPurchaseDialog(preflight,"Purchase Item")',1,true),"Pre-purchase skin invocation missing")
+local panelHide=assert(ahTab:find('panel:Hide()\n panel.offset=0',1,true),"Panel initial hide missing")
+check(skinDefinition<confirmDefinition and confirmDefinition<preflightDefinition and preflightDefinition<skinConfirm and skinConfirm<panelHide,"Dialog skins must be applied within UI construction, never after the event watcher")
+check(skinConfirm<skinPreflight and skinPreflight<panelHide,"Both dialogs must be skinned before the panel is initially hidden")
+check(ahTab:find('end)  skinPurchaseDialog',1,true)==nil,"Never append local skin calls to an event callback")
+check(ahTab:find('ART.."WTP_ProfessionRow"',1,true)~=nil,"Dialog headers must use existing MFO row texture")
+check(ahTab:find('ART.."MFO_WoodBackground"',1,true)~=nil,"Dialog backgrounds must use existing MFO wood texture")
+check(ahTab:find('\\\\nBuy quantity:',1,true)==nil,"Purchase text must not display literal backslash-n")
+check(ahTab:find('\\nBuy quantity:',1,true)~=nil,"Purchase text must contain a Lua newline escape")
+check(ahTab:find('api.StartCommoditiesPurchase(selected,qty)',1,true)~=nil,"Keep commodity start in direct click handler")
+check(ahTab:find('C_AuctionHouse.ConfirmCommoditiesPurchase(order.id,order.qty)',1,true)~=nil,"Keep commodity confirm in direct click handler")

@@ -252,7 +252,7 @@ check(not ahTab:find('PlaceBid',1,true),"AH tab must not auto-buy")
 
 check(ahTab:find('AuctionTabTemplate',1,true)~=nil,"AH shop must register a native auction tab")
 check(ahTab:find('tab:SetPoint("LEFT",last,"RIGHT"',1,true)~=nil,"AH shop must attach to bottom tab row")
-check(ahTab:find('panel:SetPoint("TOPLEFT",parent,"TOPLEFT",5,-7)',1,true)~=nil,"AH shop must cover the AH window")
+check(ahTab:find('panel:SetPoint("TOPLEFT",parent,"TOPLEFT",8,-8)',1,true)~=nil,"AH shop must cover the AH window")
 
 check(ahTab:find('addon=="Blizzard_AuctionUI"',1,true)~=nil,"MFO tab must attach when Blizzard Auction UI loads")
 check(ahTab:find('AUCTION_HOUSE_SHOW',1,true)~=nil,"MFO tab must handle opening the auction house")
@@ -260,6 +260,10 @@ check(ahTab:find('AUCTION_HOUSE_SHOW',1,true)~=nil,"MFO tab must handle opening 
 check(not ahTab:find('tab:SetPoint("TOPRIGHT"',1,true),"AH shop must never use top-right placement")
 
 check(ahTab:find('restoreNative()',1,true)~=nil,"AH shop must restore native panels")
-check(ahTab:find('backdrop:SetColorTexture',1,true)~=nil,"AH shop must have an opaque content background")
+check(ahTab:find('tint:SetColorTexture',1,true)~=nil,"AH shop must have an opaque content background")
 
-check(ahTab:find('header:SetText("MFO - Shopping")',1,true)~=nil,"Full-window overlay must have an MFO header")
+check(ahTab:find('header:SetText("Merchant\'s Favour Optimiser - Shopping")',1,true)~=nil,"Full-window overlay must have an MFO header")
+
+check(ahTab:find('local left=inset(',1,true)~=nil,"MFO shop must create a left list pane")
+check(ahTab:find('local right=inset(',1,true)~=nil,"MFO shop must create a right detail pane")
+check(ahTab:find('Interface\\\\AuctionFrame\\\\AuctionHouse',1,true)~=nil,"MFO shop must reference native AH art")

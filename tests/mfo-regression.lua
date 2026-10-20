@@ -374,3 +374,10 @@ check(ahTab:find('offerScroll:SetPoint("TOPRIGHT",right,"TOPRIGHT",-9,-184)',1,t
 
 check(ahTab:find('math.floor(maximum-value+.5)',1,true)~=nil,"Invert native vertical slider value to match downwards drag")
 check(ahTab:find('offerOffset/(high-low)',1,true)~=nil,"Visible grip follows listing offset")
+
+-- Live AH listing view must retain every result returned by the game API.
+check(ahTab:find("math.min(count,100)",1,true)==nil,"Legacy AH results are not capped at 100")
+check(ahTab:find("math.min(api.GetNumCommoditySearchResults",1,true)==nil,"Commodity results are not capped at 100")
+check(ahTab:find("math.min(api.GetNumItemSearchResults",1,true)==nil,"Item results are not capped at 100")
+check(ahTab:find("showing 6 lowest",1,true)==nil,"No misleading six-listing status")
+check(ahTab:find("scroll to see all",1,true)~=nil,"All-listings status is shown")

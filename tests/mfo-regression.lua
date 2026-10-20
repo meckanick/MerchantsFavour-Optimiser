@@ -327,3 +327,10 @@ check(not coreSource:find("MFO_AH.Shop(items)",1,true),"Main Shop buttons must n
 
 check(ahTab:find('if aCrate~=bCrate then return aCrate end',1,true)~=nil,"Crates must appear before shopping materials")
 check(ahTab:find('crateIDs[item.id]',1,true)~=nil,"Shopping must recognize known crate item IDs")
+
+check(ahTab:find('button(right,"Close"',1,true)==nil,"Shopping panel must not duplicate AH close control")
+check(ahTab:find('panel.page=',1,true)==nil,"Shopping panel must not show page counter")
+check(ahTab:find('button(left,"<"',1,true)==nil and ahTab:find('button(left,">"',1,true)==nil,"Shopping panel must not show pagination arrows")
+check(ahTab:find('left:EnableMouseWheel(true)',1,true)~=nil,"Long shopping lists must remain scrollable")
+check(ahTab:find('local coin=left:CreateTexture',1,true)==nil,"Shopping list pane must not have extra coin overlay")
+check(ahTab:find('liveStatus:SetPoint("BOTTOMLEFT",right,"BOTTOMLEFT",16,18)',1,true)~=nil,"Listing status must be at bottom of selected item pane")

@@ -164,7 +164,7 @@ local function collectLive(event,arg)
  end
  table.sort(offers,function(a,b)return a.price<b.price end)
  live.offers=offers;live.waiting=false
- live.message=#offers>0 and (#offers.." live price tiers/listings found") or "No live buyout listings found."
+ live.message=#offers>0 and (#offers.." listings found"..(#offers>6 and " (showing 6 lowest)" or "")) or "No live buyout listings found."
  if refreshOffers then refreshOffers() end
 end
 local liveEvents=CreateFrame("Frame")
@@ -204,24 +204,6 @@ local function update()
   else row:Hide() end
  end
  panel.page:SetText((#items==0 and 0 or panel.offset+1).."-"..math.min(#items,panel.offset+#rows).." / "..#items)
-end
-local function search()
- local item=selected and AH.Shopping()[selected]
- if not item then return false,"Select an item first." end
- if select(2,AH.Progress()) then return false,"Wait for MFO scan to finish." end
- local name=item.name
- local edit=_G.BrowseName or _G.AuctionFrameBrowseName
- if edit and edit.SetText then edit:SetText(name) end
- if C_AuctionHouse and type(C_AuctionHouse.SendSearchQuery)=="function" then
-  local key=C_AuctionHouse.MakeItemKey and C_AuctionHouse.MakeItemKey(selected) or {itemID=selected}
-  if pcall(C_AuctionHouse.SendSearchQuery,key,{},false) then
-   return true,"Search submitted for "..name..". Purchase using the normal AH controls."
-  end
- end
- if type(QueryAuctionItems)=="function" and pcall(QueryAuctionItems,name,nil,nil,0,0,0,0,0,nil,false) then
-  return true,"Search submitted for "..name..". Purchase using the normal AH controls."
- end
- return false,"Search unavailable; use the AH search box for "..name.."."
 end
 local function close()
  if panel then panel:Hide() end
@@ -325,29 +307,27 @@ local function attach(parent)
  market:SetText(AH.Market())
  panel.total=panel:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
  panel.total:SetPoint("TOPLEFT",panel,"TOPLEFT",30,-65)
- local hint=right:CreateFontString(nil,"OVERLAY","GameFontDisableSmall")
- hint:SetPoint("TOPLEFT",right,"TOPLEFT",16,-49)
- hint:SetText("Select an item to search live listings")
  panel.detail=right:CreateFontString(nil,"OVERLAY","GameFontHighlight")
- panel.detail:SetPoint("TOPLEFT",right,"TOPLEFT",16,-67)
+ panel.detail:SetPoint("TOPLEFT",right,"TOPLEFT",16,-54)
  panel.detail:SetPoint("RIGHT",right,"RIGHT",-16,0)
  panel.detail:SetJustifyH("LEFT")
  panel.detail:SetTextColor(.95,.84,.57)
  local liveHeader=right:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
- liveHeader:SetPoint("TOPLEFT",right,"TOPLEFT",16,-155)
+ liveHeader:SetPoint("TOPLEFT",right,"TOPLEFT",16,-153)
  liveHeader:SetText("Unit Price                 Available")
  local liveRows={}
- for i=1,8 do
+ for i=1,6 do
   local row=right:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-  row:SetPoint("TOPLEFT",right,"TOPLEFT",18,-177-(i-1)*25)
+  row:SetPoint("TOPLEFT",right,"TOPLEFT",18,-178-(i-1)*28)
   row:SetPoint("RIGHT",right,"RIGHT",-18,0)
   row:SetJustifyH("LEFT")
   liveRows[i]=row
  end
  local liveStatus=right:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
- liveStatus:SetPoint("BOTTOMLEFT",right,"BOTTOMLEFT",16,88)
+ liveStatus:SetPoint("BOTTOMLEFT",right,"BOTTOMLEFT",16,63)
  liveStatus:SetPoint("RIGHT",right,"RIGHT",-16,0)
  liveStatus:SetJustifyH("LEFT")
+ liveStatus:SetWordWrap(false)
  refreshOffers=function()
   if not panel or not panel:IsShown() then return end
   liveStatus:SetText(live.message or "")
@@ -388,25 +368,14 @@ local function attach(parent)
  local nextPage=button(left,">",27)
  nextPage:SetPoint("LEFT",prev,"RIGHT",4,0)
  nextPage:SetScript("OnClick",function()panel.offset=math.min(math.max(0,#panel.items-9),panel.offset+9);update()end)
- local find=button(right,"Search AH",100)
- find:SetPoint("BOTTOMRIGHT",right,"BOTTOMRIGHT",-108,10)
- local message=right:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
- message:SetPoint("BOTTOMLEFT",right,"BOTTOMLEFT",14,53)
- message:SetPoint("RIGHT",right,"RIGHT",-14,0)
- message:SetJustifyH("LEFT")
- message:SetWordWrap(true)
- find:SetScript("OnClick",function()
-  local ok,info=search()
-  message:SetText((ok and "|cff66ff66" or "|cffff7777")..info.."|r")
- end)
  local done=button(right,"Close",75)
- done:SetPoint("LEFT",find,"RIGHT",8,0)
+ done:SetPoint("BOTTOMRIGHT",right,"BOTTOMRIGHT",-14,10)
  done:SetScript("OnClick",close)
  local function activate()
   hideNative(parent)
   setNativeTitle(parent)
   panel:Show()
-  live.message="Select an item to search live listings."
+  live.message="Select a shopping-list item."
   live.offers={};live.waiting=false;live.id=nil
   tab:SetButtonState("PUSHED",true)
   update()

@@ -1,0 +1,42 @@
+name: Process MFO CurseForge request
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  request:
+    if: >-
+      github.event.issue.title == '[CurseForge] MFO release request' &&
+      github.event.issue.user.login == github.repository_owner &&
+      github.actor == github.repository_owner &&
+      github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      version: ${{ steps.request.outputs.version }}
+      changelog: ${{ steps.request.outputs.changelog }}
+      release_type: ${{ steps.request.outputs.release_type }}
+      dry_run: ${{ steps.request.outputs.dry_run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Validate release request and read version from main
+        id: request
+        run: python3 scripts/prepare-curseforge-request.py
+  publish:
+    needs: request
+    uses: ./.github/workflows/curseforge-publish.yml
+    with:
+      version: ${{ needs.request.outputs.version }}
+      changelog: ${{ needs.request.outputs.changelog }}
+      release_type: ${{ needs.request.outputs.release_type }}
+      dry_run: ${{ fromJSON(needs.request.outputs.dry_run) }}
+    secrets:
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}

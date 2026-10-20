@@ -3,6 +3,7 @@
 MFO_AH = {}
 local AH=MFO_AH
 local queue,position,busy,waiting,started,page,lowest={},1,false,false,0,0,nil
+local priced,attempts,scanTotal=0,0,0
 local function db()
   MFO_DB=MFO_DB or {}
   MFO_DB.prices=MFO_DB.prices or {}
@@ -31,6 +32,9 @@ end
 function AH.ClearShopping()
   db().shopping={}
 end
+function AH.Progress()
+  return math.floor(math.min(100,(position-1)/math.max(1,scanTotal)*100)),busy,priced,scanTotal
+end
 function AH.Status()
   if busy then return "Scanning "..math.min(position,#queue).."/"..#queue end
   return AH.message or "Ready"
@@ -45,7 +49,7 @@ local function nextQuery()
   if position>#queue then
     busy=false
     db().lastAHScan=time()
-    AH.message="AH scan complete: "..#queue.." items checked"
+    AH.message="AH scan complete: "..priced.."/"..#queue.." prices found"
     if AH.onUpdate then AH.onUpdate() end
     return
   end
@@ -78,7 +82,7 @@ function AH.Scan(items)
   end
   table.sort(queue,function(a,b)return a.name<b.name end)
   if #queue==0 then return false,"No resolved items to scan" end
-  position=1;page=0;lowest=nil;busy=true;waiting=false
+  position=1;page=0;lowest=nil;busy=true;waiting=false;priced=0;scanTotal=#queue
   AH.message="Scanning "..#queue.." items"
   nextQuery()
   return true,AH.message
@@ -113,22 +117,42 @@ modernEvents:SetScript("OnEvent",function(_,event,arg)
   if id~=entry.id then return end
   local key=C_AuctionHouse.MakeItemKey and C_AuctionHouse.MakeItemKey(entry.id) or {itemID=entry.id}
   local price=nil
-  if event=="COMMODITY_SEARCH_RESULTS_UPDATED" and C_AuctionHouse.GetCommoditySearchResults then
-    local results=C_AuctionHouse.GetCommoditySearchResults(entry.id)
-    for _,item in ipairs(results or {}) do
-      if type(item.unitPrice)=="number" and item.unitPrice>0 and (not price or item.unitPrice<price) then price=item.unitPrice end
+  local isCommodity=event=="COMMODITY_SEARCH_RESULTS_UPDATED"
+  local has=C_AuctionHouse.HasSearchResults and C_AuctionHouse.HasSearchResults(key)
+  local full=isCommodity and C_AuctionHouse.HasFullCommoditySearchResults and C_AuctionHouse.HasFullCommoditySearchResults(entry.id)
+    or (not isCommodity and C_AuctionHouse.HasFullItemSearchResults and C_AuctionHouse.HasFullItemSearchResults(key))
+  local count=0
+  if isCommodity and C_AuctionHouse.GetCommoditySearchResultsQuantity then
+    count=C_AuctionHouse.GetCommoditySearchResultsQuantity(entry.id) or 0
+  elseif not isCommodity and C_AuctionHouse.GetItemSearchResultsQuantity then
+    count=C_AuctionHouse.GetItemSearchResultsQuantity(key) or 0
+  end
+  if (not has or (not full and count==0)) and attempts<2 then
+    waiting=false;attempts=attempts+1
+    if AH.onUpdate then AH.onUpdate() end
+    return
+  end
+  if isCommodity and C_AuctionHouse.GetCommoditySearchResultInfo then
+    for i=1,count do
+      local item=C_AuctionHouse.GetCommoditySearchResultInfo(entry.id,i)
+      local p=item and item.unitPrice
+      if type(p)=="number" and p>0 and (not price or p<price) then price=p end
     end
-  elseif event=="ITEM_SEARCH_RESULTS_UPDATED" and C_AuctionHouse.GetItemSearchResults then
-    local results=C_AuctionHouse.GetItemSearchResults(key)
-    for _,item in ipairs(results or {}) do
-      local p=item.buyoutAmount
+  elseif not isCommodity and C_AuctionHouse.GetItemSearchResultInfo then
+    for i=1,count do
+      local item=C_AuctionHouse.GetItemSearchResultInfo(key,i)
+      local p=item and item.buyoutAmount
       if type(p)=="number" and p>0 then
         p=math.ceil(p/math.max(1,item.quantity or 1))
         if not price or p<price then price=p end
       end
     end
   end
-  if price then db().prices[entry.id]={price=price,updated=time()} end
+  if price then
+    db().prices[entry.id]={price=price,updated=time()}
+    priced=priced+1
+  end
+  attempts=0
   waiting=false;position=position+1
   if AH.onUpdate then AH.onUpdate() end
 end)
@@ -144,7 +168,7 @@ AH.Scan=function(items)
   end
   table.sort(queue,function(a,b)return a.name<b.name end)
   if #queue==0 then return false,"No resolved items to scan" end
-  position=1;busy=true;waiting=false
+  position=1;busy=true;waiting=false;priced=0;scanTotal=#queue;attempts=0
   AH.message="Scanning "..#queue.." items"
   modernNext()
   return true,AH.message

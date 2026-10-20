@@ -583,7 +583,7 @@ local function attach(parent)
    elseif type(info)=="number" then total=info end
   end
   pending={id=order.id,qty=order.qty,total=total,stage="commodity-confirm"}
-  confirmText:SetText("Confirm commodity purchase\\nQuantity: "..order.qty.."\\nAuction House total: "..gold(total))
+  confirmText:SetText("Confirm commodity purchase\nQuantity: "..order.qty.."\nAuction House total: "..gold(total))
   accept:SetText("Confirm Buy")
   confirm:Show()
  end
@@ -604,7 +604,7 @@ local function attach(parent)
    auctionID=offer.auctionID,legacyIndex=offer.legacyIndex,
    buyout=offer.buyout or offer.price*offer.qty,
    total=offer.commodity and offer.price*qty or offer.buyout}
-  confirmText:SetText("Buy "..item.name.." x"..qty.."\\nEstimated total: "..gold(pending.total).."\\nProceed to Auction House purchase?")
+  confirmText:SetText("Buy "..item.name.." x"..qty.."\nEstimated total: "..gold(pending.total).."\nProceed to Auction House purchase?")
   accept:SetText("Buy")
   confirm:Show()
  end)

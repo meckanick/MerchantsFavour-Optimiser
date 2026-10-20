@@ -214,6 +214,11 @@ liveEvents:SetScript("OnEvent",function(_,event,arg)
   if refreshOffers then refreshOffers() end
  else collectLive(event,arg) end
 end)
+-- Crate membership is static; avoid rebuilding it on each UI refresh.
+local crateIDs={}
+for _,crate in ipairs(MFO_DATA or {}) do
+ if type(crate.id)=="number" then crateIDs[crate.id]=true end
+end
 local function update()
  if not panel or not panel:IsShown() then return end
  local items={}
@@ -224,10 +229,7 @@ local function update()
  end
  -- Always list Waylaid Crates before their required materials.
  -- Prefer the addon crate IDs; the name prefix also covers future crates.
- local crateIDs={}
- for _,crate in ipairs(MFO_DATA or {}) do
-  if type(crate.id)=="number" then crateIDs[crate.id]=true end
- end
+ -- Reuse the static crate membership table.
  local function isCrate(item)
   return crateIDs[item.id] or item.name:find("^Waylaid Crate:")~=nil
  end
@@ -247,7 +249,8 @@ local function update()
  panel.total:SetText(#items.." items  |  Estimated total: "..gold(total))
  local current=selected and AH.Shopping()[selected]
  if panel.detail then
-  panel.detail:SetText(current and (current.name.."\nRequired quantity: "..current.qty.."\nCached unit price: "..gold(AH.Price(selected)).."\nEstimated total: "..gold((AH.Price(selected) or 0)*current.qty)) or "")
+  local selectedPrice=current and AH.Price(selected)
+  panel.detail:SetText(current and (current.name.."\nRequired quantity: "..current.qty.."\nCached unit price: "..gold(selectedPrice).."\nEstimated total: "..gold((selectedPrice or 0)*current.qty)) or "")
  end
  if panel.itemIcon then
   if current then

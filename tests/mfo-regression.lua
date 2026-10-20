@@ -332,7 +332,7 @@ check(ahTab:find('panel.page=',1,true)==nil,"Shopping panel must not show page c
 check(ahTab:find('button(left,"<"',1,true)==nil and ahTab:find('button(left,">"',1,true)==nil,"Shopping panel must not show pagination arrows")
 check(ahTab:find('left:EnableMouseWheel(true)',1,true)~=nil,"Long shopping lists must remain scrollable")
 check(ahTab:find('local coin=left:CreateTexture',1,true)==nil,"Shopping list pane must not have extra coin overlay")
-check(ahTab:find('liveStatus:SetPoint("BOTTOMLEFT",right,"BOTTOMLEFT",16,20)',1,true)~=nil,"Listing status must be at bottom of selected item pane")
+check(ahTab:find('liveStatus:SetPoint("BOTTOMLEFT",right,"BOTTOMLEFT",16,16)',1,true)~=nil,"Listing status must be at bottom of selected item pane")
 
 check(ahTab:find('panel.itemIcon=CreateFrame("Button",nil,right)',1,true)~=nil,"Selected item must show a hoverable icon")
 check(ahTab:find('GameTooltip:SetHyperlink("item:"..selected)',1,true)~=nil,"Selected item must expose native item tooltip")
@@ -354,3 +354,6 @@ check(ahTab:find('local preflight=CreateFrame("Frame"',1,true)~=nil,"Chain Buy p
 check(ahTab:find('chainToggle:SetChecked(false)',1,true)~=nil,"Chain Buy defaults unchecked")
 check(ahTab:find('chainBuy and needed or math.min(needed,available)',1,true)~=nil,"Chain Buy quantity selection retained")
 check(ahTab:find('row.quantity:SetText',1,true)~=nil,"Listing quantities use separate aligned column")
+
+check(ahTab:find('16,-182-(i-1)*34',1,true)~=nil,"Six auction rows fit between summary and footer")
+check(ahTab:find('dialogFill:SetColorTexture(.065,.042,.02,1)',1,true)~=nil,"Pre-purchase dialog must be opaque")

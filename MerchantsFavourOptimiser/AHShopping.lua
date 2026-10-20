@@ -226,7 +226,6 @@ local function update()
    row:Show()
   else row.highlight:Hide();row:Hide() end
  end
- panel.page:SetText((#items==0 and 0 or panel.offset+1).."-"..math.min(#items,panel.offset+#rows).." / "..#items)
 end
 local function close()
  if panel then panel:Hide() end
@@ -381,13 +380,7 @@ local function attach(parent)
  right:ClearAllPoints()
  right:SetPoint("TOPLEFT",left,"TOPRIGHT",8,0)
  right:SetPoint("BOTTOMRIGHT",panel,"BOTTOMRIGHT",-16,30)
- -- Place the same coin watermark inside the shopping-list pane, behind its rows.
- local coin=left:CreateTexture(nil,"BORDER",nil,-7)
- coin:SetTexture(ART.."MFO_CoinBackground")
- coin:SetPoint("TOPLEFT",left,"TOPLEFT",12,-42)
- coin:SetPoint("BOTTOMRIGHT",left,"BOTTOMRIGHT",-12,12)
- coin:SetVertexColor(.78,.68,.54,1)
- coin:SetAlpha(.34)
+ -- Both inset panels use the same clean wood background.
  left:SetFrameLevel(panel:GetFrameLevel()+1)
  right:SetFrameLevel(panel:GetFrameLevel()+1)
  -- The main addon uses a recessed profession-row texture for section headings.
@@ -442,7 +435,7 @@ local function attach(parent)
   liveRows[i]=row
  end
  local liveStatus=right:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
- liveStatus:SetPoint("BOTTOMLEFT",right,"BOTTOMLEFT",16,63)
+ liveStatus:SetPoint("BOTTOMLEFT",right,"BOTTOMLEFT",16,18)
  liveStatus:SetPoint("RIGHT",right,"RIGHT",-16,0)
  liveStatus:SetJustifyH("LEFT")
  liveStatus:SetWordWrap(false)
@@ -483,17 +476,14 @@ local function attach(parent)
   row:SetScript("OnLeave",function()GameTooltip:Hide()end)
   rows[i]=row
  end
- panel.page=left:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
- panel.page:SetPoint("BOTTOMLEFT",left,"BOTTOMLEFT",14,20)
- local prev=button(left,"<",27)
- prev:SetPoint("LEFT",panel.page,"RIGHT",10,0)
- prev:SetScript("OnClick",function()panel.offset=math.max(0,panel.offset-9);update()end)
- local nextPage=button(left,">",27)
- nextPage:SetPoint("LEFT",prev,"RIGHT",4,0)
- nextPage:SetScript("OnClick",function()panel.offset=math.min(math.max(0,#panel.items-9),panel.offset+9);update()end)
- local done=button(right,"Close",75)
- done:SetPoint("BOTTOMRIGHT",right,"BOTTOMRIGHT",-14,10)
- done:SetScript("OnClick",close)
+ -- Mouse-wheel scrolling keeps larger shopping plans accessible without
+ -- the redundant footer page counter and arrow controls.
+ left:EnableMouseWheel(true)
+ left:SetScript("OnMouseWheel",function(_,delta)
+  local maximum=math.max(0,#(panel.items or {})-#rows)
+  panel.offset=math.max(0,math.min(maximum,panel.offset-delta))
+  update()
+ end)
  local function activate()
   hideNative(parent)
   setNativeTitle(parent)

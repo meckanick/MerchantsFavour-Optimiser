@@ -139,15 +139,19 @@ local function startLiveSearch(id)
  if select(2,AH.Progress()) then live.message="Wait for the MFO price scan to finish.";return end
  local item=AH.Shopping()[id]
  if not item then live.message="Item no longer in shopping list.";return end
+ -- Mark the request as waiting BEFORE dispatch: some AH clients deliver
+ -- results during SendSearchQuery, before the call returns.
+ live.waiting=true;live.message="Searching live auctions..."
  if C_AuctionHouse and type(C_AuctionHouse.SendSearchQuery)=="function" then
   local key=C_AuctionHouse.MakeItemKey and C_AuctionHouse.MakeItemKey(id) or {itemID=id}
   local ok=pcall(C_AuctionHouse.SendSearchQuery,key,{},false)
-  if ok then live.waiting=true;live.message="Searching live auctions...";return end
+  if ok then return end
  end
  if type(QueryAuctionItems)=="function" then
   local ok=pcall(QueryAuctionItems,item.name,nil,nil,0,0,0,0,0,nil,false)
-  if ok then live.waiting=true;live.message="Searching live auctions...";return end
+  if ok then return end
  end
+ live.waiting=false
  live.message="Live search unavailable in this client."
 end
 local function collectLive(event,arg)

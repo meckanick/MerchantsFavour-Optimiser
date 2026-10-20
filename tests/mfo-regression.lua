@@ -341,7 +341,8 @@ check(ahTab:find('if not offer or not item or live.id~=selected or live.waiting 
 
 check(ahTab:find('pcall(api.StartCommoditiesPurchase',1,true)==nil,"Protected purchase must not use pcall")
 
-check(ahTab:find('panel.buyOffer=button(right,"Purchase Details",120)',1,true)~=nil,"Protected purchases must be disabled")
-check(ahTab:find('api.StartCommoditiesPurchase(order.id,order.qty)',1,true)==nil,"No protected commodity purchase call")
-check(ahTab:find('api.ConfirmCommoditiesPurchase(order.id,order.qty)',1,true)==nil,"No protected commodity confirmation call")
 check(ahTab:find('api.PlaceBid(order.auctionID,order.buyout)',1,true)==nil,"No protected bid call")
+
+check(ahTab:find('panel.buyOffer=button(right,"Test Commodity Buy",150)',1,true)~=nil,"Primary button commodity diagnostic present")
+check(ahTab:find('api.StartCommoditiesPurchase(selected,qty)',1,true)~=nil,"Commodity test uses primary button")
+check(ahTab:find('api.PlaceBid(order.auctionID,order.buyout)',1,true)==nil,"Regular buyouts remain disabled")

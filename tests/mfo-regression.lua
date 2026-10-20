@@ -177,6 +177,8 @@ check(not coreSource:find("OwnedLabel", 1, true), "wrong-case OwnedLabel referen
 check(not coreSource:find("OwnedCount", 1, true), "wrong-case OwnedCount reference")
 check(coreSource:find('Crate (Cheapest Bundle)', 1, true) ~= nil, "crate column heading must be preserved")
 check(coreSource:find('Net C/F', 1, true) ~= nil, "net cost heading must be preserved")
+check(coreSource:match('clearButton:SetScript%("OnClick",function%(%)(.-)end%)'):find('planFavour()',1,true)~=nil,
+  "Clear must explicitly restore rankings after programmatic SetText")
 check(coreSource:find('targetInput:SetScript("OnTextChanged"',1,true)~=nil,
   "planner must react to target entry without separate button")
 check(coreSource:find('planner:Show();subheader:Hide();scrollFrame:Hide()',1,true)~=nil,

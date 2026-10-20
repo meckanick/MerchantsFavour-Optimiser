@@ -290,3 +290,6 @@ check(ahTab:find('ITEM_SEARCH_RESULTS_UPDATED',1,true)~=nil,"Live AH must suppor
 check(ahTab:find('panel.detail=right:CreateFontString',1,true)~=nil,"Selected item details must render above right inset backdrop")
 check(ahTab:find('local row=CreateFrame("Button",nil,left)',1,true)~=nil,"Shopping rows must render above left inset backdrop")
 check(ahTab:find('local liveStatus=right:CreateFontString',1,true)~=nil,"Live search status must render above right inset backdrop")
+
+check(ahTab:find('button(right,"Search AH"',1,true)==nil,"No redundant manual search button")
+check(ahTab:find('for i=1,6 do',1,true)~=nil,"Results fit above footer")

@@ -1,4 +1,4 @@
-Merchant's Favour Optimiser v0.1.64 - WoW Forever
+Merchant's Favour Optimiser v0.1.65 - WoW Forever
 
 Install the MerchantsFavourOptimiser folder in Interface/AddOns.
 Auctionator is required for auction pricing.
@@ -33,3 +33,5 @@ Inline Favour Planner: enter a Favour Needed target in the main toolbar to repla
 Inline planner now shows a matching Use Owned checkbox at the top right, synchronized with the rankings toggle and the saved setting.
 
 Planner Clear button now immediately restores the main crate rankings view.
+
+Top toolbar tidied: Auctionator scan-age details moved to the Refresh button tooltip; Favour Needed, input, Clear and Refresh aligned together on the right.

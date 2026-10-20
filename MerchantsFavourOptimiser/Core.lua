@@ -517,7 +517,7 @@ local function refresh()
     if not MFO_DB.bankScanTime then footerParts[#footerParts+1]="Bank Not Scanned" end
   end
   status:SetText(table.concat(footerParts," | "))
-  if planFavour then planFavour() end
+  if planFavour then planFavour(true) end
 end
 -- Update the timestamp after an Auctionator scan without requiring a manual MFO refresh.
 -- Only read Auctionator's reported timestamp; never assume opening the AH means a completed scan.
@@ -579,7 +579,7 @@ local plannerShop=CreateFrame("Button",nil,planner)
 plannerShop:SetSize(165,24);plannerShop:SetPoint("BOTTOMRIGHT",-12,9)
 plannerShop:SetText("Shop Planned Items");SkinWoodButton(plannerShop)
 local plannerShopping=nil
-planFavour=function()
+planFavour=function(inventoryFresh)
   local raw=targetInput:GetText()
   if raw=="" then
     planner:Hide();subheader:Show();scrollFrame:Show()
@@ -592,7 +592,8 @@ planFavour=function()
     return
   end
   MFO_DB.plannerTarget=target
-  learnBagItems();scanBags()
+  -- refresh() already scanned bags; text edits still need fresh inventory.
+  if not inventoryFresh then learnBagItems();scanBags() end
   local options,lookup={},{}
   for _,crate in ipairs(rows) do
     local crateID=crate.id or resolve(crate.name)

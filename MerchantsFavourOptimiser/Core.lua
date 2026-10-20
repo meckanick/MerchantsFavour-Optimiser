@@ -883,8 +883,6 @@ MFO_AH.onUpdate=function()
   if not select(2,MFO_AH.Progress()) then status:SetText(MFO_AH.Status()) end
   if frame:IsShown() then refresh() end
 end
-  if frame:IsShown() then refresh() end
-end
 SLASH_MFO1="/mfo"
 SlashCmdList.MFO=function(msg)
   if msg=="refresh" then refresh()

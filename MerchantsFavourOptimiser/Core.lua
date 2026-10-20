@@ -433,8 +433,8 @@ for i=1,#rows do
     if not (MFO_DB.useOwned and r.missing==0) and materialID then
       items[materialID]={name=r.b.name,qty=r.missing or r.b.qty}
     end
-    MFO_AH.Shop(items)
-    status:SetText("Added to MFO Shopping List. Use /mfo shop to view.")
+    local ok,reason=MFO_AH.ReplaceShopping(items)
+    status:SetText(ok and "Shopping List Replaced. Open MFO Shop at the Auction House." or (reason or "Unable to create shopping list."))
   end)
   shopButtons[i]=shop
   -- Net C/F has its own hover target; the crate-name column stays tooltip-free.
@@ -712,8 +712,8 @@ plannerShop:SetScript("OnClick",function()
   for id,qty in pairs(plannerShopping.items) do
     items[id]={name=names[id] or tostring(id),qty=qty}
   end
-  MFO_AH.Shop(items)
-  plannerInfo:SetText("Items added to MFO Shopping List. Use /mfo shop to view.")
+  local ok,reason=MFO_AH.ReplaceShopping(items)
+  plannerInfo:SetText(ok and "Shopping List Replaced. Open MFO Shop at the Auction House." or (reason or "Unable to create shopping list."))
 end)
 local ownedCheck=CreateFrame("CheckButton",nil,subheader,"UICheckButtonTemplate")
 -- Align the checkbox at the right edge of the first column, before its divider.

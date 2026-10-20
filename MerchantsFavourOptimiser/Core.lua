@@ -483,7 +483,9 @@ local function refresh()
   local results={};local complete=0;local missingIDs=0;local missingPrices=0
   for _,crate in ipairs(rows) do
     local rate,cp,b,bc,missing,owned,crateOwned=calc(crate)
-    if not (crate.id or resolve(crate.name)) then missingIDs=missingIDs+1 elseif cp==nil then missingPrices=missingPrices+1 end
+    if not crate.id then
+     if not resolve(crate.name) then missingIDs=missingIDs+1 elseif cp==nil then missingPrices=missingPrices+1 end
+   elseif cp==nil then missingPrices=missingPrices+1 end
     if rate then complete=complete+1 end
     table.insert(results,{crate=crate,rate=rate,cp=cp,b=b,bc=bc,missing=missing,owned=owned,crateOwned=crateOwned})
   end

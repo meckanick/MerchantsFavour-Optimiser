@@ -205,7 +205,7 @@ print("PASS: 30 crate definitions, calculations and UI capitalization guards")
 
 check(coreSource:find('scanAgeFooter:SetPoint("BOTTOMRIGHT"',1,true)~=nil,
   "scan-age indicator must sit at bottom-right")
-check(coreSource:find('scanAgeFooter:SetText("Last AH Scan: "..ageText.." Ago")',1,true)~=nil,
+check(coreSource:find('scanAgeFooter:SetText("Last AH Scan: "..elapsed.." Ago")',1,true)~=nil,
   "scan-age indicator must display measured elapsed age")
 check(coreSource:find('if days<1 then scanAgeFooter:SetTextColor',1,true)~=nil,
   "scan-age indicator must use freshness colors")

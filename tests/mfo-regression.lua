@@ -410,3 +410,11 @@ check(ahTab:find('live.offers={};live.waiting=false;selectedOffer=nil',1,true)~=
 check(ahTab:find('live.id=nil;live.offers={};live.waiting=false;live.elapsed=0',1,true)~=nil,"Closing shopping must reset live search state")
 check(ahTab:find('selectedOffer=nil;selected=nil',1,true)~=nil,"Reopening shopping must reset selected listing and item")
 check(ahTab:find('if watcher.uiElapsed>=1 then watcher.uiElapsed=0;update() end',1,true)~=nil,"Visible shopping UI should rebuild no more than once per second")
+
+-- Purchase recovery: ignore unrelated commodity events and close stale dialogs.
+check(ahTab:find('local awaitingPurchase=false',1,true)~=nil,"Track a submitted commodity confirmation")
+check(ahTab:find('if not commodityOrder and not awaitingPurchase then return end',1,true)~=nil,"Ignore unrelated failed commodity events")
+check(ahTab:find('if not awaitingPurchase then return end',1,true)~=nil,"Ignore unrelated commodity success events")
+check(ahTab:find('resetPurchaseDialogs=function()',1,true)~=nil,"Dialog cleanup must be initialized")
+check(ahTab:find('if resetPurchaseDialogs then resetPurchaseDialogs() end',1,true)~=nil,"Purchase cleanup must dismiss stale dialogs")
+check(ahTab:find('awaitingPurchase=true\n   C_AuctionHouse.ConfirmCommoditiesPurchase',1,true)~=nil,"Confirmation must track pending result before API call")

@@ -23,10 +23,13 @@ local function formatAgeDays(days)
   if days == 0 then return "Less Than 1 Day Ago" end
   return days .. (days == 1 and " Day Ago" or " Days Ago")
 end
+local scanAgeFooter
 local function updateScanNote()
   local api = auctionatorAPI()
   if not api or type(api.GetAuctionAgeByItemID) ~= "function" then
     note:SetText("Auctionator Scanned Prices | "..#rows.." Crates | Scan Age Unavailable")
+    scanAgeFooter:SetText("AH Scan: Unknown")
+    scanAgeFooter:SetTextColor(.65,.65,.65)
     return
   end
   local oldestAge, checked = nil, 0
@@ -42,8 +45,23 @@ local function updateScanNote()
   end
   if oldestAge then
     note:SetText("Auctionator Scanned Prices | "..#rows.." Crates | Oldest Price: " .. formatAgeDays(oldestAge))
+    local ageText
+    if oldestAge < 1 then
+      local hours=math.max(0,math.floor(oldestAge*24))
+      ageText=hours==0 and "Under 1h" or (hours.."h")
+    else
+      local days=math.floor(oldestAge)
+      ageText=days.."d"
+    end
+    scanAgeFooter:SetText("AH Scan: "..ageText.." Old")
+    if oldestAge<1 then scanAgeFooter:SetTextColor(.3,.95,.3)
+    elseif oldestAge<3 then scanAgeFooter:SetTextColor(1,.85,.2)
+    elseif oldestAge<7 then scanAgeFooter:SetTextColor(1,.55,.15)
+    else scanAgeFooter:SetTextColor(1,.25,.25) end
   else
     note:SetText("Auctionator Scanned Prices | "..#rows.." Crates | Scan Age Unavailable")
+    scanAgeFooter:SetText("AH Scan: Unknown")
+    scanAgeFooter:SetTextColor(.65,.65,.65)
   end
 end
 price = function(id)
@@ -212,8 +230,16 @@ note:SetText("Auctionator Scanned Prices | "..#rows.." Crates")
 note:Hide()
 local status=frame:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
 status:SetPoint("BOTTOMLEFT",19,16)
-status:SetWidth(856)
+status:SetWidth(650)
 status:SetJustifyH("LEFT")
+-- Footer scan-age indicator uses the oldest available Auctionator item price.
+-- The API reports age in days (including fractional days).
+scanAgeFooter=frame:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+scanAgeFooter:SetPoint("BOTTOMRIGHT",frame,"BOTTOMRIGHT",-19,16)
+scanAgeFooter:SetWidth(195)
+scanAgeFooter:SetJustifyH("RIGHT")
+scanAgeFooter:SetText("AH Scan: Unknown")
+scanAgeFooter:SetTextColor(.65,.65,.65)
 -- Recessed bronze controls matching the profession panel's visual language.
 -- Same textured button artwork and font treatment as What's Training? Professions.
 local function SkinWoodButton(button)

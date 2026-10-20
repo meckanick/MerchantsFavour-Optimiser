@@ -248,7 +248,6 @@ check(ahTab:find('AH.Shopping()',1,true)~=nil,"AH tab must read MFO shopping lis
 check(ahTab:find('AH.Price(',1,true)~=nil,"AH tab must display stored prices")
 check(ahTab:find('C_AuctionHouse.SendSearchQuery',1,true)~=nil,"AH tab must support modern item search")
 check(ahTab:find('QueryAuctionItems',1,true)~=nil,"AH tab must support legacy item search")
-check(ahTab:find('accept:SetScript("OnClick",function()',1,true)~=nil,"AH purchases must require explicit confirmation")
 
 check(ahTab:find('tab=CreateFrame("Button",nil,parent,"BackdropTemplate")',1,true)~=nil,"AH shop must use custom AH tab surface")
 check(ahTab:find('tab:SetPoint("TOPLEFT",last,"TOPRIGHT",-7,0)',1,true)~=nil,"AH shop must attach to bottom tab row by top edge")
@@ -337,6 +336,9 @@ check(ahTab:find('liveStatus:SetPoint("BOTTOMLEFT",right,"BOTTOMLEFT",16,18)',1,
 
 check(ahTab:find('panel.itemIcon=CreateFrame("Button",nil,right)',1,true)~=nil,"Selected item must show a hoverable icon")
 check(ahTab:find('GameTooltip:SetHyperlink("item:"..selected)',1,true)~=nil,"Selected item must expose native item tooltip")
-check(ahTab:find('panel.buyOffer=button(right,"Buy Selected",110)',1,true)~=nil,"Selected auction must have a purchase action")
-check(ahTab:find('confirmText:SetText("Buy "',1,true)~=nil,"Purchase must show explicit confirmation")
 check(ahTab:find('if not offer or not item or live.id~=selected or live.waiting then return end',1,true)~=nil,"Purchases must guard stale auction results")
+
+check(ahTab:find('panel.buyOffer=button(right,"Purchase Details",120)',1,true)~=nil,"Purchase preview must be available")
+check(ahTab:find('pcall(api.StartCommoditiesPurchase',1,true)==nil,"Must not invoke protected commodity purchases")
+check(ahTab:find('pcall(api.PlaceBid',1,true)==nil,"Must not invoke protected bids")
+check(ahTab:find('pcall(PlaceAuctionBid',1,true)==nil,"Must not invoke protected legacy bids")

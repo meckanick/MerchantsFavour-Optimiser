@@ -37,14 +37,19 @@ local function db()
   market.prices=market.prices or {}
   market.shopping=market.shopping or {}
   -- Legacy account-wide prices have no reliable realm/faction provenance.
-  -- Keep a recoverable backup and import into the first active market only.\n  -- The original market is unknowable, so users should rescan on that market.
+  -- Keep a recoverable backup and import into the first active market only.
+  -- The original market is unknowable, so users should rescan on that market.
   if not root.legacyMarketArchived and
       (root.prices~=nil or root.shopping~=nil or root.lastAHScan~=nil) then
     root.legacyMarketArchived=true
     root.legacyAHData={
       prices=root.prices,shopping=root.shopping,lastAHScan=root.lastAHScan
     }
-    market.prices=root.prices or {}\n    market.shopping=root.shopping or {}\n    market.lastAHScan=root.lastAHScan\n    root.legacyMarketImportedTo=realm.." - "..faction\n    root.prices=nil;root.shopping=nil;root.lastAHScan=nil
+    market.prices=root.prices or {}
+    market.shopping=root.shopping or {}
+    market.lastAHScan=root.lastAHScan
+    root.legacyMarketImportedTo=realm.." - "..faction
+    root.prices=nil;root.shopping=nil;root.lastAHScan=nil
   end
   return market
 end

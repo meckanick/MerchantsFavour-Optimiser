@@ -347,5 +347,7 @@ check(ahTab:find('panel.buyOffer=button(right,"Buy Selected",115)',1,true)~=nil,
 check(ahTab:find('api.StartCommoditiesPurchase(selected,qty)',1,true)~=nil,"Commodity test uses primary button")
 check(ahTab:find('api.PlaceBid(order.auctionID,order.buyout)',1,true)==nil,"Regular buyouts remain disabled")
 
-check(ahTab:find('local qty=math.floor(tonumber(item.qty) or 0)',1,true)~=nil,"Commodity buy uses full outstanding quantity")
-check(ahTab:find('math.min(item.qty,offer.qty)',1,true)==nil,"Commodity quantity must not be capped by one listing")
+
+check(ahTab:find('local chainBuy=false',1,true)~=nil,"Chain Buy defaults off")
+check(ahTab:find('chainToggle:SetChecked(false)',1,true)~=nil,"Chain Buy checkbox starts unchecked")
+check(ahTab:find('chainBuy and needed or math.min(needed,available)',1,true)~=nil,"Chain Buy toggles full need versus selected listing")

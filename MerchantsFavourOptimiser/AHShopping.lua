@@ -239,7 +239,7 @@ local function attach(parent)
    end
   end
  end
- -- Build an actual tab surface, never a red UIPanelButtonTemplate.
+ -- Build an actual tab surface, never a generic red action button.
  -- Native WoW AH tabs use dark recessed and raised gold selected states.
  tab=CreateFrame("Button",nil,parent,"BackdropTemplate")
  tab:SetSize(108,29)

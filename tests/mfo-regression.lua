@@ -252,9 +252,12 @@ check(not ahTab:find('PlaceBid',1,true),"AH tab must not auto-buy")
 
 check(ahTab:find('AuctionTabTemplate',1,true)~=nil,"AH shop must register a native auction tab")
 check(ahTab:find('tab:SetPoint("LEFT",last,"RIGHT"',1,true)~=nil,"AH shop must attach to bottom tab row")
-check(ahTab:find('AuctionFrameBrowse:Hide()',1,true)~=nil,"AH shop must replace Blizzard browse pane when selected")
+check(ahTab:find('hideNative(parent)',1,true)~=nil,"AH shop must hide native AH content")
 
 check(ahTab:find('addon=="Blizzard_AuctionUI"',1,true)~=nil,"MFO tab must attach when Blizzard Auction UI loads")
 check(ahTab:find('AUCTION_HOUSE_SHOW',1,true)~=nil,"MFO tab must handle opening the auction house")
 
 check(not ahTab:find('tab:SetPoint("TOPRIGHT"',1,true),"AH shop must never use top-right placement")
+
+check(ahTab:find('restoreNative()',1,true)~=nil,"AH shop must restore native panels")
+check(ahTab:find('backdrop:SetColorTexture',1,true)~=nil,"AH shop must have an opaque content background")

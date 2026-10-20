@@ -166,9 +166,10 @@ local function modernNext()
     if type(GetItemInfo)=="function" then GetItemInfo(entry.id) end
     return
   end
-  local ok=pcall(C_AuctionHouse.SendSearchQuery,key,{},false)
-  if not ok then busy=false;AH.message="Modern AH query failed";return end
+  -- Arm result handling before dispatch; a first query may respond synchronously.
   waiting=true;started=GetTime and GetTime() or 0
+  local ok=pcall(C_AuctionHouse.SendSearchQuery,key,{},false)
+  if not ok then busy=false;waiting=false;AH.message="Modern AH query failed";return end
 end
 local modernEvents=CreateFrame("Frame")
 local modernOK=pcall(modernEvents.RegisterEvent,modernEvents,"ITEM_SEARCH_RESULTS_UPDATED")
@@ -269,8 +270,13 @@ events:SetScript("OnEvent",function()
   end
   if AH.onUpdate then AH.onUpdate() end
 end)
+local scanTick=0
 events:SetScript("OnUpdate",function(_,elapsed)
-  if not busy then return end
+  if not busy then scanTick=0;return end
+  -- Avoid polling item-cache readiness on every rendered frame.
+  scanTick=scanTick+elapsed
+  if scanTick<.2 then return end
+  scanTick=0
   if modern and not waiting then modernNext();return end
   if waiting then
     if GetTime and GetTime()-started>15 then

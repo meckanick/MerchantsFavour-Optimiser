@@ -119,8 +119,9 @@ end
 -- Read-only live search. Do not buy, reserve, or modify shopping quantities.
 local live={id=nil,waiting=false,offers={},message="Select an item to search."}
 local refreshOffers
+local selectedOffer
 local function startLiveSearch(id)
- live.id=id;live.offers={};live.waiting=false
+ live.id=id;live.offers={};live.waiting=false;selectedOffer=nil
  if not id then live.message="Select an item to search.";return end
  if select(2,AH.Progress()) then live.message="Wait for the MFO price scan to finish.";return end
  local item=AH.Shopping()[id]
@@ -147,7 +148,7 @@ local function collectLive(event,arg)
   for i=1,math.min(count,100) do
    local name,_,qty,_,_,_,_,_,buyout=GetAuctionItemInfo("list",i)
    if wanted and name==wanted.name and type(buyout)=="number" and buyout>0 then
-    offers[#offers+1]={price=math.ceil(buyout/math.max(1,qty or 1)),qty=qty or 1}
+    offers[#offers+1]={price=math.ceil(buyout/math.max(1,qty or 1)),qty=qty or 1,legacyIndex=i,buyout=buyout}
    end
   end
  else
@@ -158,20 +159,20 @@ local function collectLive(event,arg)
   if event=="COMMODITY_SEARCH_RESULTS_UPDATED" and api.GetNumCommoditySearchResults and api.GetCommoditySearchResultInfo then
    for i=1,math.min(api.GetNumCommoditySearchResults(id) or 0,100) do
     local entry=api.GetCommoditySearchResultInfo(id,i)
-    if entry and entry.unitPrice then offers[#offers+1]={price=entry.unitPrice,qty=entry.quantity or 1} end
+    if entry and entry.unitPrice then offers[#offers+1]={price=entry.unitPrice,qty=entry.quantity or 1,commodity=true} end
    end
   elseif event=="ITEM_SEARCH_RESULTS_UPDATED" and api.GetNumItemSearchResults and api.GetItemSearchResultInfo then
    local key=api.MakeItemKey and api.MakeItemKey(id) or {itemID=id}
    for i=1,math.min(api.GetNumItemSearchResults(key) or 0,100) do
     local entry=api.GetItemSearchResultInfo(key,i)
     if entry and entry.buyoutAmount and entry.buyoutAmount>0 then
-     offers[#offers+1]={price=math.ceil(entry.buyoutAmount/math.max(1,entry.quantity or 1)),qty=entry.quantity or 1}
+     offers[#offers+1]={price=math.ceil(entry.buyoutAmount/math.max(1,entry.quantity or 1)),qty=entry.quantity or 1,auctionID=entry.auctionID,buyout=entry.buyoutAmount}
     end
    end
   else return end
  end
  table.sort(offers,function(a,b)return a.price<b.price end)
- live.offers=offers;live.waiting=false
+ live.offers=offers;live.waiting=false;selectedOffer=nil
  live.message=#offers>0 and (#offers.." listings found"..(#offers>6 and " (showing 6 lowest)" or "")) or "No live buyout listings found."
  if refreshOffers then refreshOffers() end
 end
@@ -214,6 +215,14 @@ local function update()
  local current=selected and AH.Shopping()[selected]
  if panel.detail then
   panel.detail:SetText(current and (current.name.."\nRequired quantity: "..current.qty.."\nCached unit price: "..gold(AH.Price(selected)).."\nEstimated total: "..gold((AH.Price(selected) or 0)*current.qty)) or "")
+ end
+ if panel.itemIcon then
+  if current then
+   local texture=type(GetItemIcon)=="function" and GetItemIcon(selected)
+   if not texture and C_Item and C_Item.GetItemIconByID then texture=C_Item.GetItemIconByID(selected) end
+   panel.itemIcon:SetNormalTexture(texture or "Interface\\Icons\\INV_Misc_QuestionMark")
+   panel.itemIcon:Show()
+  else panel.itemIcon:Hide() end
  end
  for i,row in ipairs(rows) do
   local item=items[i+panel.offset]
@@ -419,19 +428,47 @@ local function attach(parent)
  panel.total=panel:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
  panel.total:SetPoint("TOPLEFT",panel,"TOPLEFT",30,-65)
  panel.detail=right:CreateFontString(nil,"OVERLAY","GameFontHighlight")
- panel.detail:SetPoint("TOPLEFT",right,"TOPLEFT",16,-54)
+ panel.detail:SetPoint("TOPLEFT",right,"TOPLEFT",64,-54)
  panel.detail:SetPoint("RIGHT",right,"RIGHT",-16,0)
  panel.detail:SetJustifyH("LEFT")
  panel.detail:SetTextColor(1,.9,.65)
+ panel.itemIcon=CreateFrame("Button",nil,right)
+ panel.itemIcon:SetSize(40,40)
+ panel.itemIcon:SetPoint("TOPLEFT",right,"TOPLEFT",16,-54)
+ panel.itemIcon:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square","ADD")
+ panel.itemIcon:SetScript("OnEnter",function(self)
+  if not selected then return end
+  GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
+  if type(GameTooltip.SetItemByID)=="function" then
+   GameTooltip:SetItemByID(selected)
+  elseif type(GameTooltip.SetHyperlink)=="function" then
+   GameTooltip:SetHyperlink("item:"..selected)
+  end
+  GameTooltip:Show()
+ end)
+ panel.itemIcon:SetScript("OnLeave",function()GameTooltip:Hide()end)
+ panel.itemIcon:Hide()
  local liveHeader=right:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
  liveHeader:SetPoint("TOPLEFT",right,"TOPLEFT",16,-153)
  liveHeader:SetText("Auction House Listings  |  Unit Price                  Available")
  local liveRows={}
  for i=1,6 do
-  local row=right:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-  row:SetPoint("TOPLEFT",right,"TOPLEFT",18,-178-(i-1)*28)
-  row:SetPoint("RIGHT",right,"RIGHT",-18,0)
-  row:SetJustifyH("LEFT")
+  local row=CreateFrame("Button",nil,right)
+  row:SetHeight(25)
+  row:SetPoint("TOPLEFT",right,"TOPLEFT",16,-176-(i-1)*28)
+  row:SetPoint("RIGHT",right,"RIGHT",-16,0)
+  local label=row:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+  label:SetAllPoints(row)
+  label:SetJustifyH("LEFT")
+  row.label=label
+  local highlight=row:CreateTexture(nil,"BACKGROUND")
+  highlight:SetAllPoints(row)
+  highlight:SetColorTexture(.63,.41,.08,.32)
+  row.highlight=highlight
+  highlight:Hide()
+  row:SetScript("OnClick",function()
+   if live.offers[i] then selectedOffer=i;refreshOffers() end
+  end)
   liveRows[i]=row
  end
  local liveStatus=right:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
@@ -444,9 +481,74 @@ local function attach(parent)
   liveStatus:SetText(live.message or "")
   for i,row in ipairs(liveRows) do
    local offer=live.offers[i]
-   row:SetText(offer and (gold(offer.price).."                         x"..offer.qty) or "")
+   row.label:SetText(offer and (gold(offer.price).."                         x"..offer.qty) or "")
+   if offer then row:Show() else row:Hide() end
+   if selectedOffer==i then row.highlight:Show() else row.highlight:Hide() end
+  end
+  if panel.buyOffer then
+   panel.buyOffer:SetEnabled(selectedOffer~=nil and live.offers[selectedOffer]~=nil)
   end
  end
+ -- Purchasing always requires selecting a live auction and confirming the
+ -- exact quantity and total. Never automatically buy on search or row select.
+ local pending
+ local confirm=CreateFrame("Frame",nil,panel,"BackdropTemplate")
+ confirm:SetSize(360,145)
+ confirm:SetPoint("CENTER",panel,"CENTER")
+ confirm:SetFrameStrata("DIALOG")
+ confirm:SetFrameLevel(panel:GetFrameLevel()+30)
+ confirm:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",
+  edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",edgeSize=22,
+  insets={left=8,right=8,top=8,bottom=8}})
+ local confirmText=confirm:CreateFontString(nil,"OVERLAY","GameFontHighlight")
+ confirmText:SetPoint("TOP",confirm,"TOP",0,-22)
+ confirmText:SetWidth(320)
+ local accept=button(confirm,"Confirm Purchase",135)
+ accept:SetPoint("BOTTOMLEFT",confirm,"BOTTOMLEFT",32,20)
+ local cancel=button(confirm,"Cancel",85)
+ cancel:SetPoint("BOTTOMRIGHT",confirm,"BOTTOMRIGHT",-32,20)
+ cancel:SetScript("OnClick",function()pending=nil;confirm:Hide()end)
+ accept:SetScript("OnClick",function()
+  if not pending then return end
+  local order=pending
+  pending=nil;confirm:Hide()
+  local api=C_AuctionHouse
+  local ok=false
+  if order.commodity and api and type(api.StartCommoditiesPurchase)=="function" then
+   ok=pcall(api.StartCommoditiesPurchase,order.id,order.qty)
+   if ok then
+    live.message="Purchase started. Confirm the final price in the Auction House if prompted."
+   end
+  elseif order.auctionID and api and type(api.PlaceBid)=="function" then
+   ok=pcall(api.PlaceBid,order.auctionID,order.buyout)
+  elseif order.legacyIndex and type(PlaceAuctionBid)=="function" then
+   ok=pcall(PlaceAuctionBid,"list",order.legacyIndex,order.buyout)
+  end
+  if not ok then live.message="Purchase API unavailable or rejected this listing. Please use the native Buy tab." end
+  refreshOffers()
+ end)
+ confirm:Hide()
+ panel.buyOffer=button(right,"Buy Selected",110)
+ panel.buyOffer:SetPoint("BOTTOMRIGHT",right,"BOTTOMRIGHT",-14,12)
+ panel.buyOffer:SetEnabled(false)
+ panel.buyOffer:SetScript("OnClick",function()
+  local offer=selectedOffer and live.offers[selectedOffer]
+  local item=selected and AH.Shopping()[selected]
+  if not offer or not item or live.id~=selected then return end
+  local qty=math.min(item.qty,offer.qty)
+  if qty<1 then return end
+  -- Non-commodity auctions are indivisible stacks.
+  if not offer.commodity then qty=offer.qty end
+  if not offer.commodity and not offer.auctionID and not offer.legacyIndex then
+   live.message="This listing cannot be purchased through the available API."
+   refreshOffers();return
+  end
+  pending={id=selected,qty=qty,commodity=offer.commodity,
+   auctionID=offer.auctionID,legacyIndex=offer.legacyIndex,
+   buyout=offer.buyout or offer.price*offer.qty}
+  confirmText:SetText("Buy "..item.name.." x"..qty.."\\nTotal: "..gold(offer.commodity and offer.price*qty or pending.buyout).."\\nConfirm this purchase?")
+  confirm:Show()
+ end)
  panel:Hide()
  panel.offset=0
  for i=1,9 do

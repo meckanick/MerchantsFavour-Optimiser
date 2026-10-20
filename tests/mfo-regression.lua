@@ -248,7 +248,7 @@ check(ahTab:find('AH.Shopping()',1,true)~=nil,"AH tab must read MFO shopping lis
 check(ahTab:find('AH.Price(',1,true)~=nil,"AH tab must display stored prices")
 check(ahTab:find('C_AuctionHouse.SendSearchQuery',1,true)~=nil,"AH tab must support modern item search")
 check(ahTab:find('QueryAuctionItems',1,true)~=nil,"AH tab must support legacy item search")
-check(not ahTab:find('PlaceBid',1,true),"AH tab must not auto-buy")
+check(ahTab:find('accept:SetScript("OnClick",function()',1,true)~=nil,"AH purchases must require explicit confirmation")
 
 check(ahTab:find('tab=CreateFrame("Button",nil,parent,"BackdropTemplate")',1,true)~=nil,"AH shop must use custom AH tab surface")
 check(ahTab:find('tab:SetPoint("TOPLEFT",last,"TOPRIGHT",-7,0)',1,true)~=nil,"AH shop must attach to bottom tab row by top edge")

@@ -9,11 +9,44 @@ local function recordMissing(entry)
   if entry then missing[#missing+1]={id=entry.id,name=entry.name} end
 end
 function AH.Missing() return missing end
+-- Market-scoped prices and shopping lists; settings and character-owned inventory stay account-wide.
+local function marketIdentity()
+  local realm=(type(GetRealmName)=="function" and GetRealmName()) or
+    (type(GetNormalizedRealmName)=="function" and GetNormalizedRealmName()) or "Unknown"
+  local faction=(type(UnitFactionGroup)=="function" and UnitFactionGroup("player")) or "Unknown"
+  realm=tostring(realm):gsub("^%s+",""):gsub("%s+$","")
+  faction=tostring(faction)
+  return realm,faction
+end
+function AH.Market()
+  local realm,faction=marketIdentity()
+  return realm.." - "..faction
+end
 local function db()
   MFO_DB=MFO_DB or {}
-  MFO_DB.prices=MFO_DB.prices or {}
-  MFO_DB.shopping=MFO_DB.shopping or {}
-  return MFO_DB
+  local root=MFO_DB
+  root.markets=root.markets or {}
+  local realm,faction=marketIdentity()
+  -- Use two levels so punctuation in realm names cannot collide with faction names.
+  root.markets[realm]=root.markets[realm] or {}
+  local market=root.markets[realm][faction]
+  if not market then
+    market={prices={},shopping={}}
+    root.markets[realm][faction]=market
+  end
+  market.prices=market.prices or {}
+  market.shopping=market.shopping or {}
+  -- Legacy account-wide prices have no reliable realm/faction provenance.
+  -- Preserve them unchanged for manual recovery; do not silently contaminate markets.
+  if not root.legacyMarketArchived and
+      (root.prices~=nil or root.shopping~=nil or root.lastAHScan~=nil) then
+    root.legacyMarketArchived=true
+    root.legacyAHData={
+      prices=root.prices,shopping=root.shopping,lastAHScan=root.lastAHScan
+    }
+    root.prices=nil;root.shopping=nil;root.lastAHScan=nil
+  end
+  return market
 end
 function AH.Price(id)
   local record=db().prices[id]

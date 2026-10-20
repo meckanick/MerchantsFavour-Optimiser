@@ -405,3 +405,8 @@ check(ahTab:find('return -- Throttle notifications are not auction result payloa
 check(ahTab:find('if live.elapsed>=15 then',1,true)~=nil,"Stalled live searches must expire")
 check(ahTab:find('Auction search timed out. Select the item again to retry.',1,true)~=nil,"Search timeout must show recovery instruction")
 check(ahTab:find('live.offers={};live.waiting=false;selectedOffer=nil',1,true)~=nil,"Purchase completion must invalidate stale offers")
+
+-- Closing and reopening AH Shopping must not reuse stale listing selections.
+check(ahTab:find('live.id=nil;live.offers={};live.waiting=false;live.elapsed=0',1,true)~=nil,"Closing shopping must reset live search state")
+check(ahTab:find('selectedOffer=nil;selected=nil',1,true)~=nil,"Reopening shopping must reset selected listing and item")
+check(ahTab:find('if watcher.uiElapsed>=1 then watcher.uiElapsed=0;update() end',1,true)~=nil,"Visible shopping UI should rebuild no more than once per second")

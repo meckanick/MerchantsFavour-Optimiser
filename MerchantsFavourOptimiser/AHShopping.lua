@@ -534,41 +534,12 @@ local function attach(parent)
   dismiss()
  end)
  accept:SetScript("OnClick",function()
-  local order=pending
-  if not order or not panel:IsShown() then return end
-  -- Never purchase a different item if the selection changed.
-  if selected~=order.id or live.id~=order.id then dismiss();return end
-  local api=C_AuctionHouse
-  if order.stage=="commodity-confirm" then
-   if not commodityOrder or commodityOrder.id~=order.id then dismiss();return end
-   dismiss()
-   if api and type(api.ConfirmCommoditiesPurchase)=="function" then
-    api.ConfirmCommoditiesPurchase(order.id,order.qty)
-    live.message="Commodity purchase submitted; awaiting Auction House result."
-   else
-    live.message="Commodity confirmation API unavailable."
-   end
-  elseif order.commodity then
-   dismiss()
-   if api and type(api.StartCommoditiesPurchase)=="function" then
-    commodityOrder={id=order.id,qty=order.qty,estimated=order.total}
-    api.StartCommoditiesPurchase(order.id,order.qty)
-    live.message="Checking commodity price with Auction House..."
-   else
-    live.message="Commodity purchase API unavailable."
-   end
-  else
-   dismiss()
-   if order.auctionID and api and type(api.PlaceBid)=="function" then
-    api.PlaceBid(order.auctionID,order.buyout)
-    live.message="Auction buyout submitted; check Auction House result."
-   elseif order.legacyIndex and type(PlaceAuctionBid)=="function" then
-    PlaceAuctionBid("list",order.legacyIndex,order.buyout)
-    live.message="Auction buyout submitted; check Auction House result."
-   else
-    live.message="Buyout API unavailable on this client."
-   end
-  end
+  -- WoW Forever reports ADDON_ACTION_BLOCKED for the commodity purchase
+  -- API even on a hardware click. Do not call any protected buyout API
+  -- until a client-compatible secure purchase integration is verified.
+  dismiss()
+  commodityOrder=nil
+  live.message="Direct purchases are blocked by this client. Use the native Buy tab for now."
   refreshOffers()
  end)
  confirm:Hide()
@@ -584,10 +555,10 @@ local function attach(parent)
   end
   pending={id=order.id,qty=order.qty,total=total,stage="commodity-confirm"}
   confirmText:SetText("Confirm commodity purchase\nQuantity: "..order.qty.."\nAuction House total: "..gold(total))
-  accept:SetText("Confirm Buy")
+  accept:SetText("OK")
   confirm:Show()
  end
- panel.buyOffer=button(right,"Buy Selected",115)
+ panel.buyOffer=button(right,"Purchase Details",120)
  panel.buyOffer:SetPoint("BOTTOMRIGHT",right,"BOTTOMRIGHT",-14,12)
  panel.buyOffer:SetEnabled(false)
  panel.buyOffer:SetScript("OnClick",function()
@@ -604,8 +575,8 @@ local function attach(parent)
    auctionID=offer.auctionID,legacyIndex=offer.legacyIndex,
    buyout=offer.buyout or offer.price*offer.qty,
    total=offer.commodity and offer.price*qty or offer.buyout}
-  confirmText:SetText("Buy "..item.name.." x"..qty.."\nEstimated total: "..gold(pending.total).."\nProceed to Auction House purchase?")
-  accept:SetText("Buy")
+  confirmText:SetText("Buy "..item.name.." x"..qty.."\nEstimated total: "..gold(pending.total).."\nUse native AH Buy tab to complete purchase.")
+  accept:SetText("OK")
   confirm:Show()
  end)
  panel:Hide()

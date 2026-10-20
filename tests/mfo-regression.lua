@@ -274,9 +274,11 @@ check(ahTab:find('background:SetColorTexture(.105,.089,.071,1)',1,true)~=nil,"MF
 check(ahTab:find('restoreNativeTitle()',1,true)~=nil,"MFO must restore native Auction House title")
 check(ahTab:find('region:SetText("MFO - Shopping")',1,true)~=nil,"MFO must set native header title")
 
-check(ahTab:find('local left=inset(16,-112,-350,30)',1,true)~=nil,"Shopping list must use Auctionator-style pane proportions")
+check(ahTab:find('left:SetWidth(340)',1,true)~=nil,"Shopping list must use Auctionator-style pane proportions")
 check(ahTab:find('row.cost:SetWidth(72)',1,true)~=nil,"Shopping prices must have dedicated width")
 check(ahTab:find('header:SetText("")',1,true)~=nil,"Duplicate shopping title must be hidden")
 
-check(ahTab:find('searchLabel:SetText("Search Term:")',1,true)~=nil,"Shopping toolbar must show search term")
+check(ahTab:find('searchLabel:SetText("Search Term:")',1,true)==nil,"Unused search toolbar must be removed")
 check(ahTab:find('header:SetText("")',1,true)~=nil,"Native title must not be duplicated")
+
+check(ahTab:find('right:SetPoint("TOPLEFT",left,"TOPRIGHT",8,0)',1,true)~=nil,"Right panel must anchor to left without overlap")

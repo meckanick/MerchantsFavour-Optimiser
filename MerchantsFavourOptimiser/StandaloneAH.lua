@@ -133,13 +133,13 @@ modernEvents:SetScript("OnEvent",function(_,event,arg)
     return
   end
   if isCommodity and C_AuctionHouse.GetCommoditySearchResultInfo then
-    for i=1,count do
+    for i=1,(C_AuctionHouse.GetNumCommoditySearchResults and C_AuctionHouse.GetNumCommoditySearchResults(entry.id) or 0) do
       local item=C_AuctionHouse.GetCommoditySearchResultInfo(entry.id,i)
       local p=item and item.unitPrice
       if type(p)=="number" and p>0 and (not price or p<price) then price=p end
     end
   elseif not isCommodity and C_AuctionHouse.GetItemSearchResultInfo then
-    for i=1,count do
+    for i=1,(C_AuctionHouse.GetNumItemSearchResults and C_AuctionHouse.GetNumItemSearchResults(key) or 0) do
       local item=C_AuctionHouse.GetItemSearchResultInfo(key,i)
       local p=item and item.buyoutAmount
       if type(p)=="number" and p>0 then

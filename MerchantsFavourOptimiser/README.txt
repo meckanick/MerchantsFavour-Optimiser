@@ -25,3 +25,4 @@ Refresh recalculates using stored prices; it does not scan the AH.
 
 Development source and installation details:
 https://github.com/meckanick/MerchantsFavour-Optimiser
+\nMarket separation: scanned prices, scan time and shopping list are shared by\nmegarealm and faction (PvE/PvP/RP, Alliance/Horde), not across markets.\nThe active market appears in the main status and Scan AH tooltip.\nLegacy prices are backed up under MFO_DB.legacyAHData and imported into the\nfirst active market only; rescan there because the original market is unknown.\nNeutral Auction Houses are not independently detected in this version.\n

@@ -1,5 +1,6 @@
 -- MFO shopping tab: integrates with the native Auction House without automating purchases.
 local AH=MFO_AH
+local ART="Interface\\AddOns\\MerchantsFavourOptimiser\\"
 local host,tab,panel,selected
 local tabIndex
 local nativeTabsHooked=false
@@ -102,7 +103,13 @@ local function gold(c)
 end
 local function button(parent,label,width)
  local b=CreateFrame("Button",nil,parent,"UIPanelButtonTemplate")
- b:SetSize(width,23);b:SetText(label);return b
+ b:SetSize(width,23);b:SetText(label)
+ local texture=ART.."WTP_FooterButton"
+ b:SetNormalTexture(texture);b:SetPushedTexture(texture)
+ b:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square","ADD")
+ local font=b:GetFontString()
+ if font then font:SetFontObject(GameFontNormalSmall);font:SetTextColor(1,.82,.05) end
+ return b
 end
 local function activeAH()
  if AuctionHouseFrame and AuctionHouseFrame:IsShown() then return AuctionHouseFrame end
@@ -198,10 +205,11 @@ local function update()
   row.item=item
   if item then
    row.label:SetText((selected==item.id and "|cffffd45a> |r" or "")..item.name.." x"..item.qty)
+   if selected==item.id then row.highlight:Show() else row.highlight:Hide() end
    local price=AH.Price(item.id)
    row.cost:SetText(price and gold(price*item.qty) or "No price")
    row:Show()
-  else row:Hide() end
+  else row.highlight:Hide();row:Hide() end
  end
  panel.page:SetText((#items==0 and 0 or panel.offset+1).."-"..math.min(#items,panel.offset+#rows).." / "..#items)
 end
@@ -251,19 +259,21 @@ local function attach(parent)
  -- The parent retains its native border, portrait and close button.
  local background=panel:CreateTexture(nil,"BACKGROUND")
  background:SetAllPoints(panel)
- background:SetColorTexture(.105,.089,.071,1)
+ background:SetTexture(ART.."MFO_WoodBackground")
  local tint=panel:CreateTexture(nil,"BORDER")
  tint:SetAllPoints(panel)
- tint:SetColorTexture(.11,.09,.075,1)
+ tint:SetTexture(ART.."MFO_CoinBackground")
+ tint:SetVertexColor(.78,.68,.54,1)
+ tint:SetAlpha(.40)
  local function inset(left,top,right,bottom)
   local f=CreateFrame("Frame",nil,panel,"BackdropTemplate")
   f:SetPoint("TOPLEFT",panel,"TOPLEFT",left,top)
   f:SetPoint("BOTTOMRIGHT",panel,"BOTTOMRIGHT",right,bottom)
-  f:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",
-   edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",edgeSize=15,
-   insets={left=3,right=3,top=3,bottom=3}})
-  f:SetBackdropColor(.12,.105,.085,.94)
-  f:SetBackdropBorderColor(.52,.48,.39,1)
+  f:SetBackdrop({bgFile=ART.."MFO_WoodBackground",
+   edgeFile="Interface\\DialogFrame\\UI-DialogBox-Gold-Border",edgeSize=18,
+   insets={left=7,right=7,top=7,bottom=7}})
+  f:SetBackdropColor(.75,.65,.54,1)
+  f:SetBackdropBorderColor(1,.84,.48,1)
   f:EnableMouse(false)
   return f
  end
@@ -280,6 +290,22 @@ local function attach(parent)
  right:SetPoint("BOTTOMRIGHT",panel,"BOTTOMRIGHT",-16,30)
  left:SetFrameLevel(panel:GetFrameLevel()+1)
  right:SetFrameLevel(panel:GetFrameLevel()+1)
+ -- The main addon uses a recessed profession-row texture for section headings.
+ local function sectionHeader(parent,label)
+  local bar=CreateFrame("Frame",nil,parent,"BackdropTemplate")
+  bar:SetPoint("TOPLEFT",parent,"TOPLEFT",9,-8)
+  bar:SetPoint("TOPRIGHT",parent,"TOPRIGHT",-9,-8)
+  bar:SetHeight(29)
+  bar:SetBackdrop({bgFile=ART.."WTP_ProfessionRow"})
+  local caption=bar:CreateFontString(nil,"OVERLAY","GameFontNormal")
+  caption:SetPoint("LEFT",bar,"LEFT",13,0)
+  caption:SetText(label)
+  caption:SetTextColor(1,.76,.13)
+  return bar
+ end
+ sectionHeader(left,"Shopping Lists")
+ sectionHeader(right,"Selected Item")
+
  local topbar=panel:CreateTexture(nil,"ARTWORK")
  topbar:SetPoint("TOPLEFT",panel,"TOPLEFT",12,-35)
  topbar:SetPoint("TOPRIGHT",panel,"TOPRIGHT",-12,-35)
@@ -288,18 +314,10 @@ local function attach(parent)
  local header=panel:CreateFontString(nil,"OVERLAY","GameFontNormalLarge")
  header:SetPoint("TOP",panel,"TOP",0,-14)
  header:SetText("")
- local title=left:CreateFontString(nil,"OVERLAY","GameFontNormal")
- title:SetPoint("TOPLEFT",left,"TOPLEFT",14,-14)
- title:SetText("Shopping Lists")
- local resultsTitle=right:CreateFontString(nil,"OVERLAY","GameFontNormal")
- resultsTitle:SetPoint("TOPLEFT",right,"TOPLEFT",14,-14)
- resultsTitle:SetText("Selected Item")
- local priceTitle=right:CreateFontString(nil,"OVERLAY","GameFontNormal")
- priceTitle:SetPoint("TOPRIGHT",right,"TOPRIGHT",-16,-14)
- priceTitle:SetText("")
+
  local line=right:CreateTexture(nil,"ARTWORK")
- line:SetPoint("TOPLEFT",right,"TOPLEFT",8,-37)
- line:SetPoint("TOPRIGHT",right,"TOPRIGHT",-8,-37)
+ line:SetPoint("TOPLEFT",right,"TOPLEFT",10,-40)
+ line:SetPoint("TOPRIGHT",right,"TOPRIGHT",-10,-40)
  line:SetHeight(1)
  line:SetColorTexture(.43,.41,.37,1)
  local market=panel:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
@@ -311,10 +329,10 @@ local function attach(parent)
  panel.detail:SetPoint("TOPLEFT",right,"TOPLEFT",16,-54)
  panel.detail:SetPoint("RIGHT",right,"RIGHT",-16,0)
  panel.detail:SetJustifyH("LEFT")
- panel.detail:SetTextColor(.95,.84,.57)
+ panel.detail:SetTextColor(1,.9,.65)
  local liveHeader=right:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
  liveHeader:SetPoint("TOPLEFT",right,"TOPLEFT",16,-153)
- liveHeader:SetText("Unit Price                 Available")
+ liveHeader:SetText("Auction House Listings  |  Unit Price                  Available")
  local liveRows={}
  for i=1,6 do
   local row=right:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
@@ -340,7 +358,12 @@ local function attach(parent)
  panel.offset=0
  for i=1,9 do
   local row=CreateFrame("Button",nil,left)
-  row:SetHeight(23)
+  row:SetHeight(25)
+  local highlight=row:CreateTexture(nil,"BACKGROUND")
+  highlight:SetAllPoints(row)
+  highlight:SetColorTexture(.60,.39,.08,.32)
+  row.highlight=highlight
+  highlight:Hide()
   row:SetPoint("TOPLEFT",left,"TOPLEFT",10,-52-(i-1)*26)
   row:SetPoint("RIGHT",left,"RIGHT",-10,0)
   row.label=row:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")

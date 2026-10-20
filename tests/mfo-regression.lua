@@ -338,7 +338,9 @@ check(ahTab:find('panel.itemIcon=CreateFrame("Button",nil,right)',1,true)~=nil,"
 check(ahTab:find('GameTooltip:SetHyperlink("item:"..selected)',1,true)~=nil,"Selected item must expose native item tooltip")
 check(ahTab:find('if not offer or not item or live.id~=selected or live.waiting then return end',1,true)~=nil,"Purchases must guard stale auction results")
 
-check(ahTab:find('panel.buyOffer=button(right,"Purchase Details",120)',1,true)~=nil,"Purchase preview must be available")
-check(ahTab:find('pcall(api.StartCommoditiesPurchase',1,true)==nil,"Must not invoke protected commodity purchases")
-check(ahTab:find('pcall(api.PlaceBid',1,true)==nil,"Must not invoke protected bids")
-check(ahTab:find('pcall(PlaceAuctionBid',1,true)==nil,"Must not invoke protected legacy bids")
+
+check(ahTab:find('panel.buyOffer=button(right,"Buy Selected",115)',1,true)~=nil,"Purchase button must be present")
+check(ahTab:find('api.StartCommoditiesPurchase(order.id,order.qty)',1,true)~=nil,"Commodity purchase must be user initiated")
+check(ahTab:find('api.ConfirmCommoditiesPurchase(order.id,order.qty)',1,true)~=nil,"Commodity purchase must have second confirmation")
+check(ahTab:find('api.PlaceBid(order.auctionID,order.buyout)',1,true)~=nil,"Auction buyout must use selected auction ID")
+check(ahTab:find('pcall(api.StartCommoditiesPurchase',1,true)==nil,"Protected purchase must not use pcall")

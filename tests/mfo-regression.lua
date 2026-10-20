@@ -425,3 +425,8 @@ check(ahTab:find('or commodityOrder or awaitingPurchase then return end',1,true)
 check(ahTab:find('purchaseElapsed>=20',1,true)~=nil,"Delayed purchase must be reported")
 check(ahTab:find('Check your inventory or AH before trying again.',1,true)~=nil,"Delayed purchase warning must discourage blind retries")
 check(ahTab:find('if not awaitingPurchase then commodityOrder=nil end',1,true)~=nil,"Reactivating shopping must preserve an in-flight confirmation")
+
+-- Performance: avoid reconstructing static crate metadata and duplicate detail price reads.
+check(ahTab:find('local crateIDs={}',1,true)~=nil,"Crate membership must be cached")
+check(ahTab:find('local selectedPrice=current and AH.Price(selected)',1,true)~=nil,"Selected price must be fetched once per detail update")
+check(ahTab:find('gold((selectedPrice or 0)*current.qty)',1,true)~=nil,"Selected total must reuse cached selected price")

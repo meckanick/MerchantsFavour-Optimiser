@@ -813,6 +813,8 @@ local function attach(parent)
   preflight:Show()
  end)
 
+ skinPurchaseDialog(confirm,"Confirm Purchase")
+ skinPurchaseDialog(preflight,"Purchase Item")
  panel:Hide()
  panel.offset=0
  for i=1,9 do

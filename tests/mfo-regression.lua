@@ -266,4 +266,7 @@ check(ahTab:find('header:SetText("Merchant\'s Favour Optimiser - Shopping")',1,t
 
 check(ahTab:find('local left=inset(',1,true)~=nil,"MFO shop must create a left list pane")
 check(ahTab:find('local right=inset(',1,true)~=nil,"MFO shop must create a right detail pane")
-check(ahTab:find('Interface\\\\AuctionFrame\\\\AuctionHouse',1,true)~=nil,"MFO shop must reference native AH art")
+check(ahTab:find('hideNative(parent)',1,true)~=nil,"MFO shop must hide native auction content")
+
+check(ahTab:find('isBottomTab(child,parent)',1,true)~=nil,"MFO shop must preserve native bottom tabs")
+check(ahTab:find('background:SetColorTexture(.105,.089,.071,1)',1,true)~=nil,"MFO background must be fully opaque")

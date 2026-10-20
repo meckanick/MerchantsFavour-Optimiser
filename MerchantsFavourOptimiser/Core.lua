@@ -521,6 +521,17 @@ local function refresh()
   status:SetText(table.concat(footerParts," | "))
   if planFavour then planFavour() end
 end
+-- Update the timestamp after an Auctionator scan without requiring a manual MFO refresh.
+-- Only read Auctionator's reported timestamp; never assume opening the AH means a completed scan.
+local lastScanDisplayUpdate=0
+frame:HookScript("OnShow",function() updateScanNote() end)
+frame:HookScript("OnUpdate",function(_,elapsed)
+  lastScanDisplayUpdate=lastScanDisplayUpdate+elapsed
+  if lastScanDisplayUpdate>=30 then
+    lastScanDisplayUpdate=0
+    updateScanNote()
+  end
+end)
 local refreshBtn=CreateFrame("Button",nil,frame);refreshBtn:SetSize(82,22);refreshBtn:SetPoint("TOPRIGHT",frame,"TOPRIGHT",-38,-44);refreshBtn:SetText("Refresh");SkinWoodButton(refreshBtn);refreshBtn:SetScript("OnClick",refresh)
 -- Inline planner: the target entry lives in the existing toolbar and
 -- replaces the rankings table only while a target is entered.

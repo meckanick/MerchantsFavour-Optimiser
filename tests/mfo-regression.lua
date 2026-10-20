@@ -286,3 +286,7 @@ check(ahTab:find('right:SetPoint("TOPLEFT",left,"TOPRIGHT",8,0)',1,true)~=nil,"R
 check(ahTab:find('local function startLiveSearch(id)',1,true)~=nil,"Live AH search must be triggered by item selection")
 check(ahTab:find('COMMODITY_SEARCH_RESULTS_UPDATED',1,true)~=nil,"Live AH must support commodity results")
 check(ahTab:find('ITEM_SEARCH_RESULTS_UPDATED',1,true)~=nil,"Live AH must support item results")
+
+check(ahTab:find('panel.detail=right:CreateFontString',1,true)~=nil,"Selected item details must render above right inset backdrop")
+check(ahTab:find('local row=CreateFrame("Button",nil,left)',1,true)~=nil,"Shopping rows must render above left inset backdrop")
+check(ahTab:find('local liveStatus=right:CreateFontString',1,true)~=nil,"Live search status must render above right inset backdrop")

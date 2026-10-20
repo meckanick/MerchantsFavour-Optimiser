@@ -260,7 +260,7 @@ check(ahTab:find('AUCTION_HOUSE_SHOW',1,true)~=nil,"MFO tab must handle opening 
 check(not ahTab:find('tab:SetPoint("TOPRIGHT"',1,true),"AH shop must never use top-right placement")
 
 check(ahTab:find('restoreNative()',1,true)~=nil,"AH shop must restore native panels")
-check(ahTab:find('tint:SetColorTexture',1,true)~=nil,"AH shop must have an opaque content background")
+check(ahTab:find('background:SetTexture(ART.."MFO_WoodBackground")',1,true)~=nil,"AH shop must use opaque MFO wood background")
 
 check(ahTab:find('setNativeTitle(parent)',1,true)~=nil,"Full-window overlay must have an MFO header")
 
@@ -269,7 +269,7 @@ check(ahTab:find('local right=inset(',1,true)~=nil,"MFO shop must create a right
 check(ahTab:find('hideNative(parent)',1,true)~=nil,"MFO shop must hide native auction content")
 
 check(ahTab:find('isBottomTab(child,parent)',1,true)~=nil,"MFO shop must preserve native bottom tabs")
-check(ahTab:find('background:SetColorTexture(.105,.089,.071,1)',1,true)~=nil,"MFO background must be fully opaque")
+check(ahTab:find('tint:SetTexture(ART.."MFO_CoinBackground")',1,true)~=nil,"MFO background must use coin watermark")
 
 check(ahTab:find('restoreNativeTitle()',1,true)~=nil,"MFO must restore native Auction House title")
 check(ahTab:find('region:SetText("MFO - Shopping")',1,true)~=nil,"MFO must set native header title")

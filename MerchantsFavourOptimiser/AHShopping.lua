@@ -3,6 +3,7 @@ local AH=MFO_AH
 local ART="Interface\\AddOns\\MerchantsFavourOptimiser\\"
 local host,tab,panel,selected
 local tabIndex
+local setTabSelected
 local nativeTabsHooked=false
 local tabSwitchHooked=false
 local rows={}
@@ -217,7 +218,7 @@ local function close()
  if panel then panel:Hide() end
  restoreNative()
  restoreNativeTitle()
- if tab then tab:SetButtonState("NORMAL",false) end
+ if tab then setTabSelected(false) end
 end
 local function attach(parent)
  if parent==host then return end
@@ -243,6 +244,51 @@ local function attach(parent)
  tab=CreateFrame("Button",nil,parent,template)
  tab:SetText("MFO Shop")
  tab:SetSize(108,29)
+ -- Match the existing WoW Forever AH bottom tabs rather than the red
+ -- UIPanelButtonTemplate fallback. Reuse the native tab textures at runtime.
+ local function copyNativeTexture(source,setter)
+  if not source or not source.GetTexture then return end
+  local asset=source:GetTexture()
+  if not asset then return end
+  local tex=tab[setter](tab,asset)
+  if not tex then
+   local getter=setter:gsub("^Set","Get")
+   tex=tab[getter] and tab[getter](tab)
+  end
+  if not tex then return end
+  if source.GetTexCoord then tex:SetTexCoord(source:GetTexCoord()) end
+  if source.GetVertexColor then tex:SetVertexColor(source:GetVertexColor()) end
+  if source.GetBlendMode then tex:SetBlendMode(source:GetBlendMode()) end
+ end
+ local nativeReference=last
+ if not nativeReference and parent.GetChildren then
+  for _,child in ipairs({parent:GetChildren()}) do
+   if child~=tab and isBottomTab(child,parent) then nativeReference=child;break end
+  end
+ end
+ if nativeReference then
+  copyNativeTexture(nativeReference:GetNormalTexture(),"SetNormalTexture")
+  copyNativeTexture(nativeReference:GetPushedTexture(),"SetPushedTexture")
+  copyNativeTexture(nativeReference:GetHighlightTexture(),"SetHighlightTexture")
+  if nativeReference.GetDisabledTexture then
+   copyNativeTexture(nativeReference:GetDisabledTexture(),"SetDisabledTexture")
+  end
+  local nativeFont=nativeReference.GetFontString and nativeReference:GetFontString()
+  local tabFont=tab:GetFontString()
+  if nativeFont and tabFont then
+   local font,size,flags=nativeFont:GetFont()
+   if font then tabFont:SetFont(font,size,flags) end
+   local rr,gg,bb,aa=nativeFont:GetTextColor()
+   tabFont:SetTextColor(rr,gg,bb,aa)
+  end
+ end
+ -- Native AH tabs appear raised/gold when selected, dark when inactive.
+ -- Keep the exact copied texture and use its native pressed state.
+ setTabSelected=function(active)
+  tab:SetButtonState(active and "PUSHED" or "NORMAL",active)
+  local font=tab:GetFontString()
+  if font then font:SetTextColor(active and 1 or .95,active and .82 or .77,active and .14 or .12) end
+ end
  tab:SetFrameLevel(parent:GetFrameLevel()+12)
  if last then
   tab:SetPoint("LEFT",last,"RIGHT",-7,0)
@@ -407,7 +453,7 @@ local function attach(parent)
   panel:Show()
   live.message="Select a shopping-list item."
   live.offers={};live.waiting=false;live.id=nil
-  tab:SetButtonState("PUSHED",true)
+  setTabSelected(true)
   update()
   refreshOffers()
  end

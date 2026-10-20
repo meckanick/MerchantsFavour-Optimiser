@@ -2,7 +2,7 @@
 -- WoW Forever uses a Classic-derived client; all optional auction APIs are guarded.
 MFO_AH = {}
 local AH=MFO_AH
-local queue,position,busy,waiting,started={},1,false,false,0
+local queue,position,busy,waiting,started,page,lowest={},1,false,false,0,0,nil
 local function db()
   MFO_DB=MFO_DB or {}
   MFO_DB.prices=MFO_DB.prices or {}
@@ -54,7 +54,7 @@ local function nextQuery()
   end
   local entry=queue[position]
   if not entry then busy=false;return end
-  local ok=pcall(QueryAuctionItems,entry.name,nil,nil,0,0,0,0,0,nil,false)
+  local ok=pcall(QueryAuctionItems,entry.name,nil,nil,page,0,0,0,0,nil,false)
   if not ok then busy=false;AH.message="AH query failed; scan not saved";return end
   waiting=true
   started=GetTime and GetTime() or 0
@@ -76,7 +76,7 @@ function AH.Scan(items)
   end
   table.sort(queue,function(a,b)return a.name<b.name end)
   if #queue==0 then return false,"No resolved items to scan" end
-  position=1;busy=true;waiting=false
+  position=1;page=0;lowest=nil;busy=true;waiting=false
   AH.message="Scanning "..#queue.." items"
   nextQuery()
   return true,AH.message
@@ -87,11 +87,10 @@ events:SetScript("OnEvent",function()
   if not busy or not waiting then return end
   local entry=queue[position]
   if not entry then return end
-  local ok,count=pcall(GetNumAuctionItems,"list")
+  local ok,count,total=pcall(GetNumAuctionItems,"list")
   if not ok or type(count)~="number" then
     busy=false;waiting=false;AH.message="Scan stopped: auction results unavailable";return
   end
-  local lowest=nil
   for i=1,count do
     local good,name,texture,stack,quality,usable,level,minBid,minIncrement,buyout=pcall(GetAuctionItemInfo,"list",i)
     if good and name==entry.name and type(stack)=="number" and stack>0 and
@@ -100,8 +99,13 @@ events:SetScript("OnEvent",function()
       if not lowest or unit<lowest then lowest=unit end
     end
   end
-  if lowest then db().prices[entry.id]={price=lowest,updated=time()} end
-  waiting=false;position=position+1
+  waiting=false
+  if type(total)=="number" and (page+1)*50<total then
+    page=page+1
+  else
+    if lowest then db().prices[entry.id]={price=lowest,updated=time()} end
+    position=position+1;page=0;lowest=nil
+  end
   if AH.onUpdate then AH.onUpdate() end
 end)
 events:SetScript("OnUpdate",function(_,elapsed)

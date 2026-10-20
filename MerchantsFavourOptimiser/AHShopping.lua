@@ -490,7 +490,17 @@ local function attach(parent)
   update()
   refreshOffers()
  end
- tab:SetScript("OnClick",activate)
+ -- Match the native AH tab click sound, using the client sound kit when
+ -- available and the legacy WoW tab-switch sound ID as a fallback.
+ local function playTabClick()
+  if type(PlaySound)~="function" then return end
+  local sound=(SOUNDKIT and (SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON or SOUNDKIT.IG_MAINMENU_OPTION)) or 856
+  pcall(PlaySound,sound)
+ end
+ tab:SetScript("OnClick",function()
+  playTabClick()
+  activate()
+ end)
  -- Restore native panes whenever a different bottom tab is selected.
  if parent.GetChildren then
   for _,child in ipairs({parent:GetChildren()}) do

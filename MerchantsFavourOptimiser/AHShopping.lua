@@ -1,6 +1,8 @@
 -- MFO shopping tab: integrates with the native Auction House without automating purchases.
 local AH=MFO_AH
 local host,tab,panel,selected
+local tabIndex
+local nativeTabsHooked=false
 local rows={}
 local function gold(c)
  if not c then return "No price" end
@@ -68,9 +70,24 @@ end
 local function attach(parent)
  if parent==host then return end
  host=parent
- tab=button(parent,"MFO Shop",95)
- tab:SetPoint("TOPRIGHT",parent,"TOPRIGHT",-54,-27)
- tab:SetFrameLevel(parent:GetFrameLevel()+35)
+ if parent==AuctionFrame and type(parent.numTabs)=="number" and type(PanelTemplates_SetNumTabs)=="function" then
+  -- Follow Auctionator's native AuctionTabTemplate registration, after existing addon tabs.
+  tabIndex=parent.numTabs+1
+  tab=CreateFrame("Button","AuctionFrameTab"..tabIndex,parent,"AuctionTabTemplate")
+  tab:SetID(tabIndex)
+  tab:SetText("MFO Shop")
+  local prior=_G["AuctionFrameTab"..(tabIndex-1)]
+  if prior then tab:SetPoint("LEFT",prior,"RIGHT",-8,0)
+  else tab:SetPoint("BOTTOMLEFT",parent,"BOTTOMLEFT",30,-10) end
+  PanelTemplates_SetNumTabs(parent,tabIndex)
+  if type(PanelTemplates_EnableTab)=="function" then PanelTemplates_EnableTab(parent,tabIndex) end
+  tab:Show()
+ else
+  -- Some Forever AH builds expose a different frame/tab API.
+  tab=button(parent,"MFO Shop",95)
+  tab:SetPoint("TOPRIGHT",parent,"TOPRIGHT",-54,-27)
+  tab:SetFrameLevel(parent:GetFrameLevel()+35)
+ end
  panel=CreateFrame("Frame",nil,parent,"BackdropTemplate")
  panel:SetPoint("TOPLEFT",parent,"TOPLEFT",18,-70)
  panel:SetPoint("BOTTOMRIGHT",parent,"BOTTOMRIGHT",-18,38)
@@ -129,9 +146,31 @@ local function attach(parent)
  local done=button(panel,"Close",75)
  done:SetPoint("LEFT",find,"RIGHT",8,0)
  done:SetScript("OnClick",close)
- tab:SetScript("OnClick",function()
-  if panel:IsShown() then close() else panel:Show();tab:SetButtonState("PUSHED",true);update() end
- end)
+ local function activate()
+  -- A genuine AH tab: hide Blizzard's content panes, retain the AuctionFrame shell.
+  if parent==AuctionFrame then
+   if AuctionFrameBrowse then AuctionFrameBrowse:Hide() end
+   if AuctionFrameBid then AuctionFrameBid:Hide() end
+   if AuctionFrameAuctions then AuctionFrameAuctions:Hide() end
+   if type(PanelTemplates_SetTab)=="function" then PanelTemplates_SetTab(parent,tabIndex) end
+  end
+  panel:Show()
+  tab:SetButtonState("PUSHED",true)
+  update()
+ end
+ tab:SetScript("OnClick",activate)
+ if parent==AuctionFrame and not nativeTabsHooked then
+  nativeTabsHooked=true
+  -- Hook each existing tab rather than replacing Auctionator's tab handler.
+  for i=1,tabIndex-1 do
+   local other=_G["AuctionFrameTab"..i]
+   if other and other.HookScript then
+    other:HookScript("OnClick",function()
+     if panel and panel:IsShown() then close() end
+    end)
+   end
+  end
+ end
  parent:HookScript("OnHide",close)
 end
 local watcher=CreateFrame("Frame")

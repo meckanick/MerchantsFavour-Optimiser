@@ -822,6 +822,7 @@ local function scanRelevantItems()
   end
   local ok,message=MFO_AH.Scan(items)
   status:SetText(message or (ok and "Scanning" or "Scan unavailable"))
+
 end
 local shoppingFrame=CreateFrame("Frame","MFOShoppingFrame",UIParent,"BackdropTemplate")
 shoppingFrame:SetSize(400,350);shoppingFrame:SetPoint("CENTER",UIParent,"CENTER",0,0)
@@ -855,7 +856,33 @@ clearShopping:SetScript("OnClick",function()MFO_AH.ClearShopping();showShopping(
 local scanButton=CreateFrame("Button",nil,frame,"UIPanelButtonTemplate")
 scanButton:SetSize(75,22);scanButton:SetPoint("TOPLEFT",frame,"TOPLEFT",38,-44)
 scanButton:SetText("Scan AH");scanButton:SetScript("OnClick",scanRelevantItems)
+local scanBar=CreateFrame("StatusBar",nil,frame)
+scanBar:SetSize(180,13)
+scanBar:SetPoint("LEFT",scanButton,"RIGHT",12,0)
+scanBar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+scanBar:SetStatusBarColor(.77,.59,.23)
+scanBar:SetMinMaxValues(0,100)
+scanBar:SetValue(0)
+local scanBarText=scanBar:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+scanBarText:SetPoint("CENTER",scanBar,"CENTER",0,0)
+scanBarText:SetText("AH Scan: 0%")
+scanBar:Hide()
+local function updateScanProgress()
+  local percent,running,priced,total=MFO_AH.Progress()
+  scanBar:SetValue(percent)
+  scanBarText:SetText("AH Scan: "..percent.."% ("..priced.." priced)")
+  if running then scanBar:Show()
+  elseif total>0 then
+    scanBar:SetValue(100)
+    scanBarText:SetText("AH Scan: 100% ("..priced.."/"..total.." priced)")
+    scanBar:Show()
+  end
+end
 MFO_AH.onUpdate=function()
+  updateScanProgress()
+  if not select(2,MFO_AH.Progress()) then status:SetText(MFO_AH.Status()) end
+  if frame:IsShown() then refresh() end
+end
   if frame:IsShown() then refresh() end
 end
 SLASH_MFO1="/mfo"

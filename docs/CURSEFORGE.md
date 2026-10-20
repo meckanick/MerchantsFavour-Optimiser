@@ -11,11 +11,11 @@ In this repository's Settings > Secrets and variables > Actions:
 - Add a **secret** named `CF_API_TOKEN`, using an upload token generated at
   https://authors.curseforge.com/#/settings/api-tokens . Do not put it in chat or source.
 - Add a **variable** named `CF_PROJECT_ID`, containing the numeric MFO CurseForge project ID.
-- Add a **variable** named `CF_GAME_VERSION_IDS`, containing the numeric CurseForge
-  game-version ID(s) for the tested WoW Forever client, comma-separated without spaces.
-  These are CurseForge IDs, not the TOC interface number `16001`. Retrieve them with
-  the authenticated GET `https://wow.curseforge.com/api/game/versions` and verify the
-  version and game-version type. Never substitute retail or Classic IDs.
+- The preview authenticates with the saved token and automatically resolves the
+  exact tested Forever game version from the TOC using CurseForge's version API.
+  No game-version variable is required. Unknown or ambiguous versions fail closed;
+  retail/Classic substitutions are refused. `CF_GAME_VERSION_IDS` is optional and,
+  if set, must match the automatically resolved version.
 
 Official upload API: https://support.curseforge.com/support/solutions/articles/9000197321-curseforge-upload-api
 

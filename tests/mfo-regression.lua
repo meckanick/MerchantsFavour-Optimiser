@@ -316,3 +316,11 @@ check(ahTab:find('else\n  tab=CreateFrame("Button",nil,parent,"BackdropTemplate"
 
 check(ahTab:find('SOUNDKIT.IG_CHARACTER_INFO_TAB',1,true)~=nil,"MFO tab should use native tab click sound")
 check(ahTab:find('playTabClick()',1,true)~=nil,"MFO tab click must trigger tab sound")
+
+-- Replacing a shopping list must be explicit, atomic and scoped to the market.
+local ahSource=assert(io.open("MerchantsFavourOptimiser/StandaloneAH.lua","r")):read("*a")
+check(ahSource:find("function AH.ReplaceShopping(items)",1,true)~=nil,"AH must provide explicit replacement")
+check(ahSource:find('if not next(replacement) then return false',1,true)~=nil,"Empty replacement must preserve existing list")
+check(ahSource:find("db().shopping=replacement",1,true)~=nil,"Replacement must overwrite current market list")
+check(coreSource:find("MFO_AH.ReplaceShopping(items)",1,true)~=nil,"Main Shop buttons must replace list")
+check(not coreSource:find("MFO_AH.Shop(items)",1,true),"Main Shop buttons must not append")

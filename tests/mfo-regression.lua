@@ -360,3 +360,9 @@ check(ahTab:find('dialogFill:SetColorTexture(.065,.042,.02,1)',1,true)~=nil,"Pre
 check(ahTab:find('local visibleOffers=4',1,true)~=nil,"Auction listing viewport limits visible rows")
 check(ahTab:find('UIPanelScrollBarTemplate',1,true)~=nil,"Auction listing has themed scrollbar")
 check(ahTab:find('offerViewport:EnableMouseWheel(true)',1,true)~=nil,"Auction listings scroll with mouse wheel")
+
+check(ahTab:find('ART.."WTP_ScrollTrack"',1,true)~=nil,"AH scrollbar uses MFO track")
+check(ahTab:find('ART.."WTP_ScrollThumb"',1,true)~=nil,"AH scrollbar uses MFO thumb")
+check(ahTab:find('grey(up,not canUp)',1,true)~=nil,"Top arrow greys out at scroll limit")
+check(ahTab:find('grey(down,not canDown)',1,true)~=nil,"Bottom arrow greys out at scroll limit")
+check(ahTab:find('offerScroll:HookScript("OnUpdate",updateScrollSkin)',1,true)~=nil,"Scroll hover highlights update")

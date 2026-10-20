@@ -223,7 +223,7 @@ check(not coreSource:find('GetAuctionAgeByItemID',1,true),
   "scan footer must not mistake oldest item price age for last full scan")
 
 check(coreSource:find('MFO_AH.Scan(items)',1,true)~=nil,"MFO must scan without Auctionator")
-check(coreSource:find('MFO_AH.Shop(items)',1,true)~=nil,"MFO must save its own shopping list")
+check(coreSource:find('MFO_AH.ReplaceShopping(items)',1,true)~=nil,"MFO must replace its own shopping list")
 check(not coreSource:find('Auctionator.API.v1.MultiSearch',1,true),"MFO shopping must not depend on Auctionator")
 
 local ahSource=assert(io.open("MerchantsFavourOptimiser/StandaloneAH.lua","r")):read("*a")

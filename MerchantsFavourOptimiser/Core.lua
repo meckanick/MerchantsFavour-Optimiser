@@ -24,54 +24,45 @@ local function formatAgeDays(days)
   return days .. (days == 1 and " Day Ago" or " Days Ago")
 end
 local scanAgeFooter
+-- Auctionator Forever records the successful full-scan completion timestamp
+-- in AUCTIONATOR_LAST_SCAN_TIME. Item price ages are not scan timestamps.
 local function updateScanNote()
-  local api = auctionatorAPI()
-  if not api or type(api.GetAuctionAgeByItemID) ~= "function" then
-    note:SetText("Auctionator Scanned Prices | "..#rows.." Crates | Scan Age Unavailable")
+  local scannedAt=AUCTIONATOR_LAST_SCAN_TIME
+  if type(scannedAt)~="number" or scannedAt<=0 then
     scanAgeFooter:SetText("Last AH Scan: Unknown")
     scanAgeFooter:SetTextColor(.65,.65,.65)
     return
   end
-  local oldestAge, checked = nil, 0
-  for _, itemID in pairs(knownIDs or {}) do
-    local priceValue = price(itemID)
-    if priceValue then
-      local ok, age = pcall(api.GetAuctionAgeByItemID, ADDON, itemID)
-      if ok and type(age) == "number" and age >= 0 then
-        checked = checked + 1
-        if not oldestAge or age > oldestAge then oldestAge = age end
-      end
-    end
-  end
-  if oldestAge then
-    note:SetText("Auctionator Scanned Prices | "..#rows.." Crates | Oldest Price: " .. formatAgeDays(oldestAge))
-    local ageText
-    if oldestAge < 1/24 then
-      ageText="Less Than 1 Hour"
-    elseif oldestAge < 1 then
-      local hours=math.floor(oldestAge*24)
-      ageText=hours.." "..(hours==1 and "Hour" or "Hours")
-    elseif oldestAge < 7 then
-      local days=math.floor(oldestAge)
-      ageText=days.." "..(days==1 and "Day" or "Days")
-    elseif oldestAge < 28 then
-      local weeks=math.floor(oldestAge/7)
-      ageText=weeks.." "..(weeks==1 and "Week" or "Weeks")
-    else
-      local months=math.floor(oldestAge/30)
-      if months<1 then months=1 end
-      ageText=months.." "..(months==1 and "Month" or "Months")
-    end
-    scanAgeFooter:SetText("Last AH Scan: "..ageText.." Ago")
-    if oldestAge<1 then scanAgeFooter:SetTextColor(.3,.95,.3)
-    elseif oldestAge<3 then scanAgeFooter:SetTextColor(1,.85,.2)
-    elseif oldestAge<7 then scanAgeFooter:SetTextColor(1,.55,.15)
-    else scanAgeFooter:SetTextColor(1,.25,.25) end
+  local ageSeconds=math.max(0,time()-scannedAt)
+  local days=ageSeconds/86400
+  local amount,unit
+  if ageSeconds<3600 then
+    amount=math.max(1,math.floor(ageSeconds/60))
+    unit="Minute"
+  elseif ageSeconds<86400 then
+    amount=math.floor(ageSeconds/3600)
+    unit="Hour"
+  elseif ageSeconds<604800 then
+    amount=math.floor(ageSeconds/86400)
+    unit="Day"
+  elseif ageSeconds<2592000 then
+    amount=math.floor(ageSeconds/604800)
+    unit="Week"
   else
-    note:SetText("Auctionator Scanned Prices | "..#rows.." Crates | Scan Age Unavailable")
-    scanAgeFooter:SetText("Last AH Scan: Unknown")
-    scanAgeFooter:SetTextColor(.65,.65,.65)
+    amount=math.floor(ageSeconds/2592000)
+    unit="Month"
   end
+  local elapsed
+  if ageSeconds<60 then
+    elapsed="Less Than 1 Minute"
+  else
+    elapsed=amount.." "..unit..(amount==1 and "" or "s")
+  end
+  scanAgeFooter:SetText("Last AH Scan: "..elapsed.." Ago")
+  if days<1 then scanAgeFooter:SetTextColor(.3,.95,.3)
+  elseif days<3 then scanAgeFooter:SetTextColor(1,.85,.2)
+  elseif days<7 then scanAgeFooter:SetTextColor(1,.55,.15)
+  else scanAgeFooter:SetTextColor(1,.25,.25) end
 end
 price = function(id)
   if not id or not Auctionator or not Auctionator.API or not Auctionator.API.v1 or type(Auctionator.API.v1.GetAuctionPriceByItemID)~="function" then return nil end

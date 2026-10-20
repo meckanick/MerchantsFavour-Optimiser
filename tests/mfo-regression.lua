@@ -355,5 +355,8 @@ check(ahTab:find('chainToggle:SetChecked(false)',1,true)~=nil,"Chain Buy default
 check(ahTab:find('chainBuy and needed or math.min(needed,available)',1,true)~=nil,"Chain Buy quantity selection retained")
 check(ahTab:find('row.quantity:SetText',1,true)~=nil,"Listing quantities use separate aligned column")
 
-check(ahTab:find('16,-182-(i-1)*34',1,true)~=nil,"Six auction rows fit between summary and footer")
 check(ahTab:find('dialogFill:SetColorTexture(.065,.042,.02,1)',1,true)~=nil,"Pre-purchase dialog must be opaque")
+
+check(ahTab:find('local visibleOffers=4',1,true)~=nil,"Auction listing viewport limits visible rows")
+check(ahTab:find('UIPanelScrollBarTemplate',1,true)~=nil,"Auction listing has themed scrollbar")
+check(ahTab:find('offerViewport:EnableMouseWheel(true)',1,true)~=nil,"Auction listings scroll with mouse wheel")

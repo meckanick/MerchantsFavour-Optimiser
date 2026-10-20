@@ -368,4 +368,6 @@ check(ahTab:find('grey(down,not canDown)',1,true)~=nil,"Bottom arrow greys out a
 check(ahTab:find('offerScroll:HookScript("OnUpdate",updateScrollSkin)',1,true)~=nil,"Scroll hover highlights update")
 
 check(ahTab:find('UIPanelScrollBarTemplate',1,true)==nil,"Do not use secure scroll template without a ScrollFrame")
-check(ahTab:find('offerScroll:SetPoint("BOTTOMRIGHT",right,"BOTTOMRIGHT",-9,74)',1,true)~=nil,"Scrollbar stays above buy footer")
+check(ahTab:find('offerScroll:SetPoint("BOTTOMRIGHT",right,"BOTTOMRIGHT",-9,47)',1,true)~=nil,"Scrollbar stays above buy footer")
+
+check(ahTab:find('offerScroll:SetPoint("TOPRIGHT",right,"TOPRIGHT",-9,-184)',1,true)~=nil,"Scrollbar starts below Available heading")

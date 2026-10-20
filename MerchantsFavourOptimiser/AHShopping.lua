@@ -149,7 +149,7 @@ local function collectLive(event,arg)
   if type(GetNumAuctionItems)~="function" or type(GetAuctionItemInfo)~="function" then return end
   local count=GetNumAuctionItems("list") or 0
   local wanted=AH.Shopping()[id]
-  for i=1,math.min(count,100) do
+  for i=1,count do
    local name,_,qty,_,_,_,_,_,buyout=GetAuctionItemInfo("list",i)
    if wanted and name==wanted.name and type(buyout)=="number" and buyout>0 then
     offers[#offers+1]={price=math.ceil(buyout/math.max(1,qty or 1)),qty=qty or 1,legacyIndex=i,buyout=buyout}
@@ -161,13 +161,13 @@ local function collectLive(event,arg)
   local api=C_AuctionHouse
   if not api then return end
   if event=="COMMODITY_SEARCH_RESULTS_UPDATED" and api.GetNumCommoditySearchResults and api.GetCommoditySearchResultInfo then
-   for i=1,math.min(api.GetNumCommoditySearchResults(id) or 0,100) do
+   for i=1,(api.GetNumCommoditySearchResults(id) or 0) do
     local entry=api.GetCommoditySearchResultInfo(id,i)
     if entry and entry.unitPrice then offers[#offers+1]={price=entry.unitPrice,qty=entry.quantity or 1,commodity=true} end
    end
   elseif event=="ITEM_SEARCH_RESULTS_UPDATED" and api.GetNumItemSearchResults and api.GetItemSearchResultInfo then
    local key=api.MakeItemKey and api.MakeItemKey(id) or {itemID=id}
-   for i=1,math.min(api.GetNumItemSearchResults(key) or 0,100) do
+   for i=1,(api.GetNumItemSearchResults(key) or 0) do
     local entry=api.GetItemSearchResultInfo(key,i)
     if entry and entry.buyoutAmount and entry.buyoutAmount>0 then
      offers[#offers+1]={price=math.ceil(entry.buyoutAmount/math.max(1,entry.quantity or 1)),qty=entry.quantity or 1,auctionID=entry.auctionID,buyout=entry.buyoutAmount}
@@ -177,7 +177,7 @@ local function collectLive(event,arg)
  end
  table.sort(offers,function(a,b)return a.price<b.price end)
  live.offers=offers;live.waiting=false;selectedOffer=nil
- live.message=#offers>0 and (#offers.." listings found"..(#offers>6 and " (showing 6 lowest)" or "")) or "No live buyout listings found."
+ live.message=#offers>0 and (#offers.." listings found - scroll to see all") or "No live buyout listings found."
  if refreshOffers then refreshOffers() end
 end
 local liveEvents=CreateFrame("Frame")

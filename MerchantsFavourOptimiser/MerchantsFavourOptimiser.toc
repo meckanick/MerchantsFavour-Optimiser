@@ -1,6 +1,6 @@
 ## Interface: 16001
 ## Title: Merchant's Favour Optimiser
-## Notes: WoW Forever crate gold-per-favour ranking with Auctionator
+## Notes: WoW Forever standalone AH scanning and crate gold-per-favour ranking
 ## Version: 0.1.69
 ## SavedVariables: MFO_DB
 Data.lua

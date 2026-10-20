@@ -349,5 +349,8 @@ check(ahTab:find('api.PlaceBid(order.auctionID,order.buyout)',1,true)==nil,"Regu
 
 
 check(ahTab:find('local chainBuy=false',1,true)~=nil,"Chain Buy defaults off")
-check(ahTab:find('chainToggle:SetChecked(false)',1,true)~=nil,"Chain Buy checkbox starts unchecked")
-check(ahTab:find('chainBuy and needed or math.min(needed,available)',1,true)~=nil,"Chain Buy toggles full need versus selected listing")
+
+check(ahTab:find('local preflight=CreateFrame("Frame"',1,true)~=nil,"Chain Buy pre-purchase dialog present")
+check(ahTab:find('chainToggle:SetChecked(false)',1,true)~=nil,"Chain Buy defaults unchecked")
+check(ahTab:find('chainBuy and needed or math.min(needed,available)',1,true)~=nil,"Chain Buy quantity selection retained")
+check(ahTab:find('row.quantity:SetText',1,true)~=nil,"Listing quantities use separate aligned column")

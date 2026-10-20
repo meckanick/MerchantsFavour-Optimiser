@@ -507,7 +507,7 @@ local function refresh()
       bankInfo=" Bank Snapshot: "..elapsed.."h old."
     else bankInfo=" Bank Not Scanned Yet." end
   end
-  local footerParts={complete.."/"..#rows.." Crates"}
+  local footerParts={MFO_AH.Market(),complete.."/"..#rows.." Crates"}
   if missingIDs>0 then footerParts[#footerParts+1]=missingIDs.." Unknown IDs" end
   if missingPrices>0 then footerParts[#footerParts+1]=missingPrices.." Missing Prices" end
   if MFO_DB.useOwned then
@@ -855,7 +855,7 @@ clearShopping:SetSize(95,22);clearShopping:SetPoint("BOTTOM",0,15);clearShopping
 clearShopping:SetScript("OnClick",function()MFO_AH.ClearShopping();showShopping()end)
 local scanButton=CreateFrame("Button",nil,frame)
 scanButton:SetSize(82,22);scanButton:SetPoint("TOPLEFT",frame,"TOPLEFT",76,-44)
-scanButton:SetText("Scan AH");SkinWoodButton(scanButton);scanButton:SetScript("OnClick",scanRelevantItems)
+scanButton:SetText("Scan AH");SkinWoodButton(scanButton);scanButton:SetScript("OnClick",scanRelevantItems)\nscanButton:SetScript("OnEnter",function(self)\n  GameTooltip:SetOwner(self,"ANCHOR_BOTTOMRIGHT")\n  GameTooltip:AddLine("Scan Auction House",1,.82,.2)\n  GameTooltip:AddLine("Active Market: "..MFO_AH.Market(),1,1,1)\n  GameTooltip:AddLine("Prices and shopping lists are shared only with characters on this megarealm and faction.",.8,.8,.8,true)\n  GameTooltip:Show()\nend)\nscanButton:SetScript("OnLeave",function() GameTooltip:Hide() end)
 local scanBar=CreateFrame("StatusBar",nil,frame)
 scanBar:SetSize(180,13)
 scanBar:SetPoint("LEFT",scanButton,"RIGHT",12,0)

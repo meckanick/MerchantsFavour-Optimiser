@@ -117,7 +117,7 @@ local function activeAH()
  if AuctionFrame and AuctionFrame:IsShown() then return AuctionFrame end
 end
 -- Live auction search; purchases require a separate explicit hardware click.
-local live={id=nil,waiting=false,offers={},message="Select an item to search."}
+local live={id=nil,waiting=false,offers={},message="Select an item to search.",elapsed=0}
 local refreshOffers
 local selectedOffer
 local commodityOrder
@@ -125,7 +125,7 @@ local confirmCommodity
 local function startLiveSearch(id)
  commodityOrder=nil
  if panel and panel.offerScroll then panel.offerScroll:SetValue(select(2,panel.offerScroll:GetMinMaxValues()) or 0) end
- live.id=id;live.offers={};live.waiting=false;selectedOffer=nil
+ live.id=id;live.offers={};live.waiting=false;live.elapsed=0;selectedOffer=nil
  if not id then live.message="Select an item to search.";return end
  if select(2,AH.Progress()) then live.message="Wait for the MFO price scan to finish.";return end
  local item=AH.Shopping()[id]
@@ -176,7 +176,7 @@ local function collectLive(event,arg)
   else return end
  end
  table.sort(offers,function(a,b)return a.price<b.price end)
- live.offers=offers;live.waiting=false;selectedOffer=nil
+ live.offers=offers;live.waiting=false;live.elapsed=0;selectedOffer=nil
  live.message=#offers>0 and (#offers.." listings found - scroll to see all") or "No live buyout listings found."
  if refreshOffers then refreshOffers() end
 end
@@ -185,14 +185,18 @@ for _,name in ipairs({"ITEM_SEARCH_RESULTS_UPDATED","COMMODITY_SEARCH_RESULTS_UP
  pcall(liveEvents.RegisterEvent,liveEvents,name)
 end
 liveEvents:SetScript("OnEvent",function(_,event,arg)
- if event=="COMMODITY_PRICE_UPDATED" then
+ if event=="AUCTION_HOUSE_THROTTLED_SYSTEM_READY" then
+  return -- Throttle notifications are not auction result payloads.
+ elseif event=="COMMODITY_PRICE_UPDATED" then
   if commodityOrder and confirmCommodity then confirmCommodity() end
  elseif event=="COMMODITY_PRICE_UNAVAILABLE" or event=="COMMODITY_PURCHASE_FAILED" then
   commodityOrder=nil
+  live.offers={};live.waiting=false;selectedOffer=nil
   live.message="Commodity price changed or purchase failed. Search again before buying."
   if refreshOffers then refreshOffers() end
  elseif event=="COMMODITY_PURCHASE_SUCCEEDED" then
   commodityOrder=nil
+  live.offers={};live.waiting=false;selectedOffer=nil
   live.message="Commodity purchase succeeded. Refresh your shopping list quantities."
   if refreshOffers then refreshOffers() end
  else collectLive(event,arg) end
@@ -906,6 +910,14 @@ watcher:SetScript("OnUpdate",function(_,dt)
  timer=0
  local current=activeAH()
  if current and current~=host then attach(current) end
+ if live.waiting then
+  live.elapsed=live.elapsed+.5
+  if live.elapsed>=15 then
+   live.waiting=false;live.offers={};selectedOffer=nil
+   live.message="Auction search timed out. Select the item again to retry."
+   if refreshOffers then refreshOffers() end
+  end
+ end
  if panel and panel:IsShown() then update() end
 end)
 

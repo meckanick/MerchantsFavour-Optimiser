@@ -358,7 +358,7 @@ check(ahTab:find('row.quantity:SetText',1,true)~=nil,"Listing quantities use sep
 check(ahTab:find('dialogFill:SetColorTexture(.065,.042,.02,1)',1,true)~=nil,"Pre-purchase dialog must be opaque")
 
 check(ahTab:find('local visibleOffers=4',1,true)~=nil,"Auction listing viewport limits visible rows")
-check(ahTab:find('UIPanelScrollBarTemplate',1,true)~=nil,"Auction listing has themed scrollbar")
+check(ahTab:find('CreateFrame("Slider",nil,right)',1,true)~=nil,"Auction listing uses independent slider compatible with Forever")
 check(ahTab:find('offerViewport:EnableMouseWheel(true)',1,true)~=nil,"Auction listings scroll with mouse wheel")
 
 check(ahTab:find('ART.."WTP_ScrollTrack"',1,true)~=nil,"AH scrollbar uses MFO track")
@@ -366,3 +366,6 @@ check(ahTab:find('ART.."WTP_ScrollThumb"',1,true)~=nil,"AH scrollbar uses MFO th
 check(ahTab:find('grey(up,not canUp)',1,true)~=nil,"Top arrow greys out at scroll limit")
 check(ahTab:find('grey(down,not canDown)',1,true)~=nil,"Bottom arrow greys out at scroll limit")
 check(ahTab:find('offerScroll:HookScript("OnUpdate",updateScrollSkin)',1,true)~=nil,"Scroll hover highlights update")
+
+check(ahTab:find('UIPanelScrollBarTemplate',1,true)==nil,"Do not use secure scroll template without a ScrollFrame")
+check(ahTab:find('offerScroll:SetPoint("BOTTOMRIGHT",right,"BOTTOMRIGHT",-9,74)',1,true)~=nil,"Scrollbar stays above buy footer")

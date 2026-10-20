@@ -441,3 +441,10 @@ check(ahTab:find('live.waiting=false\n live.message="Live search unavailable in 
 check(ahTab:find('local shopping=AH.Shopping()',1,true)~=nil,"Shopping data should be fetched once per refresh")
 check(ahTab:find('prices[v.id]=price',1,true)~=nil,"Price snapshot must be populated during total calculation")
 check(ahTab:find('local price=prices[item.id]',1,true)~=nil,"Visible rows should reuse calculated prices")
+
+-- Stage 6 scanner: prevent per-frame cache polling and synchronous first-result races.
+check(ahSource:find('if scanTick<.2 then return end',1,true)~=nil,"AH scan polling must be throttled")
+local armed=assert(ahSource:find('waiting=true;started=GetTime and GetTime() or 0',1,true))
+local dispatched=assert(ahSource:find('pcall(C_AuctionHouse.SendSearchQuery,key,{},false)',1,true))
+check(armed<dispatched,"Modern AH scanner must arm result handler before dispatch")
+check(ahSource:find('if not ok then busy=false;waiting=false;AH.message="Modern AH query failed"',1,true)~=nil,"Failed dispatch must reset waiting state")

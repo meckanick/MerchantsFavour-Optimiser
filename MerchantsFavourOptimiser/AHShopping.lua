@@ -563,12 +563,33 @@ local function attach(parent)
   accept:SetText("Confirm Buy")
   confirm:Show()
  end
+ -- Chain Buy controls whether a commodity order spans multiple listings.
+ -- Off: only the selected listing quantity. On: the full outstanding need.
+ local chainBuy=false
+ local chainToggle=CreateFrame("CheckButton",nil,right,"UICheckButtonTemplate")
+ chainToggle:SetSize(24,24)
+ chainToggle:SetPoint("BOTTOMRIGHT",right,"BOTTOMRIGHT",-134,11)
+ chainToggle:SetChecked(false)
+ local chainLabel=right:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+ chainLabel:SetPoint("RIGHT",chainToggle,"LEFT",-2,0)
+ chainLabel:SetText("Chain Buy")
+ chainToggle:SetScript("OnClick",function(self)
+  chainBuy=self:GetChecked() and true or false
+  if refreshOffers then refreshOffers() end
+ end)
+ chainToggle:SetScript("OnEnter",function(self)
+  GameTooltip:SetOwner(self,"ANCHOR_TOP")
+  GameTooltip:AddLine("Chain Buy",1,.82,.05)
+  GameTooltip:AddLine("Off: buy only the selected listing quantity.",1,1,1)
+  GameTooltip:AddLine("On: buy the full required quantity across available commodity listings, cheapest first.",1,1,1,true)
+  GameTooltip:Show()
+ end)
+ chainToggle:SetScript("OnLeave",function()GameTooltip:Hide()end)
  panel.buyOffer=button(right,"Buy Selected",115)
  panel.buyOffer:SetPoint("BOTTOMRIGHT",right,"BOTTOMRIGHT",-14,12)
  panel.buyOffer:SetEnabled(false)
  panel.buyOffer:SetScript("OnClick",function()
-  -- Buy the full outstanding commodity quantity, even if it spans multiple
-  -- listings. Preserve the verified direct hardware-click purchase call.
+  -- The verified primary hardware-click flow remains unchanged.\n  -- Chain Buy changes only the quantity passed to the commodity API.
   local offer=selectedOffer and live.offers[selectedOffer]
   local item=selected and AH.Shopping()[selected]
   if not offer or not item or live.id~=selected or live.waiting then return end
@@ -577,7 +598,9 @@ local function attach(parent)
    refreshOffers()
    return
   end
-  local qty=math.floor(tonumber(item.qty) or 0)
+  local needed=math.floor(tonumber(item.qty) or 0)
+  local available=math.floor(tonumber(offer.qty) or 0)
+  local qty=chainBuy and needed or math.min(needed,available)
   if qty<1 then return end
   local api=C_AuctionHouse
   if not api or type(api.StartCommoditiesPurchase)~="function" then

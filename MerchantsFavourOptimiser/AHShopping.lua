@@ -122,8 +122,11 @@ local refreshOffers
 local selectedOffer
 local commodityOrder
 local confirmCommodity
+local resetPurchaseDialogs
+local awaitingPurchase=false
 local function startLiveSearch(id)
- commodityOrder=nil
+ commodityOrder=nil;awaitingPurchase=false
+ if resetPurchaseDialogs then resetPurchaseDialogs() end
  if panel and panel.offerScroll then panel.offerScroll:SetValue(select(2,panel.offerScroll:GetMinMaxValues()) or 0) end
  live.id=id;live.offers={};live.waiting=false;live.elapsed=0;selectedOffer=nil
  if not id then live.message="Select an item to search.";return end
@@ -188,14 +191,18 @@ liveEvents:SetScript("OnEvent",function(_,event,arg)
  if event=="AUCTION_HOUSE_THROTTLED_SYSTEM_READY" then
   return -- Throttle notifications are not auction result payloads.
  elseif event=="COMMODITY_PRICE_UPDATED" then
-  if commodityOrder and confirmCommodity then confirmCommodity() end
+  if commodityOrder and not awaitingPurchase and confirmCommodity then confirmCommodity() end
  elseif event=="COMMODITY_PRICE_UNAVAILABLE" or event=="COMMODITY_PURCHASE_FAILED" then
-  commodityOrder=nil
+  if not commodityOrder and not awaitingPurchase then return end
+  commodityOrder=nil;awaitingPurchase=false
+  if resetPurchaseDialogs then resetPurchaseDialogs() end
   live.offers={};live.waiting=false;selectedOffer=nil
   live.message="Commodity price changed or purchase failed. Search again before buying."
   if refreshOffers then refreshOffers() end
  elseif event=="COMMODITY_PURCHASE_SUCCEEDED" then
-  commodityOrder=nil
+  if not awaitingPurchase then return end
+  commodityOrder=nil;awaitingPurchase=false
+  if resetPurchaseDialogs then resetPurchaseDialogs() end
   live.offers={};live.waiting=false;selectedOffer=nil
   live.message="Commodity purchase succeeded. Refresh your shopping list quantities."
   if refreshOffers then refreshOffers() end
@@ -257,6 +264,8 @@ local function update()
  end
 end
 local function close()
+ if resetPurchaseDialogs then resetPurchaseDialogs() end
+ commodityOrder=nil;awaitingPurchase=false
  if panel then panel:Hide() end
  -- Discard results and selections from the previous AH session.
  live.id=nil;live.offers={};live.waiting=false;live.elapsed=0

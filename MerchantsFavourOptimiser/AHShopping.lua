@@ -486,7 +486,7 @@ local function attach(parent)
    if selectedOffer==i then row.highlight:Show() else row.highlight:Hide() end
   end
   if panel.buyOffer then
-   panel.buyOffer:SetEnabled(selectedOffer~=nil and live.offers[selectedOffer]~=nil)
+   panel.buyOffer:SetEnabled(selectedOffer~=nil and live.offers[selectedOffer]~=nil and not live.waiting)
   end
  end
  -- Purchasing always requires selecting a live auction and confirming the
@@ -534,7 +534,7 @@ local function attach(parent)
  panel.buyOffer:SetScript("OnClick",function()
   local offer=selectedOffer and live.offers[selectedOffer]
   local item=selected and AH.Shopping()[selected]
-  if not offer or not item or live.id~=selected then return end
+  if not offer or not item or live.id~=selected or live.waiting then return end
   local qty=math.min(item.qty,offer.qty)
   if qty<1 then return end
   -- Non-commodity auctions are indivisible stacks.
@@ -546,7 +546,7 @@ local function attach(parent)
   pending={id=selected,qty=qty,commodity=offer.commodity,
    auctionID=offer.auctionID,legacyIndex=offer.legacyIndex,
    buyout=offer.buyout or offer.price*offer.qty}
-  confirmText:SetText("Buy "..item.name.." x"..qty.."\\nTotal: "..gold(offer.commodity and offer.price*qty or pending.buyout).."\\nConfirm this purchase?")
+  confirmText:SetText("Buy "..item.name.." x"..qty.."\nTotal: "..gold(offer.commodity and offer.price*qty or pending.buyout).."\nConfirm this purchase?")
   confirm:Show()
  end)
  panel:Hide()

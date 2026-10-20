@@ -489,8 +489,8 @@ local function attach(parent)
    panel.buyOffer:SetEnabled(selectedOffer~=nil and live.offers[selectedOffer]~=nil and not live.waiting)
   end
  end
- -- Purchasing always requires selecting a live auction and confirming the
- -- exact quantity and total. Never automatically buy on search or row select.
+ -- The preview requires selecting a live auction and confirming the
+ -- exact quantity and total. It never invokes protected purchase APIs.
  local pending
  local confirm=CreateFrame("Frame",nil,panel,"BackdropTemplate")
  confirm:SetSize(360,145)
@@ -503,7 +503,7 @@ local function attach(parent)
  local confirmText=confirm:CreateFontString(nil,"OVERLAY","GameFontHighlight")
  confirmText:SetPoint("TOP",confirm,"TOP",0,-22)
  confirmText:SetWidth(320)
- local accept=button(confirm,"Confirm Purchase",135)
+ local accept=button(confirm,"OK",90)
  accept:SetPoint("BOTTOMLEFT",confirm,"BOTTOMLEFT",32,20)
  local cancel=button(confirm,"Cancel",85)
  cancel:SetPoint("BOTTOMRIGHT",confirm,"BOTTOMRIGHT",-32,20)
@@ -512,23 +512,14 @@ local function attach(parent)
   if not pending then return end
   local order=pending
   pending=nil;confirm:Hide()
-  local api=C_AuctionHouse
-  local ok=false
-  if order.commodity and api and type(api.StartCommoditiesPurchase)=="function" then
-   ok=pcall(api.StartCommoditiesPurchase,order.id,order.qty)
-   if ok then
-    live.message="Purchase started. Confirm the final price in the Auction House if prompted."
-   end
-  elseif order.auctionID and api and type(api.PlaceBid)=="function" then
-   ok=pcall(api.PlaceBid,order.auctionID,order.buyout)
-  elseif order.legacyIndex and type(PlaceAuctionBid)=="function" then
-   ok=pcall(PlaceAuctionBid,"list",order.legacyIndex,order.buyout)
-  end
-  if not ok then live.message="Purchase API unavailable or rejected this listing. Please use the native Buy tab." end
+  -- Forever protects auction purchase functions. A regular addon callback
+  -- cannot start a transaction, even through pcall. Keep the selected
+  -- auction visible and direct the player to the secure native AH purchase.
+  live.message="WoW Forever protects auction purchases. Use the native Buy tab to complete this purchase."
   refreshOffers()
  end)
  confirm:Hide()
- panel.buyOffer=button(right,"Buy Selected",110)
+ panel.buyOffer=button(right,"Purchase Details",120)
  panel.buyOffer:SetPoint("BOTTOMRIGHT",right,"BOTTOMRIGHT",-14,12)
  panel.buyOffer:SetEnabled(false)
  panel.buyOffer:SetScript("OnClick",function()
@@ -546,7 +537,7 @@ local function attach(parent)
   pending={id=selected,qty=qty,commodity=offer.commodity,
    auctionID=offer.auctionID,legacyIndex=offer.legacyIndex,
    buyout=offer.buyout or offer.price*offer.qty}
-  confirmText:SetText("Buy "..item.name.." x"..qty.."\nTotal: "..gold(offer.commodity and offer.price*qty or pending.buyout).."\nConfirm this purchase?")
+  confirmText:SetText("Purchase details: "..item.name.." x"..qty.."\nTotal: "..gold(offer.commodity and offer.price*qty or pending.buyout).."\nUse native AH Buy tab to purchase.")
   confirm:Show()
  end)
  panel:Hide()

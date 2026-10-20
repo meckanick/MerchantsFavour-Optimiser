@@ -563,21 +563,21 @@ local function attach(parent)
   accept:SetText("Confirm Buy")
   confirm:Show()
  end
- panel.buyOffer=button(right,"Test Commodity Buy",150)
+ panel.buyOffer=button(right,"Buy Selected",115)
  panel.buyOffer:SetPoint("BOTTOMRIGHT",right,"BOTTOMRIGHT",-14,12)
  panel.buyOffer:SetEnabled(false)
  panel.buyOffer:SetScript("OnClick",function()
-  -- Isolated diagnostic: primary physical click invokes the commodity API
-  -- before changing any frame state. Regular auction purchases remain off.
+  -- Buy the full outstanding commodity quantity, even if it spans multiple
+  -- listings. Preserve the verified direct hardware-click purchase call.
   local offer=selectedOffer and live.offers[selectedOffer]
   local item=selected and AH.Shopping()[selected]
   if not offer or not item or live.id~=selected or live.waiting then return end
   if not offer.commodity then
-   live.message="Test only supports commodities. Regular buyouts remain disabled."
+   live.message="Regular auction buyouts remain disabled; select a commodity."
    refreshOffers()
    return
   end
-  local qty=math.min(item.qty,offer.qty)
+  local qty=math.floor(tonumber(item.qty) or 0)
   if qty<1 then return end
   local api=C_AuctionHouse
   if not api or type(api.StartCommoditiesPurchase)~="function" then
@@ -589,7 +589,7 @@ local function attach(parent)
   -- Do not retry or automatically confirm any purchase.
   commodityOrder={id=selected,qty=qty,estimated=offer.price*qty}
   api.StartCommoditiesPurchase(selected,qty)
-  live.message="Commodity request sent from primary button; awaiting price."
+  live.message="Checking Auction House price for "..qty.." units..."
   refreshOffers()
  end)
 

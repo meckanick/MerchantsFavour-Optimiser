@@ -239,78 +239,95 @@ local function attach(parent)
    end
   end
  end
- -- Build an actual tab surface, never a generic red action button.
- -- Native WoW AH tabs use dark recessed and raised gold selected states.
- tab=CreateFrame("Button",nil,parent,"BackdropTemplate")
- tab:SetSize(108,29)
- tab:SetBackdrop({
-  bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",
-  edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",
-  tile=false,edgeSize=12,
-  insets={left=3,right=3,top=3,bottom=3}
- })
- local tabText=tab:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
- tabText:SetPoint("CENTER",tab,"CENTER",0,0)
- tabText:SetText("MFO Shop")
- tab:SetFontString(tabText)
- -- Build the tab face from horizontal strips to match Forever's grey
- -- inactive state and its top-brown-to-bottom-gold active gradient.
- -- Avoid SetGradient: older Forever client builds may not expose it.
- local face={}
- for i=1,12 do
-  local strip=tab:CreateTexture(nil,"BACKGROUND",nil,1)
-  strip:SetPoint("TOPLEFT",tab,"TOPLEFT",4,-3-(i-1)*2)
-  strip:SetPoint("TOPRIGHT",tab,"TOPRIGHT",-4,-3-(i-1)*2)
-  strip:SetHeight(3)
-  face[i]=strip
+ -- Forever's modern AH uses display-mode tabs, not AuctionTabTemplate.
+ -- Only create the native template when the client exposes its controller;
+ -- otherwise retain the tested Forever-safe custom tab.
+ local modern=parent.Tabs and #parent.Tabs>0
+  and type(PanelTemplates_SelectTab)=="function"
+  and type(PanelTemplates_DeselectTab)=="function"
+ local reference=modern and parent.Tabs[#parent.Tabs] or nil
+ if modern then
+  local ok,created=pcall(CreateFrame,"Button",nil,parent,"AuctionHouseFrameDisplayModeTabTemplate")
+  if ok and created then tab=created else modern=false end
  end
- local selectedGlow=CreateFrame("Frame",nil,tab,"BackdropTemplate")
- selectedGlow:SetPoint("TOPLEFT",tab,"TOPLEFT",-2,2)
- selectedGlow:SetPoint("BOTTOMRIGHT",tab,"BOTTOMRIGHT",2,-2)
- selectedGlow:SetBackdrop({
-  edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",
-  edgeSize=12,
-  insets={left=0,right=0,top=0,bottom=0}
- })
- selectedGlow:SetBackdropBorderColor(1,.79,.07,1)
- selectedGlow:Hide()
- local tabHover=tab:CreateTexture(nil,"ARTWORK")
- tabHover:SetAllPoints(tab)
- tabHover:SetColorTexture(1,.76,.2,.10)
- tabHover:Hide()
- tab:SetScript("OnEnter",function()tabHover:Show()end)
- tab:SetScript("OnLeave",function()tabHover:Hide()end)
- setTabSelected=function(active)
-  -- Native selected AH tabs extend below the normal tab baseline.
-  tab:SetHeight(active and 35 or 29)
-  if active then
-   tab:SetBackdropColor(.20,.15,.085,1)
-   tab:SetBackdropBorderColor(.90,.67,.10,1)
-   tabText:SetTextColor(1,1,.91,1)
-   for i,strip in ipairs(face) do
-    local t=(i-1)/11
-    strip:SetColorTexture(.22+.40*t,.16+.23*t,.09+.025*t,1)
-   end
-   selectedGlow:Show()
+ if modern then
+  tab:SetText("MFO Shop")
+  if type(PanelTemplates_TabResize)=="function" then
+   PanelTemplates_TabResize(tab,20,nil,70)
   else
-   tab:SetBackdropColor(.10,.10,.10,1)
-   tab:SetBackdropBorderColor(.27,.26,.24,1)
-   tabText:SetTextColor(1,.79,.18,1)
-   for i,strip in ipairs(face) do
-    local t=(i-1)/11
-    local grey=.24-.10*t
-    strip:SetColorTexture(grey,grey,grey,1)
+   tab:SetWidth(108)
+  end
+  tab:SetPoint("TOPLEFT",reference,"TOPRIGHT",3,0)
+  PanelTemplates_DeselectTab(tab)
+  setTabSelected=function(active)
+   if active then
+    for _,native in ipairs(parent.Tabs) do PanelTemplates_DeselectTab(native) end
+    PanelTemplates_SelectTab(tab)
+   else
+    PanelTemplates_DeselectTab(tab)
    end
-   selectedGlow:Hide()
+  end
+ else
+  tab=CreateFrame("Button",nil,parent,"BackdropTemplate")
+  tab:SetSize(108,29)
+  tab:SetBackdrop({
+   bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",
+   edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",
+   tile=false,edgeSize=12,
+   insets={left=3,right=3,top=3,bottom=3}
+  })
+  local tabText=tab:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+  tabText:SetPoint("CENTER",tab,"CENTER",0,0)
+  tabText:SetText("MFO Shop")
+  tab:SetFontString(tabText)
+  local face={}
+  for i=1,12 do
+   local strip=tab:CreateTexture(nil,"BACKGROUND",nil,1)
+   strip:SetPoint("TOPLEFT",tab,"TOPLEFT",4,-3-(i-1)*2)
+   strip:SetPoint("TOPRIGHT",tab,"TOPRIGHT",-4,-3-(i-1)*2)
+   strip:SetHeight(3)
+   face[i]=strip
+  end
+  local selectedGlow=CreateFrame("Frame",nil,tab,"BackdropTemplate")
+  selectedGlow:SetPoint("TOPLEFT",tab,"TOPLEFT",-2,2)
+  selectedGlow:SetPoint("BOTTOMRIGHT",tab,"BOTTOMRIGHT",2,-2)
+  selectedGlow:SetBackdrop({
+   edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",
+   edgeSize=12,insets={left=0,right=0,top=0,bottom=0}
+  })
+  selectedGlow:SetBackdropBorderColor(1,.79,.07,1)
+  selectedGlow:Hide()
+  setTabSelected=function(active)
+   tab:SetHeight(active and 35 or 29)
+   if active then
+    tab:SetBackdropColor(.20,.15,.085,1)
+    tab:SetBackdropBorderColor(.90,.67,.10,1)
+    tabText:SetTextColor(1,1,.91,1)
+    for i,strip in ipairs(face) do
+     local t=(i-1)/11
+     strip:SetColorTexture(.22+.40*t,.16+.23*t,.09+.025*t,1)
+    end
+    selectedGlow:Show()
+   else
+    tab:SetBackdropColor(.10,.10,.10,1)
+    tab:SetBackdropBorderColor(.27,.26,.24,1)
+    tabText:SetTextColor(1,.79,.18,1)
+    for i,strip in ipairs(face) do
+     local t=(i-1)/11
+     local grey=.24-.10*t
+     strip:SetColorTexture(grey,grey,grey,1)
+    end
+    selectedGlow:Hide()
+   end
+  end
+  setTabSelected(false)
+  if last then
+   tab:SetPoint("TOPLEFT",last,"TOPRIGHT",-7,0)
+  else
+   tab:SetPoint("BOTTOMLEFT",parent,"BOTTOMLEFT",338,-16)
   end
  end
- setTabSelected(false)
  tab:SetFrameLevel(parent:GetFrameLevel()+12)
- if last then
-  tab:SetPoint("TOPLEFT",last,"TOPRIGHT",-7,0)
- else
-  tab:SetPoint("BOTTOMLEFT",parent,"BOTTOMLEFT",338,-16)
- end
  tab:Show()
  panel=CreateFrame("Frame",nil,parent,"BackdropTemplate")
  panel:SetPoint("TOPLEFT",parent,"TOPLEFT",8,-8)

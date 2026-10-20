@@ -124,8 +124,14 @@ local commodityOrder
 local confirmCommodity
 local resetPurchaseDialogs
 local awaitingPurchase=false
+local purchaseElapsed=0
+local purchaseWarningShown=false
 local function startLiveSearch(id)
- commodityOrder=nil;awaitingPurchase=false
+ if commodityOrder or awaitingPurchase then
+  live.message="Purchase pending. Wait for the Auction House result before searching again."
+  if refreshOffers then refreshOffers() end
+  return
+ end
  if resetPurchaseDialogs then resetPurchaseDialogs() end
  if panel and panel.offerScroll then panel.offerScroll:SetValue(select(2,panel.offerScroll:GetMinMaxValues()) or 0) end
  live.id=id;live.offers={};live.waiting=false;live.elapsed=0;selectedOffer=nil
@@ -194,14 +200,14 @@ liveEvents:SetScript("OnEvent",function(_,event,arg)
   if commodityOrder and not awaitingPurchase and confirmCommodity then confirmCommodity() end
  elseif event=="COMMODITY_PRICE_UNAVAILABLE" or event=="COMMODITY_PURCHASE_FAILED" then
   if not commodityOrder and not awaitingPurchase then return end
-  commodityOrder=nil;awaitingPurchase=false
+  commodityOrder=nil;awaitingPurchase=false;purchaseElapsed=0;purchaseWarningShown=false
   if resetPurchaseDialogs then resetPurchaseDialogs() end
   live.offers={};live.waiting=false;selectedOffer=nil
   live.message="Commodity price changed or purchase failed. Search again before buying."
   if refreshOffers then refreshOffers() end
  elseif event=="COMMODITY_PURCHASE_SUCCEEDED" then
   if not awaitingPurchase then return end
-  commodityOrder=nil;awaitingPurchase=false
+  commodityOrder=nil;awaitingPurchase=false;purchaseElapsed=0;purchaseWarningShown=false
   if resetPurchaseDialogs then resetPurchaseDialogs() end
   live.offers={};live.waiting=false;selectedOffer=nil
   live.message="Commodity purchase succeeded. Refresh your shopping list quantities."
@@ -265,7 +271,7 @@ local function update()
 end
 local function close()
  if resetPurchaseDialogs then resetPurchaseDialogs() end
- commodityOrder=nil;awaitingPurchase=false
+ commodityOrder=nil
  if panel then panel:Hide() end
  -- Discard results and selections from the previous AH session.
  live.id=nil;live.offers={};live.waiting=false;live.elapsed=0
@@ -731,7 +737,7 @@ local function attach(parent)
   dismiss()
   commodityOrder=nil
   if C_AuctionHouse and type(C_AuctionHouse.ConfirmCommoditiesPurchase)=="function" then
-   awaitingPurchase=true
+   awaitingPurchase=true;purchaseElapsed=0;purchaseWarningShown=false
    C_AuctionHouse.ConfirmCommoditiesPurchase(order.id,order.qty)
    live.message="Commodity confirmation submitted. Check Auction House result."
   else
@@ -799,6 +805,10 @@ local function attach(parent)
   local offer=selectedOffer and live.offers[selectedOffer]
   local item=selected and AH.Shopping()[selected]
   if not offer or not item or live.id~=selected or live.waiting then return end
+  if commodityOrder or awaitingPurchase then
+   live.message="Purchase already pending. Wait for the Auction House result."
+   preflight:Hide();refreshOffers();return
+  end
   if not offer.commodity then
    live.message="Regular auction buyouts remain disabled."
    preflight:Hide();refreshOffers();return
@@ -825,7 +835,7 @@ local function attach(parent)
  panel.buyOffer:SetScript("OnClick",function()
   local offer=selectedOffer and live.offers[selectedOffer]
   local item=selected and AH.Shopping()[selected]
-  if not offer or not item or live.id~=selected or live.waiting then return end
+  if not offer or not item or live.id~=selected or live.waiting or commodityOrder or awaitingPurchase then return end
   local qty=chainBuy and item.qty or math.min(item.qty,offer.qty)
   preflightText:SetText(item.name.."\nBuy quantity: "..qty.." / Needed: "..item.qty)
   preflight:Show()
@@ -880,7 +890,7 @@ local function attach(parent)
   setNativeTitle(parent)
   panel:Show()
   live.message="Select a shopping-list item."
-  commodityOrder=nil;awaitingPurchase=false
+  commodityOrder=nil;awaitingPurchase=false;purchaseElapsed=0;purchaseWarningShown=false
   if resetPurchaseDialogs then resetPurchaseDialogs() end
   live.offers={};live.waiting=false;live.elapsed=0;live.id=nil
   selectedOffer=nil;selected=nil
@@ -932,6 +942,14 @@ watcher:SetScript("OnUpdate",function(_,dt)
  timer=0
  local current=activeAH()
  if current and current~=host then attach(current) end
+ if awaitingPurchase and not purchaseWarningShown then
+  purchaseElapsed=purchaseElapsed+.5
+  if purchaseElapsed>=20 then
+   purchaseWarningShown=true
+   live.message="Purchase result delayed. Check your inventory or AH before trying again."
+   if refreshOffers then refreshOffers() end
+  end
+ end
  if live.waiting then
   live.elapsed=live.elapsed+.5
   if live.elapsed>=15 then

@@ -193,5 +193,12 @@ check(not coreSource:find('plannerBtn=CreateFrame',1,true),
 check(not coreSource:find("Bind Item", 1, true), "obsolete manual bind button must be absent")
 check(not coreSource:find("Item Link:", 1, true), "obsolete item link box must be absent")
 check(coreSource:find('refreshBtn:SetScript("OnClick",refresh)', 1, true) ~= nil, "refresh control must remain")
+check(coreSource:find('note:Hide()',1,true)~=nil, "scan note must not clutter toolbar")
+check(coreSource:find('GameTooltip:AddLine(note:GetText()',1,true)~=nil, "scan-age info must remain accessible on Refresh hover")
+check(coreSource:find('clearButton:SetPoint("RIGHT",refreshBtn,"LEFT",-10,0)',1,true)~=nil,
+  "Clear button must sit beside Refresh")
+check(coreSource:find('targetInput:SetPoint("RIGHT",clearButton,"LEFT",-10,0)',1,true)~=nil,
+  "Favour input must sit beside Clear")
+
 
 print("PASS: 30 crate definitions, calculations and UI capitalization guards")

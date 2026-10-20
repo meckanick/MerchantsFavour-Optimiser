@@ -28,7 +28,7 @@ local function updateScanNote()
   local api = auctionatorAPI()
   if not api or type(api.GetAuctionAgeByItemID) ~= "function" then
     note:SetText("Auctionator Scanned Prices | "..#rows.." Crates | Scan Age Unavailable")
-    scanAgeFooter:SetText("AH Scan: Unknown")
+    scanAgeFooter:SetText("Last AH Scan: Unknown")
     scanAgeFooter:SetTextColor(.65,.65,.65)
     return
   end
@@ -46,21 +46,30 @@ local function updateScanNote()
   if oldestAge then
     note:SetText("Auctionator Scanned Prices | "..#rows.." Crates | Oldest Price: " .. formatAgeDays(oldestAge))
     local ageText
-    if oldestAge < 1 then
-      local hours=math.max(0,math.floor(oldestAge*24))
-      ageText=hours==0 and "Under 1h" or (hours.."h")
-    else
+    if oldestAge < 1/24 then
+      ageText="Less Than 1 Hour"
+    elseif oldestAge < 1 then
+      local hours=math.floor(oldestAge*24)
+      ageText=hours.." "..(hours==1 and "Hour" or "Hours")
+    elseif oldestAge < 7 then
       local days=math.floor(oldestAge)
-      ageText=days.."d"
+      ageText=days.." "..(days==1 and "Day" or "Days")
+    elseif oldestAge < 28 then
+      local weeks=math.floor(oldestAge/7)
+      ageText=weeks.." "..(weeks==1 and "Week" or "Weeks")
+    else
+      local months=math.floor(oldestAge/30)
+      if months<1 then months=1 end
+      ageText=months.." "..(months==1 and "Month" or "Months")
     end
-    scanAgeFooter:SetText("AH Scan: "..ageText.." Old")
+    scanAgeFooter:SetText("Last AH Scan: "..ageText.." Ago")
     if oldestAge<1 then scanAgeFooter:SetTextColor(.3,.95,.3)
     elseif oldestAge<3 then scanAgeFooter:SetTextColor(1,.85,.2)
     elseif oldestAge<7 then scanAgeFooter:SetTextColor(1,.55,.15)
     else scanAgeFooter:SetTextColor(1,.25,.25) end
   else
     note:SetText("Auctionator Scanned Prices | "..#rows.." Crates | Scan Age Unavailable")
-    scanAgeFooter:SetText("AH Scan: Unknown")
+    scanAgeFooter:SetText("Last AH Scan: Unknown")
     scanAgeFooter:SetTextColor(.65,.65,.65)
   end
 end
@@ -230,15 +239,15 @@ note:SetText("Auctionator Scanned Prices | "..#rows.." Crates")
 note:Hide()
 local status=frame:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
 status:SetPoint("BOTTOMLEFT",19,16)
-status:SetWidth(650)
+status:SetWidth(550)
 status:SetJustifyH("LEFT")
 -- Footer scan-age indicator uses the oldest available Auctionator item price.
 -- The API reports age in days (including fractional days).
 scanAgeFooter=frame:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
 scanAgeFooter:SetPoint("BOTTOMRIGHT",frame,"BOTTOMRIGHT",-19,16)
-scanAgeFooter:SetWidth(195)
+scanAgeFooter:SetWidth(290)
 scanAgeFooter:SetJustifyH("RIGHT")
-scanAgeFooter:SetText("AH Scan: Unknown")
+scanAgeFooter:SetText("Last AH Scan: Unknown")
 scanAgeFooter:SetTextColor(.65,.65,.65)
 -- Recessed bronze controls matching the profession panel's visual language.
 -- Same textured button artwork and font treatment as What's Training? Professions.
@@ -511,17 +520,17 @@ local function refresh()
       bankInfo=" Bank Snapshot: "..elapsed.."h old."
     else bankInfo=" Bank Not Scanned Yet." end
   end
-  status:SetText(complete.."/"..#rows.." Ranked | "..missingIDs.." Unknown IDs | "..missingPrices.." Missing Crate Prices. "..(MFO_DB.useOwned and "Owned Items Deducted." or "All Items Valued at AH Prices.")..bankInfo)
+  local footerParts={complete.."/"..#rows.." Crates"}
+  if missingIDs>0 then footerParts[#footerParts+1]=missingIDs.." Unknown IDs" end
+  if missingPrices>0 then footerParts[#footerParts+1]=missingPrices.." Missing Prices" end
+  if MFO_DB.useOwned then
+    footerParts[#footerParts+1]="Using Owned Items"
+    if not MFO_DB.bankScanTime then footerParts[#footerParts+1]="Bank Not Scanned" end
+  end
+  status:SetText(table.concat(footerParts," | "))
   if planFavour then planFavour() end
 end
 local refreshBtn=CreateFrame("Button",nil,frame);refreshBtn:SetSize(82,22);refreshBtn:SetPoint("TOPRIGHT",frame,"TOPRIGHT",-38,-44);refreshBtn:SetText("Refresh");SkinWoodButton(refreshBtn);refreshBtn:SetScript("OnClick",refresh)
-refreshBtn:SetScript("OnEnter",function(self)
-  GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
-  GameTooltip:AddLine("Auctionator Price Information",1,.82,.2)
-  GameTooltip:AddLine(note:GetText() or "Scan Age Unavailable",1,1,1,true)
-  GameTooltip:Show()
-end)
-refreshBtn:SetScript("OnLeave",function()GameTooltip:Hide()end)
 -- Inline planner: the target entry lives in the existing toolbar and
 -- replaces the rankings table only while a target is entered.
 local targetLabel=frame:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")

@@ -15,7 +15,7 @@ The goal is simple: see which supported crate is the most cost-effective to comp
 - **22 currently visible crates** — 30 crate definitions are included, with eight unverified Artisan crates hidden until verified. Known item IDs, Favour rewards, and material bundle requirements are included.
 - **Cost and value comparison** — displays the crate price, cheapest currently priceable material bundle, estimated total, Favour reward, and net cost-per-Favour rate.
 - **Built-in Auction House scanner** — click **Scan AH** at the Auction House to search relevant crates and materials using WoW Forever's auction APIs; no Auctionator installation or CSV price list is required.
-- **Saved price database** — stores lowest observed unit buyout prices and records the completion time of successful scans in `MFO_DB`.
+- **Market-specific saved prices** — shares scanned prices, scan timestamps and shopping lists across characters of the same WoW Forever megarealm and faction, while keeping PvE, PvP, RP, Alliance and Horde markets separate.
 - **Live scan progress and results** — shows a 0–100% progress bar while scanning, followed by a compact priced/missing count. Hover the summary to inspect items without a usable price.
 - **Independent shopping list** — use a row's **Shop** button or **Shop Planned Items** to add required quantities to MFO's saved shopping list; open it with `/mfo shop`. MFO does not automatically purchase items.
 - **Optional owned-material accounting** — toggle whether materials in your bags and the saved bank snapshot should reduce the quantities and costs you need to buy.
@@ -66,7 +66,7 @@ A crate may be unranked when required price data or item IDs are missing. Check 
 
 - The main window can be dragged.
 - The minimap button can be dragged around the minimap; its position is saved.
-- The owned-material option, learned item IDs, bank snapshot, scanned prices, last scan timestamp and shopping list are stored in the `MFO_DB` saved variable.
+- The owned-material option, learned item IDs and bank snapshot are stored in account-wide `MFO_DB` settings. Scanned prices, last scan timestamps and shopping lists are stored under `MFO_DB.markets[realm][faction]`.\n- When upgrading from account-wide storage, the original data is backed up under `MFO_DB.legacyAHData` and imported once into the first market you log into. Since the original market was not recorded, rescan on that market to verify the prices. Other markets start with empty price data.\n- MFO identifies the active market using the game's realm name and player faction. Neutral Auction House separation is not implemented; avoid scanning a neutral market until its API can be identified reliably.
 - The coin watermark and wood-and-gold artwork are bundled with the addon; no external texture download is required.
 
 ## Troubleshooting

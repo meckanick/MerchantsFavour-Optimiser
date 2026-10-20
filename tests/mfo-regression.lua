@@ -305,3 +305,7 @@ check(ahTab:find('setTabSelected(true)',1,true)~=nil,"MFO tab must show selected
 check(ahTab:find('tab=CreateFrame("Button",nil,parent,"BackdropTemplate")',1,true)~=nil,"MFO Shop must not use red button template")
 check(ahTab:find('selectedGlow:Show()',1,true)~=nil,"Selected tab must display rectangular gold glow")
 check(ahTab:find('tab=CreateFrame("Button",nil,parent,"UIPanelButtonTemplate")',1,true)==nil,"MFO Shop tab must not use default red button skin")
+
+check(ahTab:find('tab:SetHeight(active and 35 or 29)',1,true)~=nil,"Selected MFO tab must extend below inactive tabs")
+check(ahTab:find('local grey=.24-.10*t',1,true)~=nil,"Inactive MFO tab must be neutral grey")
+check(ahTab:find('strip:SetColorTexture(.22+.40*t,.16+.23*t,.09+.025*t,1)',1,true)~=nil,"Selected MFO tab must use brown-to-gold gradient")

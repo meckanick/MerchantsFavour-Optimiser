@@ -324,3 +324,6 @@ check(ahSource:find('if not next(replacement) then return false',1,true)~=nil,"E
 check(ahSource:find("db().shopping=replacement",1,true)~=nil,"Replacement must overwrite current market list")
 check(coreSource:find("MFO_AH.ReplaceShopping(items)",1,true)~=nil,"Main Shop buttons must replace list")
 check(not coreSource:find("MFO_AH.Shop(items)",1,true),"Main Shop buttons must not append")
+
+check(ahTab:find('if aCrate~=bCrate then return aCrate end',1,true)~=nil,"Crates must appear before shopping materials")
+check(ahTab:find('crateIDs[item.id]',1,true)~=nil,"Shopping must recognize known crate item IDs")

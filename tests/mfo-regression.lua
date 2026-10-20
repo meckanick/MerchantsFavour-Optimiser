@@ -293,3 +293,9 @@ check(ahTab:find('local liveStatus=right:CreateFontString',1,true)~=nil,"Live se
 
 check(ahTab:find('button(right,"Search AH"',1,true)==nil,"No redundant manual search button")
 check(ahTab:find('for i=1,6 do',1,true)~=nil,"Results fit above footer")
+
+check(ahTab:find('ART.."MFO_WoodBackground"',1,true)~=nil,"Shopping must reuse MFO wood texture")
+check(ahTab:find('ART.."MFO_CoinBackground"',1,true)~=nil,"Shopping must reuse MFO coin watermark")
+check(ahTab:find('ART.."WTP_ProfessionRow"',1,true)~=nil,"Shopping section headings must use main addon texture")
+check(ahTab:find('ART.."WTP_FooterButton"',1,true)~=nil,"Shopping buttons must use main addon skin")
+check(ahTab:find('tab=CreateFrame("Button",nil,parent,template)',1,true)~=nil,"MFO Shop must preserve native AH tab styling")

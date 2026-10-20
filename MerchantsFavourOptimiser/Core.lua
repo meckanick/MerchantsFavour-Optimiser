@@ -27,7 +27,7 @@ local scanAgeFooter
 -- Auctionator Forever records the successful full-scan completion timestamp
 -- in AUCTIONATOR_LAST_SCAN_TIME. Item price ages are not scan timestamps.
 local function updateScanNote()
-  local scannedAt=AUCTIONATOR_LAST_SCAN_TIME
+  local scannedAt=MFO_AH and MFO_AH.LastScan()
   if type(scannedAt)~="number" or scannedAt<=0 then
     scanAgeFooter:SetText("Last AH Scan: Unknown")
     scanAgeFooter:SetTextColor(.65,.65,.65)
@@ -65,9 +65,7 @@ local function updateScanNote()
   else scanAgeFooter:SetTextColor(1,.25,.25) end
 end
 price = function(id)
-  if not id or not Auctionator or not Auctionator.API or not Auctionator.API.v1 or type(Auctionator.API.v1.GetAuctionPriceByItemID)~="function" then return nil end
-  local ok, value = pcall(Auctionator.API.v1.GetAuctionPriceByItemID, ADDON, id)
-  if ok and type(value)=="number" and value>0 then return value end
+  return id and MFO_AH and MFO_AH.Price(id) or nil
 end
 -- Stable item IDs avoid depending on the local item-name cache.
 -- Unknown IDs are never guessed; they can be learned using the binder.
@@ -225,7 +223,7 @@ close:SetFrameLevel(frame:GetFrameLevel()+10)
 close:SetScript("OnClick",function() frame:Hide() end)
 note=frame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
 note:SetPoint("TOPLEFT",70,-53)
-note:SetText("Auctionator Scanned Prices | "..#rows.." Crates")
+note:SetText("MFO Saved AH Prices | "..#rows.." Crates")
 -- Keep the price-age diagnostic available on Refresh hover without occupying the toolbar.
 note:Hide()
 local status=frame:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
@@ -424,21 +422,17 @@ for i=1,#rows do
   shop:SetScript("OnClick",function()
     local r=displayedResults[i]
     if not r or not r.b then status:SetText("No Priced Material Bundle for This Crate.");return end
-    local terms={}
-    if not (MFO_DB.useOwned and r.crateOwned) then table.insert(terms,r.crate.name) end
-    if not (MFO_DB.useOwned and r.missing==0) then table.insert(terms,r.b.name) end
-    if #terms==0 then status:SetText("You Already Own the Crate and All Required Materials.");return end
-    if Auctionator and Auctionator.API and Auctionator.API.v1 and type(Auctionator.API.v1.MultiSearch)=="function" then
-      if not (AuctionHouseFrame and AuctionHouseFrame:IsShown()) and not (AuctionFrame and AuctionFrame:IsShown()) then
-        status:SetText("Open the Auction House, Then Click Shop to Search for the Crate and "..r.b.qty.."x "..r.b.name..".")
-        return
-      end
-      local ok,err=pcall(Auctionator.API.v1.MultiSearch,ADDON,terms)
-      if ok then status:SetText("Auctionator Search: "..r.crate.name.." + "..(r.missing or r.b.qty).."x "..r.b.name..". Buy the Indicated Quantities.")
-      else status:SetText("Auctionator MultiSearch Failed: "..tostring(err)) end
-    else
-      status:SetText("This Auctionator Version Does Not Expose MultiSearch. No Shopping List Was Changed.")
+    local items={}
+    local crateID=r.crate.id or resolve(r.crate.name)
+    local materialID=resolve(r.b.name)
+    if not (MFO_DB.useOwned and r.crateOwned) and crateID then
+      items[crateID]={name=r.crate.name,qty=1}
     end
+    if not (MFO_DB.useOwned and r.missing==0) and materialID then
+      items[materialID]={name=r.b.name,qty=r.missing or r.b.qty}
+    end
+    MFO_AH.Shop(items)
+    status:SetText("Added to MFO Shopping List. Use /mfo shop to view.")
   end)
   shopButtons[i]=shop
   -- Net C/F has its own hover target; the crate-name column stays tooltip-free.
@@ -576,7 +570,7 @@ end
 local plannerWarning=planner:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
 plannerWarning:SetPoint("BOTTOMLEFT",12,40);plannerWarning:SetWidth(810)
 plannerWarning:SetJustifyH("LEFT")
-plannerWarning:SetText("Auctionator Prices Are Estimates; Turn-In Money Is Beta-Reported.")
+plannerWarning:SetText("AH Prices Are Estimates; Turn-In Money Is Beta-Reported.")
 local plannerShop=CreateFrame("Button",nil,planner)
 plannerShop:SetSize(165,24);plannerShop:SetPoint("BOTTOMRIGHT",-12,9)
 plannerShop:SetText("Shop Planned Items");SkinWoodButton(plannerShop)
@@ -700,33 +694,24 @@ plannerShop:SetScript("OnEnter",function(self)
   for id,qty in pairs(plannerShopping.items) do sorted[#sorted+1]={id=id,qty=qty,name=items[id] or tostring(id)} end
   table.sort(sorted,function(a,b)return a.name<b.name end)
   for _,item in ipairs(sorted) do GameTooltip:AddLine(item.name.." x "..item.qty,1,1,1) end
-  GameTooltip:AddLine("Auctionator MultiSearch Does Not Automatically Buy Quantities.",.8,.8,.8,true)
+  GameTooltip:AddLine("Saved in MFO shopping list; purchases are manual.",.8,.8,.8,true)
   GameTooltip:Show()
 end)
 plannerShop:SetScript("OnLeave",function()GameTooltip:Hide()end)
 plannerShop:SetScript("OnClick",function()
   if not plannerShopping then plannerInfo:SetText("Calculate a Plan First.");return end
-  local terms,seen={},{}
+  local items={}
+  local names={}
   for _,entry in ipairs(plannerShopping.details) do
     local o=entry.option
-    for _,item in ipairs({{id=o.id,name=o.name},{id=o.materialID,name=o.bundle.name}}) do
-      if plannerShopping.items[item.id] and not seen[item.id] then
-        terms[#terms+1]=item.name;seen[item.id]=true
-      end
-    end
+    names[o.id]=o.name
+    names[o.materialID]=o.bundle.name
   end
-  if #terms==0 then plannerInfo:SetText("All Planned Items Are Already Owned.");return end
-  if not ((AuctionHouseFrame and AuctionHouseFrame:IsShown()) or (AuctionFrame and AuctionFrame:IsShown())) then
-    plannerInfo:SetText("Open the Auction House Before Using Shop Planned Items.");return
+  for id,qty in pairs(plannerShopping.items) do
+    items[id]={name=names[id] or tostring(id),qty=qty}
   end
-  local api=auctionatorAPI()
-  if not api or type(api.MultiSearch)~="function" then
-    plannerInfo:SetText("This Auctionator Version Does Not Support MultiSearch.");return
-  end
-  local ok,err=pcall(api.MultiSearch,ADDON,terms)
-  if ok then
-    plannerInfo:SetText("Auctionator Search Opened. Hover Shop Planned Items for Exact Quantities.")
-  else plannerInfo:SetText("Auctionator Search Failed: "..tostring(err)) end
+  MFO_AH.Shop(items)
+  plannerInfo:SetText("Items added to MFO Shopping List. Use /mfo shop to view.")
 end)
 local ownedCheck=CreateFrame("CheckButton",nil,subheader,"UICheckButtonTemplate")
 -- Align the checkbox at the right edge of the first column, before its divider.
@@ -824,7 +809,60 @@ minimapButton:SetScript("OnEnter",function(self)
 end)
 minimapButton:SetScript("OnLeave",function() GameTooltip:Hide() end)
 positionMinimapButton()
-SLASH_MFO1="/mfo";SlashCmdList.MFO=function(msg) if msg=="refresh" then refresh() else if frame:IsShown() then frame:Hide() else refresh();frame:Show() end end end
+local function scanRelevantItems()
+  local items={}
+  for _,crate in ipairs(rows) do
+    items[crate.id]=crate.name
+    for _,bundle in ipairs(crate.bundles) do
+      local id=resolve(bundle.name)
+      if id then items[id]=bundle.name end
+    end
+  end
+  local ok,message=MFO_AH.Scan(items)
+  status:SetText(message or (ok and "Scanning" or "Scan unavailable"))
+end
+local shoppingFrame=CreateFrame("Frame","MFOShoppingFrame",UIParent,"BackdropTemplate")
+shoppingFrame:SetSize(400,350);shoppingFrame:SetPoint("CENTER",UIParent,"CENTER",0,0)
+shoppingFrame:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",edgeSize=22,insets={left=8,right=8,top=8,bottom=8}})
+shoppingFrame:Hide()
+local shoppingTitle=shoppingFrame:CreateFontString(nil,"OVERLAY","GameFontNormalLarge")
+shoppingTitle:SetPoint("TOP",0,-20);shoppingTitle:SetText("MFO Shopping List")
+local shoppingLines={}
+for i=1,13 do
+  local line=shoppingFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+  line:SetPoint("TOPLEFT",20,-45-(i-1)*20);line:SetWidth(355);line:SetJustifyH("LEFT")
+  shoppingLines[i]=line
+end
+local function showShopping()
+  local sorted={}
+  for id,item in pairs(MFO_AH.Shopping()) do
+    sorted[#sorted+1]={id=id,name=item.name,qty=item.qty}
+  end
+  table.sort(sorted,function(a,b)return a.name<b.name end)
+  for i,line in ipairs(shoppingLines) do
+    local item=sorted[i]
+    line:SetText(item and (item.name.." x "..item.qty.." ("..money(MFO_AH.Price(item.id) and MFO_AH.Price(item.id)*item.qty)..")") or "")
+  end
+  shoppingFrame:Show()
+end
+local closeShopping=CreateFrame("Button",nil,shoppingFrame,"UIPanelCloseButton")
+closeShopping:SetPoint("TOPRIGHT",0,0)
+local clearShopping=CreateFrame("Button",nil,shoppingFrame,"UIPanelButtonTemplate")
+clearShopping:SetSize(95,22);clearShopping:SetPoint("BOTTOM",0,15);clearShopping:SetText("Clear List")
+clearShopping:SetScript("OnClick",function()MFO_AH.ClearShopping();showShopping()end)
+local scanButton=CreateFrame("Button",nil,frame,"UIPanelButtonTemplate")
+scanButton:SetSize(75,22);scanButton:SetPoint("RIGHT",refreshBtn,"LEFT",-10,0)
+scanButton:SetText("Scan AH");scanButton:SetScript("OnClick",scanRelevantItems)
+MFO_AH.onUpdate=function()
+  if frame:IsShown() then refresh() end
+end
+SLASH_MFO1="/mfo"
+SlashCmdList.MFO=function(msg)
+  if msg=="refresh" then refresh()
+  elseif msg=="scan" then scanRelevantItems()
+  elseif msg=="shop" then showShopping()
+  else if frame:IsShown() then frame:Hide() else refresh();frame:Show() end end
+end
 local events=CreateFrame("Frame")
 local function registerSupportedEvent(eventName)
   -- Some retail events do not exist in WoW Forever. Never let one optional

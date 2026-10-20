@@ -665,6 +665,22 @@ local function attach(parent)
  -- Original MFO transaction UI: protected calls are made directly from
  -- genuine button clicks, never via pcall, timers or programmatic clicks.
  local pending
+ local function skinPurchaseDialog(frame,title)
+  frame:SetBackdrop({bgFile=ART.."MFO_WoodBackground",
+   edgeFile="Interface\\DialogFrame\\UI-DialogBox-Gold-Border",edgeSize=22,
+   insets={left=8,right=8,top=8,bottom=8}})
+  frame:SetBackdropColor(.72,.60,.43,1)
+  frame:SetBackdropBorderColor(1,.83,.44,1)
+  local heading=frame:CreateTexture(nil,"ARTWORK")
+  heading:SetPoint("TOPLEFT",frame,"TOPLEFT",12,-12)
+  heading:SetPoint("TOPRIGHT",frame,"TOPRIGHT",-12,-12)
+  heading:SetHeight(29)
+  heading:SetTexture(ART.."WTP_ProfessionRow")
+  local label=frame:CreateFontString(nil,"OVERLAY","GameFontNormal")
+  label:SetPoint("CENTER",heading,"CENTER",0,0)
+  label:SetText(title)
+  label:SetTextColor(1,.78,.24)
+ end
  local confirm=CreateFrame("Frame",nil,panel,"BackdropTemplate")
  confirm:SetSize(390,190)
  confirm:SetPoint("CENTER",panel,"CENTER")
@@ -889,6 +905,5 @@ watcher:SetScript("OnUpdate",function(_,dt)
  local current=activeAH()
  if current and current~=host then attach(current) end
  if panel and panel:IsShown() then update() end
-end)  skinPurchaseDialog(confirm,"Confirm Purchase")
-  skinPurchaseDialog(preflight,"Purchase Item")
+end)
 

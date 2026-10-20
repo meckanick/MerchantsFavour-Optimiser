@@ -473,11 +473,35 @@ local function attach(parent)
  quantityHeader:SetPoint("TOPRIGHT",right,"TOPRIGHT",-28,-158)
  quantityHeader:SetText("Available")
  local liveRows={}
- for i=1,6 do
-  local row=CreateFrame("Button",nil,right)
+ local offerOffset=0
+ local visibleOffers=4
+ local offerScroll=CreateFrame("Slider",nil,right,"UIPanelScrollBarTemplate")
+ offerScroll:SetPoint("TOPRIGHT",right,"TOPRIGHT",-7,-186)
+ offerScroll:SetPoint("BOTTOMRIGHT",right,"BOTTOMRIGHT",-7,47)
+ offerScroll:SetWidth(16)
+ offerScroll:SetMinMaxValues(0,0)
+ offerScroll:SetValueStep(1)
+ offerScroll:SetObeyStepOnDrag(true)
+ offerScroll:SetValue(0)
+ offerScroll:SetScript("OnValueChanged",function(_,value)
+  local nextOffset=math.floor(value+.5)
+  if nextOffset~=offerOffset then
+   offerOffset=nextOffset
+   if refreshOffers then refreshOffers() end
+  end
+ end)
+ local offerViewport=CreateFrame("Frame",nil,right)
+ offerViewport:SetPoint("TOPLEFT",right,"TOPLEFT",16,-182)
+ offerViewport:SetPoint("BOTTOMRIGHT",right,"BOTTOMRIGHT",-30,47)
+ offerViewport:EnableMouseWheel(true)
+ offerViewport:SetScript("OnMouseWheel",function(_,delta)
+  offerScroll:SetValue(math.max(0,math.min(math.max(0,#live.offers-visibleOffers),offerOffset-delta)))
+ end)
+ for i=1,visibleOffers do
+  local row=CreateFrame("Button",nil,offerViewport)
   row:SetHeight(31)
-  row:SetPoint("TOPLEFT",right,"TOPLEFT",16,-182-(i-1)*34)
-  row:SetPoint("RIGHT",right,"RIGHT",-16,0)
+  row:SetPoint("TOPLEFT",offerViewport,"TOPLEFT",0,-(i-1)*34)
+  row:SetPoint("RIGHT",offerViewport,"RIGHT",0,0)
   local price=row:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
   price:SetPoint("LEFT",row,"LEFT",4,0)
   price:SetWidth(170)
@@ -494,7 +518,7 @@ local function attach(parent)
   row.highlight=highlight
   highlight:Hide()
   row:SetScript("OnClick",function()
-   if live.offers[i] then selectedOffer=i;refreshOffers() end
+   if live.offers[offerOffset+i] then selectedOffer=offerOffset+i;refreshOffers() end
   end)
   liveRows[i]=row
  end
@@ -508,12 +532,14 @@ local function attach(parent)
   local msg=live.message or ""
   if msg:find("Checking Auction House price",1,true) then msg="Checking AH price..." end
   liveStatus:SetText(msg)
+  offerScroll:SetMinMaxValues(0,math.max(0,#live.offers-visibleOffers))
+  if #live.offers>visibleOffers then offerScroll:Show() else offerScroll:Hide() end
   for i,row in ipairs(liveRows) do
-   local offer=live.offers[i]
+   local offer=live.offers[offerOffset+i]
    row.price:SetText(offer and gold(offer.price) or "")
    row.quantity:SetText(offer and ("x"..offer.qty) or "")
    if offer then row:Show() else row:Hide() end
-   if selectedOffer==i then row.highlight:Show() else row.highlight:Hide() end
+   if selectedOffer==offerOffset+i then row.highlight:Show() else row.highlight:Hide() end
   end
   if panel.buyOffer then
    panel.buyOffer:SetEnabled(selectedOffer~=nil and live.offers[selectedOffer]~=nil and not live.waiting)

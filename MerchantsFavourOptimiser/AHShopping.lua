@@ -108,6 +108,70 @@ local function activeAH()
  if AuctionHouseFrame and AuctionHouseFrame:IsShown() then return AuctionHouseFrame end
  if AuctionFrame and AuctionFrame:IsShown() then return AuctionFrame end
 end
+-- Read-only live search. Do not buy, reserve, or modify shopping quantities.
+local live={id=nil,waiting=false,offers={},message="Select an item to search."}
+local refreshOffers
+local function startLiveSearch(id)
+ live.id=id;live.offers={};live.waiting=false
+ if not id then live.message="Select an item to search.";return end
+ if select(2,AH.Progress()) then live.message="Wait for the MFO price scan to finish.";return end
+ local item=AH.Shopping()[id]
+ if not item then live.message="Item no longer in shopping list.";return end
+ if C_AuctionHouse and type(C_AuctionHouse.SendSearchQuery)=="function" then
+  local key=C_AuctionHouse.MakeItemKey and C_AuctionHouse.MakeItemKey(id) or {itemID=id}
+  local ok=pcall(C_AuctionHouse.SendSearchQuery,key,{},false)
+  if ok then live.waiting=true;live.message="Searching live auctions...";return end
+ end
+ if type(QueryAuctionItems)=="function" then
+  local ok=pcall(QueryAuctionItems,item.name,nil,nil,0,0,0,0,0,nil,false)
+  if ok then live.waiting=true;live.message="Searching live auctions...";return end
+ end
+ live.message="Live search unavailable in this client."
+end
+local function collectLive(event,arg)
+ if not live.waiting or not live.id or not panel or not panel:IsShown() then return end
+ local id=live.id
+ local offers={}
+ if event=="AUCTION_ITEM_LIST_UPDATE" then
+  if type(GetNumAuctionItems)~="function" or type(GetAuctionItemInfo)~="function" then return end
+  local count=GetNumAuctionItems("list") or 0
+  local wanted=AH.Shopping()[id]
+  for i=1,math.min(count,100) do
+   local name,_,qty,_,_,_,_,_,buyout=GetAuctionItemInfo("list",i)
+   if wanted and name==wanted.name and type(buyout)=="number" and buyout>0 then
+    offers[#offers+1]={price=math.ceil(buyout/math.max(1,qty or 1)),qty=qty or 1}
+   end
+  end
+ else
+  local returned=type(arg)=="table" and arg.itemID or arg
+  if returned~=id then return end
+  local api=C_AuctionHouse
+  if not api then return end
+  if event=="COMMODITY_SEARCH_RESULTS_UPDATED" and api.GetNumCommoditySearchResults and api.GetCommoditySearchResultInfo then
+   for i=1,math.min(api.GetNumCommoditySearchResults(id) or 0,100) do
+    local entry=api.GetCommoditySearchResultInfo(id,i)
+    if entry and entry.unitPrice then offers[#offers+1]={price=entry.unitPrice,qty=entry.quantity or 1} end
+   end
+  elseif event=="ITEM_SEARCH_RESULTS_UPDATED" and api.GetNumItemSearchResults and api.GetItemSearchResultInfo then
+   local key=api.MakeItemKey and api.MakeItemKey(id) or {itemID=id}
+   for i=1,math.min(api.GetNumItemSearchResults(key) or 0,100) do
+    local entry=api.GetItemSearchResultInfo(key,i)
+    if entry and entry.buyoutAmount and entry.buyoutAmount>0 then
+     offers[#offers+1]={price=math.ceil(entry.buyoutAmount/math.max(1,entry.quantity or 1)),qty=entry.quantity or 1}
+    end
+   end
+  else return end
+ end
+ table.sort(offers,function(a,b)return a.price<b.price end)
+ live.offers=offers;live.waiting=false
+ live.message=#offers>0 and (#offers.." live price tiers/listings found") or "No live buyout listings found."
+ if refreshOffers then refreshOffers() end
+end
+local liveEvents=CreateFrame("Frame")
+for _,name in ipairs({"ITEM_SEARCH_RESULTS_UPDATED","COMMODITY_SEARCH_RESULTS_UPDATED","AUCTION_ITEM_LIST_UPDATE"}) do
+ pcall(liveEvents.RegisterEvent,liveEvents,name)
+end
+liveEvents:SetScript("OnEvent",function(_,event,arg) collectLive(event,arg) end)
 local function update()
  if not panel or not panel:IsShown() then return end
  local items={}
@@ -263,11 +327,35 @@ local function attach(parent)
  panel.total:SetPoint("TOPLEFT",panel,"TOPLEFT",30,-65)
  local hint=panel:CreateFontString(nil,"OVERLAY","GameFontDisableSmall")
  hint:SetPoint("TOPLEFT",right,"TOPLEFT",16,-49)
- hint:SetText("Select an item on the left to see its cost")
+ hint:SetText("Select an item to search live listings")
  panel.detail=panel:CreateFontString(nil,"OVERLAY","GameFontHighlight")
- panel.detail:SetPoint("TOPLEFT",right,"TOPLEFT",16,-84)
+ panel.detail:SetPoint("TOPLEFT",right,"TOPLEFT",16,-67)
  panel.detail:SetPoint("RIGHT",right,"RIGHT",-16,0)
  panel.detail:SetJustifyH("LEFT")
+ panel.detail:SetTextColor(.95,.84,.57)
+ local liveHeader=panel:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+ liveHeader:SetPoint("TOPLEFT",right,"TOPLEFT",16,-155)
+ liveHeader:SetText("Unit Price                 Available")
+ local liveRows={}
+ for i=1,8 do
+  local row=panel:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+  row:SetPoint("TOPLEFT",right,"TOPLEFT",18,-177-(i-1)*25)
+  row:SetPoint("RIGHT",right,"RIGHT",-18,0)
+  row:SetJustifyH("LEFT")
+  liveRows[i]=row
+ end
+ local liveStatus=panel:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+ liveStatus:SetPoint("BOTTOMLEFT",right,"BOTTOMLEFT",16,88)
+ liveStatus:SetPoint("RIGHT",right,"RIGHT",-16,0)
+ liveStatus:SetJustifyH("LEFT")
+ refreshOffers=function()
+  if not panel or not panel:IsShown() then return end
+  liveStatus:SetText(live.message or "")
+  for i,row in ipairs(liveRows) do
+   local offer=live.offers[i]
+   row:SetText(offer and (gold(offer.price).."                         x"..offer.qty) or "")
+  end
+ end
  panel:Hide()
  panel.offset=0
  for i=1,9 do
@@ -279,7 +367,7 @@ local function attach(parent)
   row.label:SetPoint("LEFT",4,0);row.label:SetPoint("RIGHT",row,"RIGHT",-78,0);row.label:SetJustifyH("LEFT");row.label:SetWordWrap(false)
   row.cost=row:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
   row.cost:SetPoint("RIGHT",-4,0);row.cost:SetWidth(72);row.cost:SetJustifyH("RIGHT")
-  row:SetScript("OnClick",function(self)if self.item then selected=self.item.id;update()end end)
+  row:SetScript("OnClick",function(self)if self.item then selected=self.item.id;startLiveSearch(selected);update();if refreshOffers then refreshOffers() end end end)
   row:SetScript("OnEnter",function(self)
    if self.item then
     GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
@@ -318,8 +406,11 @@ local function attach(parent)
   hideNative(parent)
   setNativeTitle(parent)
   panel:Show()
+  live.message="Select an item to search live listings."
+  live.offers={};live.waiting=false;live.id=nil
   tab:SetButtonState("PUSHED",true)
   update()
+  refreshOffers()
  end
  tab:SetScript("OnClick",activate)
  -- Restore native panes whenever a different bottom tab is selected.

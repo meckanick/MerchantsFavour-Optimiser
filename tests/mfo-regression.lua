@@ -251,7 +251,7 @@ check(ahTab:find('QueryAuctionItems',1,true)~=nil,"AH tab must support legacy it
 check(not ahTab:find('PlaceBid',1,true),"AH tab must not auto-buy")
 
 check(ahTab:find('tab=CreateFrame("Button",nil,parent,"BackdropTemplate")',1,true)~=nil,"AH shop must use custom AH tab surface")
-check(ahTab:find('tab:SetPoint("LEFT",last,"RIGHT"',1,true)~=nil,"AH shop must attach to bottom tab row")
+check(ahTab:find('tab:SetPoint("TOPLEFT",last,"TOPRIGHT",-7,0)',1,true)~=nil,"AH shop must attach to bottom tab row by top edge")
 check(ahTab:find('panel:SetPoint("TOPLEFT",parent,"TOPLEFT",8,-8)',1,true)~=nil,"AH shop must cover the AH window")
 
 check(ahTab:find('addon=="Blizzard_AuctionUI"',1,true)~=nil,"MFO tab must attach when Blizzard Auction UI loads")

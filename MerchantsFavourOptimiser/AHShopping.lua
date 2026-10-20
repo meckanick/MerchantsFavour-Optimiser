@@ -54,6 +54,10 @@ local function update()
   if price then total=total+price*v.qty end
  end
  panel.total:SetText(#items.." items  |  Estimated total: "..gold(total))
+ local current=selected and AH.Shopping()[selected]
+ if panel.detail then
+  panel.detail:SetText(current and (current.name.."\\n\\nRequired quantity: "..current.qty.."\\n\\nCached unit price: "..gold(AH.Price(selected)).."\\n\\nEstimated total: "..gold((AH.Price(selected) or 0)*current.qty)) or "Select an item from the shopping list.")
+ end
  for i,row in ipairs(rows) do
   local item=items[i+panel.offset]
   row.item=item
@@ -168,7 +172,7 @@ local function attach(parent)
  resultsTitle:SetText("Name")
  local priceTitle=panel:CreateFontString(nil,"OVERLAY","GameFontNormal")
  priceTitle:SetPoint("TOPRIGHT",right,"TOPRIGHT",-16,-14)
- priceTitle:SetText("Estimated Cost")
+ priceTitle:SetText("Cached Price")
  local line=panel:CreateTexture(nil,"ARTWORK")
  line:SetPoint("TOPLEFT",right,"TOPLEFT",8,-37)
  line:SetPoint("TOPRIGHT",right,"TOPRIGHT",-8,-37)
@@ -181,16 +185,20 @@ local function attach(parent)
  panel.total:SetPoint("TOPLEFT",panel,"TOPLEFT",30,-61)
  local hint=panel:CreateFontString(nil,"OVERLAY","GameFontDisableSmall")
  hint:SetPoint("TOPLEFT",right,"TOPLEFT",14,-43)
- hint:SetText("Select a material to search for it on the Auction House")
+ hint:SetText("Select a material to view its details")
+ panel.detail=panel:CreateFontString(nil,"OVERLAY","GameFontHighlight")
+ panel.detail:SetPoint("TOPLEFT",right,"TOPLEFT",16,-83)
+ panel.detail:SetWidth(430)
+ panel.detail:SetJustifyH("LEFT")
  panel:Hide()
  panel.offset=0
  for i=1,9 do
   local row=CreateFrame("Button",nil,panel)
   row:SetHeight(23)
-  row:SetPoint("TOPLEFT",right,"TOPLEFT",10,-75-(i-1)*26)
-  row:SetPoint("RIGHT",right,"RIGHT",-10,0)
+  row:SetPoint("TOPLEFT",left,"TOPLEFT",10,-52-(i-1)*26)
+  row:SetPoint("RIGHT",left,"RIGHT",-10,0)
   row.label=row:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-  row.label:SetPoint("LEFT",4,0);row.label:SetWidth(290);row.label:SetJustifyH("LEFT")
+  row.label:SetPoint("LEFT",4,0);row.label:SetWidth(240);row.label:SetJustifyH("LEFT")
   row.cost=row:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
   row.cost:SetPoint("RIGHT",-4,0)
   row:SetScript("OnClick",function(self)if self.item then selected=self.item.id;update()end end)

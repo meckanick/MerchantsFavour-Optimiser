@@ -210,7 +210,7 @@ check(coreSource:find('scanAgeFooter:SetText("Last AH Scan: "..elapsed.." Ago")'
 check(coreSource:find('if days<1 then scanAgeFooter:SetTextColor',1,true)~=nil,
   "scan-age indicator must use freshness colors")
 
-check(coreSource:find('footerParts={complete.."/"..#rows.." Crates"}',1,true)~=nil,
+check(coreSource:find('footerParts={MFO_AH.Market(),complete.."/"..#rows.." Crates"}',1,true)~=nil,
   "footer must show concise crate count")
 check(coreSource:find('if missingIDs>0 then footerParts',1,true)~=nil,
   "footer should only show missing ID warnings when relevant")
@@ -225,3 +225,11 @@ check(not coreSource:find('GetAuctionAgeByItemID',1,true),
 check(coreSource:find('MFO_AH.Scan(items)',1,true)~=nil,"MFO must scan without Auctionator")
 check(coreSource:find('MFO_AH.Shop(items)',1,true)~=nil,"MFO must save its own shopping list")
 check(not coreSource:find('Auctionator.API.v1.MultiSearch',1,true),"MFO shopping must not depend on Auctionator")
+
+local ahSource=assert(io.open("MerchantsFavourOptimiser/StandaloneAH.lua","r")):read("*a")
+check(ahSource:find("root.markets[realm][faction]",1,true)~=nil,
+  "AH prices and shopping must be scoped to realm and faction")
+check(ahSource:find("root.legacyAHData",1,true)~=nil,
+  "legacy account-wide data must be backed up before migration")
+check(coreSource:find("MFO_AH.Market()",1,true)~=nil,
+  "active market must be visible in the interface")

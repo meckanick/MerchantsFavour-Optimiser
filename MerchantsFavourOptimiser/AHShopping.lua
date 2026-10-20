@@ -239,78 +239,51 @@ local function attach(parent)
    end
   end
  end
- -- Build an actual tab surface, never a generic red action button.
- -- Native WoW AH tabs use dark recessed and raised gold selected states.
- tab=CreateFrame("Button",nil,parent,"BackdropTemplate")
- tab:SetSize(108,29)
- tab:SetBackdrop({
-  bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",
-  edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",
-  tile=false,edgeSize=12,
-  insets={left=3,right=3,top=3,bottom=3}
- })
- local tabText=tab:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
- tabText:SetPoint("CENTER",tab,"CENTER",0,0)
- tabText:SetText("MFO Shop")
- tab:SetFontString(tabText)
- -- Build the tab face from horizontal strips to match Forever's grey
- -- inactive state and its top-brown-to-bottom-gold active gradient.
- -- Avoid SetGradient: older Forever client builds may not expose it.
- local face={}
- for i=1,12 do
-  local strip=tab:CreateTexture(nil,"BACKGROUND",nil,1)
-  strip:SetPoint("TOPLEFT",tab,"TOPLEFT",4,-3-(i-1)*2)
-  strip:SetPoint("TOPRIGHT",tab,"TOPRIGHT",-4,-3-(i-1)*2)
-  strip:SetHeight(3)
-  face[i]=strip
- end
- local selectedGlow=CreateFrame("Frame",nil,tab,"BackdropTemplate")
- selectedGlow:SetPoint("TOPLEFT",tab,"TOPLEFT",-2,2)
- selectedGlow:SetPoint("BOTTOMRIGHT",tab,"BOTTOMRIGHT",2,-2)
- selectedGlow:SetBackdrop({
-  edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",
-  edgeSize=12,
-  insets={left=0,right=0,top=0,bottom=0}
- })
- selectedGlow:SetBackdropBorderColor(1,.79,.07,1)
- selectedGlow:Hide()
- local tabHover=tab:CreateTexture(nil,"ARTWORK")
- tabHover:SetAllPoints(tab)
- tabHover:SetColorTexture(1,.76,.2,.10)
- tabHover:Hide()
- tab:SetScript("OnEnter",function()tabHover:Show()end)
- tab:SetScript("OnLeave",function()tabHover:Hide()end)
- setTabSelected=function(active)
-  -- Native selected AH tabs extend below the normal tab baseline.
-  tab:SetHeight(active and 35 or 29)
-  if active then
-   tab:SetBackdropColor(.20,.15,.085,1)
-   tab:SetBackdropBorderColor(.90,.67,.10,1)
-   tabText:SetTextColor(1,1,.91,1)
-   for i,strip in ipairs(face) do
-    local t=(i-1)/11
-    strip:SetColorTexture(.22+.40*t,.16+.23*t,.09+.025*t,1)
-   end
-   selectedGlow:Show()
-  else
-   tab:SetBackdropColor(.10,.10,.10,1)
-   tab:SetBackdropBorderColor(.27,.26,.24,1)
-   tabText:SetTextColor(1,.79,.18,1)
-   for i,strip in ipairs(face) do
-    local t=(i-1)/11
-    local grey=.24-.10*t
-    strip:SetColorTexture(grey,grey,grey,1)
-   end
-   selectedGlow:Hide()
-  end
- end
- setTabSelected(false)
- tab:SetFrameLevel(parent:GetFrameLevel()+12)
+ -- Use the actual Auction House tab template and Blizzard selection art.
+ -- Unlike a custom backdrop, this inherits the exact normal/selected
+ -- textures, font and lower lip from the current WoW Forever client.
+ local tabID=(parent.numTabs or 3)+1
+ local nativeTabName
+ if parent==_G.AuctionFrame then nativeTabName="AuctionFrameTab"..tabID
+ elseif parent==_G.AuctionHouseFrame then nativeTabName="AuctionHouseFrameTab"..tabID end
+ if nativeTabName and _G[nativeTabName] then nativeTabName=nil end
+ tab=CreateFrame("Button",nativeTabName,parent,"AuctionTabTemplate")
+ tab:SetID(tabID)
+ tab:SetText("MFO Shop")
+ tab:SetWidth(108)
  if last then
-  tab:SetPoint("TOPLEFT",last,"TOPRIGHT",-7,0)
+  tab:SetPoint("TOPLEFT",last,"TOPRIGHT",-8,0)
  else
   tab:SetPoint("BOTTOMLEFT",parent,"BOTTOMLEFT",338,-16)
  end
+ -- Register with the native tab controller when the frame exposes it.
+ if type(PanelTemplates_SetNumTabs)=="function" then
+  PanelTemplates_SetNumTabs(parent,tabID)
+ else
+  parent.numTabs=tabID
+ end
+ if type(PanelTemplates_EnableTab)=="function" then
+  PanelTemplates_EnableTab(parent,tabID)
+ end
+ setTabSelected=function(active)
+  if active then
+   if type(PanelTemplates_SetTab)=="function" then
+    PanelTemplates_SetTab(parent,tabID)
+   else
+    tab:SetButtonState("PUSHED",true)
+   end
+  else
+   -- Restore the native controller's selection rather than manually
+   -- tinting the tab; the existing Buy/Sell/Auctions handlers select theirs.
+   if type(PanelTemplates_SetTab)=="function" then
+    local current=parent.selectedTab
+    if current==tabID then PanelTemplates_SetTab(parent,1) end
+   else
+    tab:SetButtonState("NORMAL",false)
+   end
+  end
+ end
+ tab:SetFrameLevel(parent:GetFrameLevel()+12)
  tab:Show()
  panel=CreateFrame("Frame",nil,parent,"BackdropTemplate")
  panel:SetPoint("TOPLEFT",parent,"TOPLEFT",8,-8)

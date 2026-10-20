@@ -309,3 +309,7 @@ check(ahTab:find('tab=CreateFrame("Button",nil,parent,"UIPanelButtonTemplate")',
 check(ahTab:find('tab:SetHeight(active and 35 or 29)',1,true)~=nil,"Selected MFO tab must extend below inactive tabs")
 check(ahTab:find('local grey=.24-.10*t',1,true)~=nil,"Inactive MFO tab must be neutral grey")
 check(ahTab:find('strip:SetColorTexture(.22+.40*t,.16+.23*t,.09+.025*t,1)',1,true)~=nil,"Selected MFO tab must use brown-to-gold gradient")
+
+check(ahTab:find('AuctionHouseFrameDisplayModeTabTemplate',1,true)~=nil,"Forever modern AH tab template must be preferred")
+check(ahTab:find('PanelTemplates_SelectTab(tab)',1,true)~=nil,"Modern tab must use native selected state")
+check(ahTab:find('else\n  tab=CreateFrame("Button",nil,parent,"BackdropTemplate")',1,true)~=nil,"Forever custom fallback must remain")

@@ -7,7 +7,9 @@ for _, crate in ipairs(MFO_DATA) do
     rows[#rows + 1] = crate
   end
 end
-local note -- forward declaration: updateScanNote is defined before the UI font string\nlocal knownIDs\nlocal price
+local note -- forward declaration
+local knownIDs
+local price
 local function money(v)
   if not v then return "?" end
   v = math.floor(v + 0.5)
@@ -23,33 +25,49 @@ local function formatAgeDays(days)
   if days == 0 then return "Less Than 1 Day Ago" end
   return days .. (days == 1 and " Day Ago" or " Days Ago")
 end
+local scanAgeFooter
+-- Auctionator Forever records the successful full-scan completion timestamp
+-- in AUCTIONATOR_LAST_SCAN_TIME. Item price ages are not scan timestamps.
 local function updateScanNote()
-  local api = auctionatorAPI()
-  if not api or type(api.GetAuctionAgeByItemID) ~= "function" then
-    note:SetText("Auctionator Scanned Prices | "..#rows.." Crates | Scan Age Unavailable")
+  local scannedAt=MFO_AH and MFO_AH.LastScan()
+  if type(scannedAt)~="number" or scannedAt<=0 then
+    scanAgeFooter:SetText("Last AH Scan: Unknown")
+    scanAgeFooter:SetTextColor(.65,.65,.65)
     return
   end
-  local oldestAge, checked = nil, 0
-  for _, itemID in pairs(knownIDs or {}) do
-    local priceValue = price(itemID)
-    if priceValue then
-      local ok, age = pcall(api.GetAuctionAgeByItemID, ADDON, itemID)
-      if ok and type(age) == "number" and age >= 0 then
-        checked = checked + 1
-        if not oldestAge or age > oldestAge then oldestAge = age end
-      end
-    end
-  end
-  if oldestAge then
-    note:SetText("Auctionator Scanned Prices | "..#rows.." Crates | Oldest Price: " .. formatAgeDays(oldestAge))
+  local ageSeconds=math.max(0,time()-scannedAt)
+  local days=ageSeconds/86400
+  local amount,unit
+  if ageSeconds<3600 then
+    amount=math.max(1,math.floor(ageSeconds/60))
+    unit="Minute"
+  elseif ageSeconds<86400 then
+    amount=math.floor(ageSeconds/3600)
+    unit="Hour"
+  elseif ageSeconds<604800 then
+    amount=math.floor(ageSeconds/86400)
+    unit="Day"
+  elseif ageSeconds<2592000 then
+    amount=math.floor(ageSeconds/604800)
+    unit="Week"
   else
-    note:SetText("Auctionator Scanned Prices | "..#rows.." Crates | Scan Age Unavailable")
+    amount=math.floor(ageSeconds/2592000)
+    unit="Month"
   end
+  local elapsed
+  if ageSeconds<60 then
+    elapsed="Less Than 1 Minute"
+  else
+    elapsed=amount.." "..unit..(amount==1 and "" or "s")
+  end
+  scanAgeFooter:SetText("Last AH Scan: "..elapsed.." Ago")
+  if days<1 then scanAgeFooter:SetTextColor(.3,.95,.3)
+  elseif days<3 then scanAgeFooter:SetTextColor(1,.85,.2)
+  elseif days<7 then scanAgeFooter:SetTextColor(1,.55,.15)
+  else scanAgeFooter:SetTextColor(1,.25,.25) end
 end
 price = function(id)
-  if not id or not Auctionator or not Auctionator.API or not Auctionator.API.v1 or type(Auctionator.API.v1.GetAuctionPriceByItemID)~="function" then return nil end
-  local ok, value = pcall(Auctionator.API.v1.GetAuctionPriceByItemID, ADDON, id)
-  if ok and type(value)=="number" and value>0 then return value end
+  return id and MFO_AH and MFO_AH.Price(id) or nil
 end
 -- Stable item IDs avoid depending on the local item-name cache.
 -- Unknown IDs are never guessed; they can be learned using the binder.
@@ -207,11 +225,21 @@ close:SetFrameLevel(frame:GetFrameLevel()+10)
 close:SetScript("OnClick",function() frame:Hide() end)
 note=frame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
 note:SetPoint("TOPLEFT",70,-53)
-note:SetText("Auctionator Scanned Prices | "..#rows.." Crates")
+note:SetText("MFO Saved AH Prices | "..#rows.." Crates")
+-- Keep the price-age diagnostic available on Refresh hover without occupying the toolbar.
+note:Hide()
 local status=frame:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
 status:SetPoint("BOTTOMLEFT",19,16)
-status:SetWidth(856)
+status:SetWidth(550)
 status:SetJustifyH("LEFT")
+-- Footer scan-age indicator uses the oldest available Auctionator item price.
+-- The API reports age in days (including fractional days).
+scanAgeFooter=frame:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+scanAgeFooter:SetPoint("BOTTOMRIGHT",frame,"BOTTOMRIGHT",-19,16)
+scanAgeFooter:SetWidth(290)
+scanAgeFooter:SetJustifyH("RIGHT")
+scanAgeFooter:SetText("Last AH Scan: Unknown")
+scanAgeFooter:SetTextColor(.65,.65,.65)
 -- Recessed bronze controls matching the profession panel's visual language.
 -- Same textured button artwork and font treatment as What's Training? Professions.
 local function SkinWoodButton(button)
@@ -396,21 +424,17 @@ for i=1,#rows do
   shop:SetScript("OnClick",function()
     local r=displayedResults[i]
     if not r or not r.b then status:SetText("No Priced Material Bundle for This Crate.");return end
-    local terms={}
-    if not (MFO_DB.useOwned and r.crateOwned) then table.insert(terms,r.crate.name) end
-    if not (MFO_DB.useOwned and r.missing==0) then table.insert(terms,r.b.name) end
-    if #terms==0 then status:SetText("You Already Own the Crate and All Required Materials.");return end
-    if Auctionator and Auctionator.API and Auctionator.API.v1 and type(Auctionator.API.v1.MultiSearch)=="function" then
-      if not (AuctionHouseFrame and AuctionHouseFrame:IsShown()) and not (AuctionFrame and AuctionFrame:IsShown()) then
-        status:SetText("Open the Auction House, Then Click Shop to Search for the Crate and "..r.b.qty.."x "..r.b.name..".")
-        return
-      end
-      local ok,err=pcall(Auctionator.API.v1.MultiSearch,ADDON,terms)
-      if ok then status:SetText("Auctionator Search: "..r.crate.name.." + "..(r.missing or r.b.qty).."x "..r.b.name..". Buy the Indicated Quantities.")
-      else status:SetText("Auctionator MultiSearch Failed: "..tostring(err)) end
-    else
-      status:SetText("This Auctionator Version Does Not Expose MultiSearch. No Shopping List Was Changed.")
+    local items={}
+    local crateID=r.crate.id or resolve(r.crate.name)
+    local materialID=resolve(r.b.name)
+    if not (MFO_DB.useOwned and r.crateOwned) and crateID then
+      items[crateID]={name=r.crate.name,qty=1}
     end
+    if not (MFO_DB.useOwned and r.missing==0) and materialID then
+      items[materialID]={name=r.b.name,qty=r.missing or r.b.qty}
+    end
+    MFO_AH.Shop(items)
+    status:SetText("Added to MFO Shopping List. Use /mfo shop to view.")
   end)
   shopButtons[i]=shop
   -- Net C/F has its own hover target; the crate-name column stays tooltip-free.
@@ -451,6 +475,7 @@ for i=1,#rows do
     entries[i][j]=t
   end
 end
+local planFavour
 local function refresh()
   updateScanNote()
   learnBagItems()
@@ -482,9 +507,214 @@ local function refresh()
       bankInfo=" Bank Snapshot: "..elapsed.."h old."
     else bankInfo=" Bank Not Scanned Yet." end
   end
-  status:SetText(complete.."/"..#rows.." Ranked | "..missingIDs.." Unknown IDs | "..missingPrices.." Missing Crate Prices. "..(MFO_DB.useOwned and "Owned Items Deducted." or "All Items Valued at AH Prices.")..bankInfo)
+  local footerParts={complete.."/"..#rows.." Crates"}
+  if missingIDs>0 then footerParts[#footerParts+1]=missingIDs.." Unknown IDs" end
+  if missingPrices>0 then footerParts[#footerParts+1]=missingPrices.." Missing Prices" end
+  if MFO_DB.useOwned then
+    footerParts[#footerParts+1]="Using Owned Items"
+    if not MFO_DB.bankScanTime then footerParts[#footerParts+1]="Bank Not Scanned" end
+  end
+  status:SetText(table.concat(footerParts," | "))
+  if planFavour then planFavour() end
 end
+-- Update the timestamp after an Auctionator scan without requiring a manual MFO refresh.
+-- Only read Auctionator's reported timestamp; never assume opening the AH means a completed scan.
+local lastScanDisplayUpdate=0
+frame:HookScript("OnShow",function() updateScanNote() end)
+frame:HookScript("OnUpdate",function(_,elapsed)
+  lastScanDisplayUpdate=lastScanDisplayUpdate+elapsed
+  if lastScanDisplayUpdate>=30 then
+    lastScanDisplayUpdate=0
+    updateScanNote()
+  end
+end)
 local refreshBtn=CreateFrame("Button",nil,frame);refreshBtn:SetSize(82,22);refreshBtn:SetPoint("TOPRIGHT",frame,"TOPRIGHT",-38,-44);refreshBtn:SetText("Refresh");SkinWoodButton(refreshBtn);refreshBtn:SetScript("OnClick",refresh)
+-- Inline planner: the target entry lives in the existing toolbar and
+-- replaces the rankings table only while a target is entered.
+local targetLabel=frame:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+targetLabel:SetText("Favour Needed:")
+local targetInput=CreateFrame("EditBox",nil,frame,"InputBoxTemplate")
+targetInput:SetSize(66,22)
+targetInput:SetAutoFocus(false);targetInput:SetNumeric(true)
+local planner=CreateFrame("Frame","MFOFavourPlanner",frame)
+planner:SetPoint("TOPLEFT",frame,"TOPLEFT",12,-76)
+planner:SetPoint("BOTTOMRIGHT",frame,"BOTTOMRIGHT",-38,38)
+planner:Hide()
+local plannerTitle=planner:CreateFontString(nil,"OVERLAY","GameFontNormal")
+plannerTitle:SetPoint("TOPLEFT",12,-7)
+plannerTitle:SetText("Cheapest Crate Combination")
+plannerTitle:SetTextColor(1,.76,.13)
+local clearButton=CreateFrame("Button",nil,frame)
+clearButton:SetSize(68,22);clearButton:SetPoint("RIGHT",refreshBtn,"LEFT",-10,0)
+targetInput:SetPoint("RIGHT",clearButton,"LEFT",-10,0)
+targetLabel:SetPoint("RIGHT",targetInput,"LEFT",-12,0)
+clearButton:SetText("Clear");SkinWoodButton(clearButton)
+clearButton:SetScript("OnClick",function()
+  targetInput:SetText("")
+  targetInput:ClearFocus()
+  -- SetText is programmatic, so OnTextChanged(userInput) does not run the planner.
+  -- Explicitly restore the crate rankings when Clear is clicked.
+  planFavour()
+end)
+local plannerInfo=planner:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+plannerInfo:SetPoint("TOPLEFT",12,-37);plannerInfo:SetWidth(810)
+plannerInfo:SetJustifyH("LEFT");plannerInfo:SetText("Enter a Favour Target and Click Find Cheapest.")
+local plannerSummary=planner:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+plannerSummary:SetPoint("TOPLEFT",12,-60);plannerSummary:SetWidth(810)
+plannerSummary:SetJustifyH("LEFT")
+local plannerRows={}
+for i=1,11 do
+  local line=planner:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+  line:SetPoint("TOPLEFT",15,-87-(i-1)*19)
+  line:SetWidth(800);line:SetJustifyH("LEFT")
+  plannerRows[i]=line
+end
+local plannerWarning=planner:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+plannerWarning:SetPoint("BOTTOMLEFT",12,40);plannerWarning:SetWidth(810)
+plannerWarning:SetJustifyH("LEFT")
+plannerWarning:SetText("AH Prices Are Estimates; Turn-In Money Is Beta-Reported.")
+local plannerShop=CreateFrame("Button",nil,planner)
+plannerShop:SetSize(165,24);plannerShop:SetPoint("BOTTOMRIGHT",-12,9)
+plannerShop:SetText("Shop Planned Items");SkinWoodButton(plannerShop)
+local plannerShopping=nil
+planFavour=function()
+  local raw=targetInput:GetText()
+  if raw=="" then
+    planner:Hide();subheader:Show();scrollFrame:Show()
+    return
+  end
+  planner:Show();subheader:Hide();scrollFrame:Hide()
+  local target=tonumber(targetInput:GetText())
+  if not target or target<1 or target>1000 or target~=math.floor(target) then
+    plannerInfo:SetText("Enter a Whole-Number Favour Target Between 1 and 1000.")
+    return
+  end
+  MFO_DB.plannerTarget=target
+  learnBagItems();scanBags()
+  local options,lookup={},{}
+  for _,crate in ipairs(rows) do
+    local crateID=crate.id or resolve(crate.name)
+    local cratePrice=price(crateID)
+    local bestBundle,bestCost,bestID
+    for _,bundle in ipairs(crate.bundles) do
+      local itemID=resolve(bundle.name)
+      local unitPrice=price(itemID)
+      if unitPrice and (not bestCost or unitPrice*bundle.qty<bestCost) then
+        bestBundle,bestCost,bestID=bundle,unitPrice*bundle.qty,itemID
+      end
+    end
+    if cratePrice and bestBundle and type(crate.favour)=="number" and crate.favour>0 then
+      local option={key=crate.name,name=crate.name,id=crateID,favour=crate.favour,
+        bundle=bestBundle,materialID=bestID,cratePrice=cratePrice,
+        unitPrice=bestCost/bestBundle.qty,
+        cost=cratePrice+bestCost-(crate.turnInCopper or 0),turnIn=crate.turnInCopper or 0}
+      options[#options+1]=option;lookup[option.key]=option
+    end
+  end
+  local solution,err=MFO_Calculations.plan(target,options)
+  if not solution then
+    plannerInfo:SetText(err or "No Priced Combination Available.")
+    plannerSummary:SetText("")
+    for _,line in ipairs(plannerRows) do line:SetText("") end
+    plannerShopping=nil
+    return
+  end
+  -- Revalue the combined shopping list once, consuming each owned item only
+  -- once even when several crates share materials.
+  local function evaluate(sol)
+    local demand,details={},{}
+    for key,qty in pairs(sol.items) do
+      local o=lookup[key]
+      if o then
+        demand[o.id]=(demand[o.id] or 0)+qty
+        demand[o.materialID]=(demand[o.materialID] or 0)+qty*o.bundle.qty
+        details[#details+1]={option=o,qty=qty}
+      end
+    end
+    table.sort(details,function(a,b)return a.option.name<b.option.name end)
+    local total,terms,shopping=0,{},{}
+    for id,qty in pairs(demand) do
+      local unitPrice=price(id)
+      if not unitPrice then return nil end
+      local missing=math.max(0,qty-math.min(qty,ownedCount(id)))
+      total=total+missing*unitPrice
+      if missing>0 then shopping[id]=missing end
+    end
+    for _,entry in ipairs(details) do
+      total=total-entry.qty*entry.option.turnIn
+    end
+    return total,details,shopping
+  end
+  local bestCost,bestDetails,bestShopping=evaluate(solution)
+  -- With owned stock enabled, compare alternative seeded combinations.
+  -- This improves stock-aware results without treating shared items as
+  -- available more than once; it is not a global mixed-inventory guarantee.
+  if MFO_DB.useOwned then
+    for _,seed in ipairs(options) do
+      local candidate=MFO_Calculations.plan(target,options,seed)
+      if candidate then
+        local cost,details,shopping=evaluate(candidate)
+        if cost and (not bestCost or cost<bestCost) then
+          solution,bestCost,bestDetails,bestShopping=candidate,cost,details,shopping
+        end
+      end
+    end
+  end
+  if not bestCost then plannerInfo:SetText("Some Required Auctionator Prices Are Missing.");return end
+  plannerInfo:SetText("Cheapest Priced Combination"..(MFO_DB.useOwned and " (Owned-Stock Estimate)" or "")..":")
+  plannerSummary:SetText("Target: "..target.." | Favour: "..solution.favour..
+    " | Net Cost: "..money(bestCost).." | "..#bestDetails.." Crate Types")
+  for i,line in ipairs(plannerRows) do
+    local entry=bestDetails[i]
+    if entry then
+      local name=entry.option.name:gsub("Waylaid Crate: ","")
+      line:SetText(entry.qty.."x "..name.." ("..entry.option.favour.." Favour Each) — "..entry.option.bundle.qty..
+        "x "..entry.option.bundle.name.." per Crate")
+    elseif i==11 and #bestDetails>11 then
+      line:SetText("Additional Crate Types Not Shown")
+    else line:SetText("") end
+  end
+  plannerShopping={items=bestShopping,details=bestDetails}
+  plannerWarning:SetText(MFO_DB.useOwned and
+    "Owned Items Counted Once; Mixed-Stock Optimisation Is an Estimate. Coin Rewards Are Beta-Reported." or
+    "Minimum Net Cost at Current Prices; Turn-In Coin Rewards Are Beta-Reported.")
+end
+targetInput:SetScript("OnTextChanged",function(self,userInput)if userInput then planFavour() end end)
+targetInput:SetScript("OnEnterPressed",function(self)self:ClearFocus();planFavour()end)
+targetInput:SetScript("OnEscapePressed",function(self)self:ClearFocus()end)
+plannerShop:SetScript("OnEnter",function(self)
+  if not plannerShopping then return end
+  GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
+  GameTooltip:AddLine("Planned Shopping Quantities",1,.82,.2)
+  local items={}
+  for _,entry in ipairs(plannerShopping.details) do
+    local o=entry.option
+    items[o.id]=o.name
+    items[o.materialID]=o.bundle.name
+  end
+  local sorted={}
+  for id,qty in pairs(plannerShopping.items) do sorted[#sorted+1]={id=id,qty=qty,name=items[id] or tostring(id)} end
+  table.sort(sorted,function(a,b)return a.name<b.name end)
+  for _,item in ipairs(sorted) do GameTooltip:AddLine(item.name.." x "..item.qty,1,1,1) end
+  GameTooltip:AddLine("Saved in MFO shopping list; purchases are manual.",.8,.8,.8,true)
+  GameTooltip:Show()
+end)
+plannerShop:SetScript("OnLeave",function()GameTooltip:Hide()end)
+plannerShop:SetScript("OnClick",function()
+  if not plannerShopping then plannerInfo:SetText("Calculate a Plan First.");return end
+  local items={}
+  local names={}
+  for _,entry in ipairs(plannerShopping.details) do
+    local o=entry.option
+    names[o.id]=o.name
+    names[o.materialID]=o.bundle.name
+  end
+  for id,qty in pairs(plannerShopping.items) do
+    items[id]={name=names[id] or tostring(id),qty=qty}
+  end
+  MFO_AH.Shop(items)
+  plannerInfo:SetText("Items added to MFO Shopping List. Use /mfo shop to view.")
+end)
 local ownedCheck=CreateFrame("CheckButton",nil,subheader,"UICheckButtonTemplate")
 -- Align the checkbox at the right edge of the first column, before its divider.
 ownedCheck:SetSize(22,22);ownedCheck:SetPoint("RIGHT",subheader,"LEFT",374,0)
@@ -504,10 +734,31 @@ ownedCheck:SetScript("OnEnter",function(self)
   GameTooltip:Show()
 end)
 ownedCheck:SetScript("OnLeave",function() GameTooltip:Hide() end)
-ownedCheck:SetScript("OnClick",function(self)
-  MFO_DB.useOwned=self:GetChecked() and true or false
+-- Mirror the same saved setting inside the planner while the crate subheader is hidden.
+local plannerStockToggle=CreateFrame("CheckButton",nil,planner,"UICheckButtonTemplate")
+plannerStockToggle:SetSize(22,22)
+plannerStockToggle:SetPoint("TOPRIGHT",planner,"TOPRIGHT",-12,-2)
+local plannerStockLabel=planner:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+plannerStockLabel:SetPoint("RIGHT",plannerStockToggle,"LEFT",-7,0)
+plannerStockLabel:SetText("Use Owned")
+if headerFont and headerSize then plannerStockLabel:SetFont(headerFont,headerSize+4,headerFlags) end
+plannerStockLabel:SetTextColor(1,.76,.13)
+local function updateOwnedSetting(checked)
+  MFO_DB.useOwned=checked and true or false
+  ownedCheck:SetChecked(MFO_DB.useOwned)
+  plannerStockToggle:SetChecked(MFO_DB.useOwned)
   refresh()
-end)
+end
+local function showOwnedTooltip(self)
+  GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
+  GameTooltip:AddLine("Use Owned Bag / Bank Items",1,.82,.2)
+  GameTooltip:AddLine("Deduct Available Bag and Cached Bank Items From the Planner Shopping Cost.",1,1,1,true)
+  GameTooltip:Show()
+end
+plannerStockToggle:SetScript("OnEnter",showOwnedTooltip)
+plannerStockToggle:SetScript("OnLeave",function()GameTooltip:Hide()end)
+plannerStockToggle:SetScript("OnClick",function(self)updateOwnedSetting(self:GetChecked())end)
+ownedCheck:SetScript("OnClick",function(self)updateOwnedSetting(self:GetChecked())end)
 -- Lightweight minimap launcher: no external libraries required.
 local minimapButton=CreateFrame("Button", "MFOMinimapButton", Minimap)
 minimapButton:SetSize(32,32)
@@ -560,7 +811,112 @@ minimapButton:SetScript("OnEnter",function(self)
 end)
 minimapButton:SetScript("OnLeave",function() GameTooltip:Hide() end)
 positionMinimapButton()
-SLASH_MFO1="/mfo";SlashCmdList.MFO=function(msg) if msg=="refresh" then refresh() else if frame:IsShown() then frame:Hide() else refresh();frame:Show() end end end
+local function scanRelevantItems()
+  local items={}
+  for _,crate in ipairs(rows) do
+    items[crate.id]=crate.name
+    for _,bundle in ipairs(crate.bundles) do
+      local id=resolve(bundle.name)
+      if id then items[id]=bundle.name end
+    end
+  end
+  local ok,message=MFO_AH.Scan(items)
+  status:SetText(message or (ok and "Scanning" or "Scan unavailable"))
+
+end
+local shoppingFrame=CreateFrame("Frame","MFOShoppingFrame",UIParent,"BackdropTemplate")
+shoppingFrame:SetSize(400,350);shoppingFrame:SetPoint("CENTER",UIParent,"CENTER",0,0)
+shoppingFrame:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",edgeSize=22,insets={left=8,right=8,top=8,bottom=8}})
+shoppingFrame:Hide()
+local shoppingTitle=shoppingFrame:CreateFontString(nil,"OVERLAY","GameFontNormalLarge")
+shoppingTitle:SetPoint("TOP",0,-20);shoppingTitle:SetText("MFO Shopping List")
+local shoppingLines={}
+for i=1,13 do
+  local line=shoppingFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+  line:SetPoint("TOPLEFT",20,-45-(i-1)*20);line:SetWidth(355);line:SetJustifyH("LEFT")
+  shoppingLines[i]=line
+end
+local function showShopping()
+  local sorted={}
+  for id,item in pairs(MFO_AH.Shopping()) do
+    sorted[#sorted+1]={id=id,name=item.name,qty=item.qty}
+  end
+  table.sort(sorted,function(a,b)return a.name<b.name end)
+  for i,line in ipairs(shoppingLines) do
+    local item=sorted[i]
+    line:SetText(item and (item.name.." x "..item.qty.." ("..money(MFO_AH.Price(item.id) and MFO_AH.Price(item.id)*item.qty)..")") or "")
+  end
+  shoppingFrame:Show()
+end
+local closeShopping=CreateFrame("Button",nil,shoppingFrame,"UIPanelCloseButton")
+closeShopping:SetPoint("TOPRIGHT",0,0)
+local clearShopping=CreateFrame("Button",nil,shoppingFrame,"UIPanelButtonTemplate")
+clearShopping:SetSize(95,22);clearShopping:SetPoint("BOTTOM",0,15);clearShopping:SetText("Clear List")
+clearShopping:SetScript("OnClick",function()MFO_AH.ClearShopping();showShopping()end)
+local scanButton=CreateFrame("Button",nil,frame)
+scanButton:SetSize(82,22);scanButton:SetPoint("TOPLEFT",frame,"TOPLEFT",76,-44)
+scanButton:SetText("Scan AH");SkinWoodButton(scanButton);scanButton:SetScript("OnClick",scanRelevantItems)
+local scanBar=CreateFrame("StatusBar",nil,frame)
+scanBar:SetSize(180,13)
+scanBar:SetPoint("LEFT",scanButton,"RIGHT",12,0)
+scanBar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+scanBar:SetStatusBarColor(.77,.59,.23)
+scanBar:SetMinMaxValues(0,100)
+scanBar:SetValue(0)
+local scanBarText=scanBar:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+scanBarText:SetPoint("CENTER",scanBar,"CENTER",0,0)
+scanBarText:SetText("AH Scan: 0%")
+scanBar:Hide()
+local scanSummary=CreateFrame("Frame",nil,frame)
+scanSummary:SetSize(250,22)
+scanSummary:SetPoint("LEFT",scanButton,"RIGHT",12,0)
+scanSummary:EnableMouse(true)
+local scanSummaryText=scanSummary:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+scanSummaryText:SetPoint("LEFT",scanSummary,"LEFT",0,0)
+scanSummaryText:SetJustifyH("LEFT")
+scanSummary:Hide()
+scanSummary:SetScript("OnEnter",function(self)
+  local missing=MFO_AH.Missing()
+  GameTooltip:SetOwner(self,"ANCHOR_BOTTOMRIGHT")
+  GameTooltip:AddLine("Auction House Scan Results",1,.82,.2)
+  if #missing==0 then GameTooltip:AddLine("All searched items were priced.",.4,1,.4)
+  else
+    GameTooltip:AddLine("No price found for:",1,.55,.4)
+    for _,item in ipairs(missing) do GameTooltip:AddLine(item.name.." ("..item.id..")",1,1,1) end
+    GameTooltip:AddLine("These items may have no buyout listings.",.7,.7,.7,true)
+  end
+  GameTooltip:Show()
+end)
+scanSummary:SetScript("OnLeave",function() GameTooltip:Hide() end)
+local function updateScanProgress()
+  local percent,running,priced,total=MFO_AH.Progress()
+  scanBar:SetValue(percent)
+  scanBarText:SetText("AH Scan: "..percent.."%")
+  if running then
+    scanSummary:Hide()
+    scanBar:Show()
+  elseif total>0 then
+    scanBar:Hide()
+    local missing=MFO_AH.Missing()
+    scanSummaryText:SetText("Scan Complete: "..priced.."/"..total.." Priced"..(#missing>0 and (" | "..#missing.." Missing") or ""))
+    scanSummary:Show()
+  else
+    scanBar:Hide()
+    scanSummary:Hide()
+  end
+end
+MFO_AH.onUpdate=function()
+  updateScanProgress()
+  if not select(2,MFO_AH.Progress()) then status:SetText(MFO_AH.Status()) end
+  if frame:IsShown() then refresh() end
+end
+SLASH_MFO1="/mfo"
+SlashCmdList.MFO=function(msg)
+  if msg=="refresh" then refresh()
+  elseif msg=="scan" then scanRelevantItems()
+  elseif msg=="shop" then showShopping()
+  else if frame:IsShown() then frame:Hide() else refresh();frame:Show() end end
+end
 local events=CreateFrame("Frame")
 local function registerSupportedEvent(eventName)
   -- Some retail events do not exist in WoW Forever. Never let one optional
@@ -595,6 +951,7 @@ events:SetScript("OnEvent",function(_,event,name)
  if name~=ADDON then return end
  MFO_DB=MFO_DB or {};MFO_DB.ids=MFO_DB.ids or {}
  ownedCheck:SetChecked(MFO_DB.useOwned or false)
+ plannerStockToggle:SetChecked(MFO_DB.useOwned or false)
  positionMinimapButton()
  refresh()
  print("|cffffcc66Merchant's Favour Optimiser|r loaded. Type /mfo")

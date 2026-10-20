@@ -140,6 +140,28 @@ equal(noFavourRate, nil, "unverified favour cannot generate gold-per-favour rank
 check(noFavourBundle ~= nil, "unverified favour still allows cheapest bundle selection")
 
 
+-- Planner must minimise total spend rather than selecting the lowest per-Favour rate.
+local planOptions={
+  {key="five",favour=5,cost=90},
+  {key="ten",favour=10,cost=160},
+  {key="twenty",favour=20,cost=300},
+}
+local plan=MFO_Calculations.plan(25,planOptions)
+equal(plan.favour,25,"planner must reach the exact target when cheaper")
+equal(plan.cost,390,"planner must choose the cheapest combined cost")
+equal(plan.items.twenty,1,"planner should select one twenty-Favour crate")
+equal(plan.items.five,1,"planner should select one five-Favour crate")
+local overfill=MFO_Calculations.plan(18,{{key="fifteen",favour=15,cost=200},{key="ten",favour=10,cost=90}})
+equal(overfill.favour,20,"planner should allow cheaper overfill")
+equal(overfill.cost,180,"planner should minimise total cost with overfill")
+local missing=MFO_Calculations.plan(10,{{key="missing",favour=10,cost=nil}})
+equal(missing,nil,"planner must not treat missing prices as free")
+local invalid=MFO_Calculations.plan(1001,planOptions)
+equal(invalid,nil,"planner must bound target input")
+local forced=MFO_Calculations.plan(20,planOptions,planOptions[1])
+equal(forced.items.five,2,"forced planner seed should be retained")
+equal(forced.cost,340,"forced planner should find cheapest completion")
+
 -- Guard against accidental capitalization of case-sensitive Lua identifiers
 -- while editing player-facing text. This caught the v0.1.55 ownedCheck bug.
 local coreFile = assert(io.open("MerchantsFavourOptimiser/Core.lua", "r"))
@@ -155,8 +177,51 @@ check(not coreSource:find("OwnedLabel", 1, true), "wrong-case OwnedLabel referen
 check(not coreSource:find("OwnedCount", 1, true), "wrong-case OwnedCount reference")
 check(coreSource:find('Crate (Cheapest Bundle)', 1, true) ~= nil, "crate column heading must be preserved")
 check(coreSource:find('Net C/F', 1, true) ~= nil, "net cost heading must be preserved")
+check(coreSource:match('clearButton:SetScript%("OnClick",function%(%)(.-)end%)'):find('planFavour()',1,true)~=nil,
+  "Clear must explicitly restore rankings after programmatic SetText")
+check(coreSource:find('targetInput:SetScript("OnTextChanged"',1,true)~=nil,
+  "planner must react to target entry without separate button")
+check(coreSource:find('planner:Show();subheader:Hide();scrollFrame:Hide()',1,true)~=nil,
+  "planner must replace the rankings in the existing window")
+check(coreSource:find('plannerStockToggle=CreateFrame',1,true)~=nil,
+  "inline planner must expose its own owned-items toggle")
+check(coreSource:find('plannerStockToggle:SetChecked(MFO_DB.useOwned)',1,true)~=nil,
+  "planner owned-items checkbox must sync with shared saved setting")
+check(not coreSource:find('plannerBtn=CreateFrame',1,true),
+  "standalone planner launcher must be removed")
+
 check(not coreSource:find("Bind Item", 1, true), "obsolete manual bind button must be absent")
 check(not coreSource:find("Item Link:", 1, true), "obsolete item link box must be absent")
 check(coreSource:find('refreshBtn:SetScript("OnClick",refresh)', 1, true) ~= nil, "refresh control must remain")
+check(coreSource:find('note:Hide()',1,true)~=nil, "scan note must not clutter toolbar")
+check(not coreSource:find('GameTooltip:AddLine(note:GetText()',1,true), "Refresh must not display scan-age tooltip")
+check(coreSource:find('clearButton:SetPoint("RIGHT",refreshBtn,"LEFT",-10,0)',1,true)~=nil,
+  "Clear button must sit beside Refresh")
+check(coreSource:find('targetInput:SetPoint("RIGHT",clearButton,"LEFT",-10,0)',1,true)~=nil,
+  "Favour input must sit beside Clear")
+
 
 print("PASS: 30 crate definitions, calculations and UI capitalization guards")
+
+check(coreSource:find('scanAgeFooter:SetPoint("BOTTOMRIGHT"',1,true)~=nil,
+  "scan-age indicator must sit at bottom-right")
+check(coreSource:find('scanAgeFooter:SetText("Last AH Scan: "..elapsed.." Ago")',1,true)~=nil,
+  "scan-age indicator must display measured elapsed age")
+check(coreSource:find('if days<1 then scanAgeFooter:SetTextColor',1,true)~=nil,
+  "scan-age indicator must use freshness colors")
+
+check(coreSource:find('footerParts={complete.."/"..#rows.." Crates"}',1,true)~=nil,
+  "footer must show concise crate count")
+check(coreSource:find('if missingIDs>0 then footerParts',1,true)~=nil,
+  "footer should only show missing ID warnings when relevant")
+check(coreSource:find('if missingPrices>0 then footerParts',1,true)~=nil,
+  "footer should only show missing price warnings when relevant")
+
+check(coreSource:find('local scannedAt=MFO_AH and MFO_AH.LastScan()',1,true)~=nil,
+  "scan footer must use standalone full-scan completion timestamp")
+check(not coreSource:find('GetAuctionAgeByItemID',1,true),
+  "scan footer must not mistake oldest item price age for last full scan")
+
+check(coreSource:find('MFO_AH.Scan(items)',1,true)~=nil,"MFO must scan without Auctionator")
+check(coreSource:find('MFO_AH.Shop(items)',1,true)~=nil,"MFO must save its own shopping list")
+check(not coreSource:find('Auctionator.API.v1.MultiSearch',1,true),"MFO shopping must not depend on Auctionator")

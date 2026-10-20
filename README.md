@@ -4,7 +4,7 @@
 [![Latest release](https://img.shields.io/github/v/release/meckanick/MerchantsFavour-Optimiser?display_name=tag&label=release)](https://github.com/meckanick/MerchantsFavour-Optimiser/releases)
 [![License](https://img.shields.io/badge/license-see%20repository-lightgrey)](https://github.com/meckanick/MerchantsFavour-Optimiser)
 
-**Merchant's Favour Optimiser (MFO)** is a World of Warcraft Forever addon that compares the estimated gold cost of filling Waylaid Supply crates, ranks the available options by **net cost per Favour**, and helps you shop for the materials through Auctionator.
+**Merchant's Favour Optimiser (MFO)** is a World of Warcraft Forever addon that compares the estimated gold cost of filling Waylaid Supply crates, ranks the available options by **net cost per Favour**, and includes its own Auction House scanner, saved price database, and shopping list—**no Auctionator required**.
 
 The goal is simple: see which supported crate is the most cost-effective to complete using current auction-house prices, without manually calculating every material bundle.
 
@@ -14,9 +14,10 @@ The goal is simple: see which supported crate is the most cost-effective to comp
 
 - **22 currently visible crates** — 30 crate definitions are included, with eight unverified Artisan crates hidden until verified. Known item IDs, Favour rewards, and material bundle requirements are included.
 - **Cost and value comparison** — displays the crate price, cheapest currently priceable material bundle, estimated total, Favour reward, and net cost-per-Favour rate.
-- **Auctionator integration** — reads item prices through Auctionator's public API; no separate CSV crate-price list is used as a price fallback.
-- **Price-age indicator** — shows the age of the oldest available Auctionator material price used for the estimate, when Auctionator exposes that information. This is a price-age indicator, not a guaranteed timestamp for the last full auction-house scan.
-- **Shopping assistance** — use a row's **Shop** button to search for the crate and the selected bundle through supported Auctionator functionality.
+- **Built-in Auction House scanner** — click **Scan AH** at the Auction House to search relevant crates and materials using WoW Forever's auction APIs; no Auctionator installation or CSV price list is required.
+- **Saved price database** — stores lowest observed unit buyout prices and records the completion time of successful scans in `MFO_DB`.
+- **Live scan progress and results** — shows a 0–100% progress bar while scanning, followed by a compact priced/missing count. Hover the summary to inspect items without a usable price.
+- **Independent shopping list** — use a row's **Shop** button or **Shop Planned Items** to add required quantities to MFO's saved shopping list; open it with `/mfo shop`. MFO does not automatically purchase items.
 - **Optional owned-material accounting** — toggle whether materials in your bags and the saved bank snapshot should reduce the quantities and costs you need to buy.
 - **Minimap launcher** — open the window from the coin button, drag the button around the minimap, or use `/mfo`.
 - **One-click refresh** — recalculate prices and rankings without reopening the window. Crate IDs are resolved automatically, with learned mappings retained in saved data.
@@ -25,32 +26,33 @@ The goal is simple: see which supported crate is the most cost-effective to comp
 ## Requirements
 
 - **World of Warcraft Forever** — MFO targets the WoW Forever client API, not retail WoW.
-- **Auctionator** — required for live auction-price lookups and supported shopping-list/search actions.
+- **No Auctionator dependency** — the addon has its own scanning, price storage, and shopping list. Scanning requires an open Auction House and a WoW Forever client with compatible auction search APIs.
 
-MFO can be installed without Auctionator, but auction-price and shopping features need a compatible Auctionator version. Prices can be unavailable if an item has not been scanned, cannot be resolved, or is not exposed by Auctionator.
+Prices can be unavailable when an item has no buyout listing, the auction query fails, or a scan has not been completed.
 
 ## Installation
 
 1. Download a packaged ZIP from the repository's [Actions builds](https://github.com/meckanick/MerchantsFavour-Optimiser/actions) or a published [release](https://github.com/meckanick/MerchantsFavour-Optimiser/releases), when available.
 2. Extract the `MerchantsFavourOptimiser` folder into your WoW Forever installation's `Interface/AddOns/` directory.
-3. Make sure the folder contains `MerchantsFavourOptimiser.toc`, `Core.lua`, `Data.lua`, `Calculations.lua`, and the referenced texture assets.
+3. Make sure the folder contains `MerchantsFavourOptimiser.toc`, `Core.lua`, `Data.lua`, `Calculations.lua`, `StandaloneAH.lua`, and the referenced texture assets.
 4. Start WoW Forever and enable **Merchant's Favour Optimiser** in the AddOns list.
-5. Install/enable Auctionator and perform an auction-house scan so item prices are available.
+5. Visit an Auction House, open MFO and click **Scan AH**. Wait for the completion summary before using the new prices.
 
 If you install from a ZIP, avoid leaving an extra nested `MerchantsFavourOptimiser` folder inside `Interface/AddOns/MerchantsFavourOptimiser/`.
 
 ## Using MFO
 
 - **Open or close:** click the minimap coin or enter `/mfo`.
-- **Refresh:** click **Refresh** to recalculate rankings using the latest prices currently exposed by Auctionator.
+- **Scan AH:** with the Auction House open, click **Scan AH** and wait for the progress indicator to finish. Hover the completion summary to see which items had no usable price.
+- **Refresh:** click **Refresh** to recalculate rankings using MFO's locally saved prices; this does not initiate a scan.
 - **Compare options:** rows are ranked by net cost per Favour when the crate and a supported bundle have usable prices. Lower net cost-per-Favour values are more cost-efficient.
-- **Shop:** click a row's **Shop** button while Auctionator's supported shopping/search functionality is available. MFO prepares a search for the crate and the selected bundle; behaviour depends on the Auctionator API version.
+- **Shop:** click a row's **Shop** button to add the crate and missing materials to MFO's shopping list. Use **Shop Planned Items** for an aggregate planner list. Enter `/mfo shop` to view quantities and estimated costs; purchases must be made manually.
 - **Use Owned:** enable the checkbox in the **Crate (Cheapest Bundle)** column header to deduct owned quantities from the amount to buy. Bag quantities are scanned from your current bags. Bank quantities are a saved snapshot captured when the bank is visited, so open the bank again to refresh that snapshot after moving items.
 - **Inspect Net C/F:** hover a Net C/F value to see the crate purchase price, cheapest material cost, turn-in money deduction, net cost and Favour calculation.
 
 ## How the estimate works
 
-For each supported crate, MFO evaluates the crate's current Auctionator price and its configured material bundles. It chooses the lowest-cost bundle for which the required price data is available, then calculates:
+For each supported crate, MFO evaluates the crate's saved MFO auction price and its configured material bundles. It chooses the lowest-cost bundle for which the required price data is available, then calculates:
 
 `Estimated total = crate price + cost of the selected material bundle`
 
@@ -64,25 +66,27 @@ A crate may be unranked when required price data or item IDs are missing. Check 
 
 - The main window can be dragged.
 - The minimap button can be dragged around the minimap; its position is saved.
-- The owned-material option, learned item IDs, and bank snapshot are stored in the `MFO_DB` saved variable.
+- The owned-material option, learned item IDs, bank snapshot, scanned prices, last scan timestamp and shopping list are stored in the `MFO_DB` saved variable.
 - The coin watermark and wood-and-gold artwork are bundled with the addon; no external texture download is required.
 
 ## Troubleshooting
 
 **Prices are missing or show as unknown**
-- Confirm Auctionator is enabled and compatible with WoW Forever.
-- Open the auction house and run an Auctionator scan.
-- Click **Refresh** in MFO.
-- Some item names or IDs may not resolve automatically. Report unresolved crate IDs with an item link through GitHub Issues; the manual binding controls have been removed.
+- Open the Auction House and click **Scan AH** in MFO.
+- Wait for the scan to finish, then hover the completion summary to see missing item names and IDs.
+- Some items may have no buyout listings. Cached prices from previous scans can remain available; a missing result is not automatically a zero price.
+- Click **Refresh** to recalculate from saved prices. Refresh alone does not query the Auction House.
 
-**The price-age indicator is unavailable**
-- MFO uses Auctionator's per-item price-age API. If your installed Auctionator build does not expose that API or has no age for the relevant items, MFO reports that the age is unavailable.
+**Scan does not start or complete**
+- Keep the Auction House open and check the status message for unsupported auction APIs, query failures, or timeouts.
+- Capture the full Lua error and report it through GitHub Issues if the scanner stops unexpectedly.
 
 **Owned bank quantities look out of date**
 - Bank contents cannot be read while the bank is closed. Visit the bank to refresh the saved snapshot.
 
-**The Shop button does not open a shopping search**
-- Open the auction house and verify that your Auctionator version supports the API MFO uses for its shopping/search action.
+**Where is my shopping list?**
+- Click **Shop** on a crate row or **Shop Planned Items**, then enter `/mfo shop`.
+- This is a saved quantity list, not an automatic purchase or Auction House search.
 
 **Lua errors or unexpected behaviour**
 - Record the full error text and steps to reproduce it, and open a [GitHub issue](https://github.com/meckanick/MerchantsFavour-Optimiser/issues).
@@ -96,7 +100,8 @@ The canonical addon source is in `MerchantsFavourOptimiser/`.
 | `MerchantsFavourOptimiser.toc` | WoW addon manifest, version, load order, and optional dependencies |
 | `Data.lua` | Supported crate IDs, Favour rewards, and material bundle data |
 | `Calculations.lua` | UI-independent crate-cost and net-cost-per-Favour calculations |
-| `Core.lua` | Main UI, Auctionator API integration, automatic item resolution, owned-item scans, minimap button, and slash command |
+| `Core.lua` | Main UI, scan progress and results, automatic item resolution, owned-item scans, planner, minimap button, and slash commands |
+| `StandaloneAH.lua` | Independent Auction House scanner, persistent price database, scan timestamps, and shopping list |
 | `MFO_*.tga`, `WTP_*.tga` | Bundled coin, wood, frame, button, and scroll textures |
 | `tests/mfo-regression.lua` | Regression checks for crate data, calculations and case-sensitive UI identifiers |
 | `.github/workflows/addon-build.yml` | Lua syntax, regression, manifest, asset, and ZIP validation |
@@ -113,7 +118,7 @@ Before distributing a release, confirm that every bundled third-party asset is c
 
 ## Credits
 
-- [Auctionator](https://github.com/NeonArray/Auctionator) for auction-house price data and supported shopping/search integration.
+- [Auctionator](https://github.com/NeonArray/Auctionator) as a compatibility reference during development of the standalone scanner; Auctionator is not required.
 - [What's Training? Professions](https://github.com/meckanick/WhatsTraining-Professions) as a visual-style reference for the wood-and-gold interface.
 
 ---

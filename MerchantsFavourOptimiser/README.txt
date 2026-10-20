@@ -1,27 +1,27 @@
-Merchant's Favour Optimiser v0.1.60 - WoW Forever
+Merchant's Favour Optimiser v0.1.69 - WoW Forever
 
+Standalone Auction House pricing: Auctionator is NOT required.
 Install the MerchantsFavourOptimiser folder in Interface/AddOns.
-Auctionator is required for auction pricing.
-/mfo toggles the window; /mfo refresh updates estimates.
-22 visible crates (30 definitions stored; 8 unconfirmed Artisan crates hidden).
-Cheapest priced bundle and gold-per-favour comparison.
-Unverified Artisan Favour rewards remain hidden and excluded from rankings.
-Use owned bag/bank items to deduct inventory from buy costs.
-Bag counts are refreshed live; bank contents are cached on bank visits.
-The status line shows the age of the bank snapshot.
-Shop performs Auctionator MultiSearch with the Auction House open; it is not a persistent shopping list.
-Minimap: left-click toggle, right-click refresh, drag to reposition.
-Unknown auction prices appear as ?.
 
-Net C/F subtracts beta-reported turn-in coin rewards; hover Net C/F values for the full cost and payout breakdown.
-Purchase Total is unchanged. Artisan turn-in rewards remain unverified.
+Use /mfo to open the addon, /mfo refresh to recalculate, /mfo scan to scan,
+and /mfo shop to view the persistent shopping list.
 
-Interface labels, status messages and tooltips use WoW-style title capitalization.
+Open the Auction House and click Scan AH. Wait for the 0-100% progress bar
+to complete. The compact summary shows the number of items priced and missing.
+Hover the summary to see names and IDs of items without usable auction prices.
+Prices and the last successful scan time are saved between sessions.
 
-Case-sensitive Lua identifier guards added to CI after capitalization audit.
+22 visible crates (30 definitions; eight unverified Artisan crates hidden).
+Compare crate purchase costs, material bundles, total costs, and net gold per Favour.
+The inline Favour Planner accepts a target, allows economical overfill, and
+provides Shop Planned Items for adding aggregate quantities to MFO's shopping list.
+Shop buttons add crate/material quantities; purchases remain manual.
+Use Owned accounts for bags and a saved bank snapshot (refresh by visiting bank).
+Minimap: left-click toggles, right-click refreshes, drag to reposition.
 
-Removed obsolete Item Link / Bind Item controls; owned-items toggle moved to the left footer. Refresh remains available.
+Net C/F subtracts beta-reported turn-in coin rewards. Hover a Net C/F
+value for its full calculation. Missing prices are not treated as zero.
+Refresh recalculates using stored prices; it does not scan the AH.
 
-The compact Use Owned checkbox is now in the Crate (Cheapest Bundle) header, with a tooltip explaining its purpose. Footer and window height reduced.
-
-Use Owned now matches header gold typography, with the checkbox right-aligned before the first column divider.
+Development source and installation details:
+https://github.com/meckanick/MerchantsFavour-Optimiser

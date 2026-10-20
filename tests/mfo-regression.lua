@@ -298,8 +298,10 @@ check(ahTab:find('ART.."MFO_WoodBackground"',1,true)~=nil,"Shopping must reuse M
 check(ahTab:find('ART.."MFO_CoinBackground"',1,true)~=nil,"Shopping must reuse MFO coin watermark")
 check(ahTab:find('ART.."WTP_ProfessionRow"',1,true)~=nil,"Shopping section headings must use main addon texture")
 check(ahTab:find('ART.."WTP_FooterButton"',1,true)~=nil,"Shopping buttons must use main addon skin")
-check(ahTab:find('tab=CreateFrame("Button",nil,parent,template)',1,true)~=nil,"MFO Shop must preserve native AH tab styling")
+check(ahTab:find('tab=CreateFrame("Button",nil,parent,"BackdropTemplate")',1,true)~=nil,"MFO Shop must use a tab backdrop, not red button")
 
-check(ahTab:find('copyNativeTexture(nativeReference:GetNormalTexture()',1,true)~=nil,"MFO tab must copy native AH normal skin")
-check(ahTab:find('copyNativeTexture(nativeReference:GetPushedTexture()',1,true)~=nil,"MFO tab must copy native AH pressed skin")
-check(ahTab:find('setTabSelected(true)',1,true)~=nil,"MFO tab must show native selected state")
+check(ahTab:find('setTabSelected(true)',1,true)~=nil,"MFO tab must show selected state")
+
+check(ahTab:find('tab=CreateFrame("Button",nil,parent,"BackdropTemplate")',1,true)~=nil,"MFO Shop must not use red button template")
+check(ahTab:find('tabGlow:Show()',1,true)~=nil,"Selected tab must display gold glow")
+check(ahTab:find('UIPanelButtonTemplate',1,true)==nil,"MFO Shop must not use default red button skin")

@@ -249,3 +249,7 @@ check(ahTab:find('AH.Price(',1,true)~=nil,"AH tab must display stored prices")
 check(ahTab:find('C_AuctionHouse.SendSearchQuery',1,true)~=nil,"AH tab must support modern item search")
 check(ahTab:find('QueryAuctionItems',1,true)~=nil,"AH tab must support legacy item search")
 check(not ahTab:find('PlaceBid',1,true),"AH tab must not auto-buy")
+
+check(ahTab:find('AuctionTabTemplate',1,true)~=nil,"AH shop must register a native auction tab")
+check(ahTab:find('PanelTemplates_SetNumTabs',1,true)~=nil,"AH shop must register tab count")
+check(ahTab:find('AuctionFrameBrowse:Hide()',1,true)~=nil,"AH shop must replace Blizzard browse pane when selected")

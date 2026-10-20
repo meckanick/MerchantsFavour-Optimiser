@@ -5,6 +5,26 @@ local tabIndex
 local nativeTabsHooked=false
 local tabSwitchHooked=false
 local rows={}
+local hiddenPanels={}
+local switching=false
+local function hideNative(parent)
+ wipe(hiddenPanels)
+ local candidates={_G.AuctionFrameBrowse,_G.AuctionFrameBid,_G.AuctionFrameAuctions,
+  _G.AuctionHouseFrameBrowse,_G.AuctionHouseFrameBuy,_G.AuctionHouseFrameSell,
+  _G.AuctionHouseFrameAuctions,_G.AuctionHouseFrameBrowseFrame,
+  parent.BrowseFrame,parent.BuyFrame,parent.SellFrame,parent.AuctionsFrame}
+ for _,f in pairs(candidates) do
+  if f and f~=panel and f.IsShown and f:IsShown() then
+   hiddenPanels[#hiddenPanels+1]=f;f:Hide()
+  end
+ end
+end
+local function restoreNative()
+ for _,f in ipairs(hiddenPanels) do
+  if f and f.Show then f:Show() end
+ end
+ wipe(hiddenPanels)
+end
 local function gold(c)
  if not c then return "No price" end
  return string.format("%dg %ds %dc",math.floor(c/10000),math.floor(c/100)%100,c%100)
@@ -66,6 +86,7 @@ local function search()
 end
 local function close()
  if panel then panel:Hide() end
+ restoreNative()
  if tab then tab:SetButtonState("NORMAL",false) end
 end
 local function attach(parent)
@@ -105,6 +126,9 @@ local function attach(parent)
  panel:SetFrameLevel(parent:GetFrameLevel()+30)
  panel:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",edgeSize=20,insets={left=7,right=7,top=7,bottom=7}})
  panel:EnableMouse(true)
+ local backdrop=panel:CreateTexture(nil,"BACKGROUND")
+ backdrop:SetAllPoints(panel)
+ backdrop:SetColorTexture(0.055,0.052,0.047,1)
  panel:Hide()
  local title=panel:CreateFontString(nil,"OVERLAY","GameFontNormalLarge")
  title:SetPoint("TOPLEFT",20,-18);title:SetText("MFO Shopping List")
@@ -158,27 +182,22 @@ local function attach(parent)
  done:SetPoint("LEFT",find,"RIGHT",8,0)
  done:SetScript("OnClick",close)
  local function activate()
-  -- A genuine AH tab: hide Blizzard's content panes, retain the AuctionFrame shell.
-  if parent==AuctionFrame then
-   if AuctionFrameBrowse then AuctionFrameBrowse:Hide() end
-   if AuctionFrameBid then AuctionFrameBid:Hide() end
-   if AuctionFrameAuctions then AuctionFrameAuctions:Hide() end
-   -- MFO tab is managed independently of Blizzard tab IDs.
-  end
+  hideNative(parent)
   panel:Show()
   tab:SetButtonState("PUSHED",true)
   update()
  end
  tab:SetScript("OnClick",activate)
- if parent==AuctionFrame and not nativeTabsHooked then
-  nativeTabsHooked=true
-  -- Hook each existing tab rather than replacing Auctionator's tab handler.
-  for i=1,tabIndex-1 do
-   local other=_G["AuctionFrameTab"..i]
-   if other and other.HookScript then
-    other:HookScript("OnClick",function()
-     if panel and panel:IsShown() then close() end
-    end)
+ -- Restore native panes whenever a different bottom tab is selected.
+ if parent.GetChildren then
+  for _,child in ipairs({parent:GetChildren()}) do
+   if child~=tab and child.GetText and child.HookScript then
+    local ok,label=pcall(child.GetText,child)
+    if ok and (label=="Buy" or label=="Sell" or label=="Auctions") then
+     child:HookScript("OnClick",function()
+      if panel and panel:IsShown() then close() end
+     end)
+    end
    end
   end
  end

@@ -478,8 +478,8 @@ local function attach(parent)
  local visibleOffers=4
  local offerScroll=CreateFrame("Slider",nil,right)
  panel.offerScroll=offerScroll
- offerScroll:SetPoint("TOPRIGHT",right,"TOPRIGHT",-9,-205)
- offerScroll:SetPoint("BOTTOMRIGHT",right,"BOTTOMRIGHT",-9,74)
+ offerScroll:SetPoint("TOPRIGHT",right,"TOPRIGHT",-9,-184)
+ offerScroll:SetPoint("BOTTOMRIGHT",right,"BOTTOMRIGHT",-9,47)
  offerScroll:SetWidth(16)
  offerScroll:SetOrientation("VERTICAL")
  offerScroll:SetMinMaxValues(0,0)

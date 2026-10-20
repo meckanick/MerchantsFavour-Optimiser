@@ -62,6 +62,7 @@ end
 function AH.Scan(items)
   if busy then return false,"Scan already running" end
   if not auctionOpen() then return false,"Open the Auction House first" end
+  if not eventOK then return false,"Auction list update event unavailable" end
   if type(QueryAuctionItems)~="function" or type(GetAuctionItemInfo)~="function" or
     type(GetNumAuctionItems)~="function" then
     return false,"Legacy Auction House query API unavailable in this client"
@@ -82,7 +83,10 @@ function AH.Scan(items)
   return true,AH.message
 end
 local events=CreateFrame("Frame")
-events:RegisterEvent("AUCTION_ITEM_LIST_UPDATE")
+local eventOK=pcall(events.RegisterEvent,events,"AUCTION_ITEM_LIST_UPDATE")
+if not eventOK then
+  AH.message="AH scan event unavailable in this client"
+end
 events:SetScript("OnEvent",function()
   if not busy or not waiting then return end
   local entry=queue[position]

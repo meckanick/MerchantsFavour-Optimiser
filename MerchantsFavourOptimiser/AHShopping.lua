@@ -288,6 +288,13 @@ local function attach(parent)
  right:ClearAllPoints()
  right:SetPoint("TOPLEFT",left,"TOPRIGHT",8,0)
  right:SetPoint("BOTTOMRIGHT",panel,"BOTTOMRIGHT",-16,30)
+ -- Place the same coin watermark inside the shopping-list pane, behind its rows.
+ local coin=left:CreateTexture(nil,"BORDER",nil,-7)
+ coin:SetTexture(ART.."MFO_CoinBackground")
+ coin:SetPoint("TOPLEFT",left,"TOPLEFT",12,-42)
+ coin:SetPoint("BOTTOMRIGHT",left,"BOTTOMRIGHT",-12,12)
+ coin:SetVertexColor(.78,.68,.54,1)
+ coin:SetAlpha(.34)
  left:SetFrameLevel(panel:GetFrameLevel()+1)
  right:SetFrameLevel(panel:GetFrameLevel()+1)
  -- The main addon uses a recessed profession-row texture for section headings.

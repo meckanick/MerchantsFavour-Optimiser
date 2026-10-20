@@ -71,32 +71,34 @@ end
 local function attach(parent)
  if parent==host then return end
  host=parent
- if parent==AuctionFrame and type(PanelTemplates_SetNumTabs)=="function" then
-  -- Follow Auctionator's native AuctionTabTemplate registration, after existing addon tabs.
-  tabIndex=math.max(3,tonumber(parent.numTabs) or 3)+1
-  tab=CreateFrame("Button","AuctionFrameTab"..tabIndex,parent,"AuctionTabTemplate")
-  tab:SetID(tabIndex)
-  tab:SetText("MFO Shop")
-  if type(PanelTemplates_TabResize)=="function" then PanelTemplates_TabResize(tab,0) end
-  local prior=_G["AuctionFrameTab"..(tabIndex-1)]
-  if prior then tab:SetPoint("LEFT",prior,"RIGHT",-8,0)
-  else tab:SetPoint("BOTTOMLEFT",parent,"BOTTOMLEFT",30,-10) end
-  PanelTemplates_SetNumTabs(parent,tabIndex)
-  if type(PanelTemplates_EnableTab)=="function" then PanelTemplates_EnableTab(parent,tabIndex) end
-  tab:Show()
-  if not tabSwitchHooked and type(hooksecurefunc)=="function" and type(AuctionFrameTab_OnClick)=="function" then
-   tabSwitchHooked=true
-   hooksecurefunc("AuctionFrameTab_OnClick",function(clicked)
-    local index=type(clicked)=="number" and clicked or (type(clicked)=="table" and clicked.GetID and clicked:GetID())
-    if index and index~=tabIndex and panel and panel:IsShown() then close() end
-   end)
-  end
- else
-  -- Some Forever AH builds expose a different frame/tab API.
-  tab=button(parent,"MFO Shop",95)
-  tab:SetPoint("TOPRIGHT",parent,"TOPRIGHT",-54,-27)
-  tab:SetFrameLevel(parent:GetFrameLevel()+35)
+ -- WoW Forever exposes AuctionHouseFrame (not AuctionFrame), so the old
+ -- AuctionFrame-only path always fell back to a top-right button.
+ -- Anchor a real bottom-row tab to the existing last native AH tab.
+ local last
+ for i=1,20 do
+  local candidate=_G["AuctionFrameTab"..i] or _G["AuctionHouseFrameTab"..i]
+  if candidate and candidate.IsShown and candidate:IsShown() then last=candidate end
  end
+ if not last and parent.GetChildren then
+  for _,child in ipairs({parent:GetChildren()}) do
+   if child.GetText and child.IsShown and child:IsShown() then
+    local label=child:GetText()
+    if label=="Auctions" or label=="Sell" then last=child end
+   end
+  end
+ end
+ local template="AuctionTabTemplate"
+ if not _G.AuctionTabTemplate and not _G.AuctionFrameTab1 then template="UIPanelButtonTemplate" end
+ tab=CreateFrame("Button",nil,parent,template)
+ tab:SetText("MFO Shop")
+ tab:SetSize(108,29)
+ tab:SetFrameLevel(parent:GetFrameLevel()+12)
+ if last then
+  tab:SetPoint("LEFT",last,"RIGHT",-7,0)
+ else
+  tab:SetPoint("BOTTOMLEFT",parent,"BOTTOMLEFT",338,-16)
+ end
+ tab:Show()
  panel=CreateFrame("Frame",nil,parent,"BackdropTemplate")
  panel:SetPoint("TOPLEFT",parent,"TOPLEFT",18,-70)
  panel:SetPoint("BOTTOMRIGHT",parent,"BOTTOMRIGHT",-18,38)
@@ -161,7 +163,7 @@ local function attach(parent)
    if AuctionFrameBrowse then AuctionFrameBrowse:Hide() end
    if AuctionFrameBid then AuctionFrameBid:Hide() end
    if AuctionFrameAuctions then AuctionFrameAuctions:Hide() end
-   if type(PanelTemplates_SetTab)=="function" then PanelTemplates_SetTab(parent,tabIndex) end
+   -- MFO tab is managed independently of Blizzard tab IDs.
   end
   panel:Show()
   tab:SetButtonState("PUSHED",true)

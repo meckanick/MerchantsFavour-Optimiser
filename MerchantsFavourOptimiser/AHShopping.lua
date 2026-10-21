@@ -129,8 +129,10 @@ local purchaseWarningShown=false
 local function resetFailedPurchase(message)
  commodityOrder=nil;awaitingPurchase=false;purchaseElapsed=0;purchaseWarningShown=false
  if resetPurchaseDialogs then resetPurchaseDialogs() end
- live.offers={};live.waiting=false;selectedOffer=nil
- live.message=message or "Purchase failed. Refresh the shopping list and search again."
+ -- Retain the selected item and highlighted offer for an immediate manual retry.
+ -- A retry always starts a fresh commodity price check, never an automatic buy.
+ live.waiting=false
+ live.message=message or "Purchase failed. Select Buy again to retry."
  if refreshOffers then refreshOffers() end
 end
 local function startLiveSearch(id)
@@ -719,7 +721,7 @@ local function attach(parent)
   end
   if panel.buyOffer then
    local shoppingItem=selected and AH.Shopping()[selected]
-   panel.buyOffer:SetEnabled(selectedOffer~=nil and live.offers[selectedOffer]~=nil and not live.waiting and shoppingItem~=nil and (shoppingItem.qty or 0)>0)
+   panel.buyOffer:SetEnabled(selectedOffer~=nil and live.offers[selectedOffer]~=nil and not live.waiting and not commodityOrder and not awaitingPurchase and shoppingItem~=nil and (shoppingItem.qty or 0)>0)
   end
  end
  -- Original MFO transaction UI: protected calls are made directly from
@@ -771,6 +773,10 @@ local function attach(parent)
    local order=pending
   if not order or order.stage~="commodity-confirm" or not commodityOrder then return end
   if selected~=order.id or commodityOrder.id~=order.id then dismiss();return end
+  if type(GetMoney)=="function" and order.total and order.total>GetMoney() then
+   resetFailedPurchase("Not enough gold at the confirmed AH price. Choose a cheaper offer.")
+   return
+  end
   dismiss()
   commodityOrder=nil
   if C_AuctionHouse and type(C_AuctionHouse.ConfirmCommoditiesPurchase)=="function" then
@@ -859,7 +865,13 @@ local function attach(parent)
    live.message="Commodity purchase API unavailable."
    preflight:Hide();refreshOffers();return
   end
-  commodityOrder={id=selected,qty=qty,estimated=offer.price*qty}
+  local estimated=offer.price*qty
+  if type(GetMoney)=="function" and estimated>GetMoney() then
+   preflight:Hide()
+   resetFailedPurchase("Not enough gold for this purchase. Add gold or choose a cheaper offer.")
+   return
+  end
+  commodityOrder={id=selected,qty=qty,estimated=estimated}
   purchaseElapsed=0
   api.StartCommoditiesPurchase(selected,qty)
   preflight:Hide()

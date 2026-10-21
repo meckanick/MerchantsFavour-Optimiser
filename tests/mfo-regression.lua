@@ -233,6 +233,15 @@ check(ahSource:find("local realmMarkets=markets[realm]",1,true)~=nil and
       ahSource:find("local market=realmMarkets[faction]",1,true)~=nil and
       ahSource:find("realmMarkets[faction]=market",1,true)~=nil,
   "AH prices and shopping must be scoped to realm and faction")
+-- Legacy capability flags must be local to the scanner, not accidentally
+-- resolved as globals by functions defined before their initialization.
+check(ahSource:find("local modern,eventOK",1,true)~=nil and
+      ahSource:find('modern = C_AuctionHouse and',1,true)~=nil and
+      ahSource:find('eventOK=pcall(events.RegisterEvent',1,true)~=nil,
+  "legacy scanner must share forward-declared capability flags")
+check(ahSource:find('local realm=(GetRealmName and GetRealmName())',1,true)~=nil and
+      ahSource:find('local faction=(UnitFactionGroup and UnitFactionGroup("player"))',1,true)~=nil,
+  "market identity should avoid repeated function type checks")
 check(ahSource:find("root.legacyAHData",1,true)~=nil,
   "legacy account-wide data must be backed up before migration")
 check(coreSource:find("MFO_AH.Market()",1,true)~=nil,

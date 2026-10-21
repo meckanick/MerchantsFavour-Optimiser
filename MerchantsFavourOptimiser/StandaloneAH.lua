@@ -134,11 +134,14 @@ function AH.RecalculateShopping()
   local shopping=db().shopping
   if not ownedReader then return false end
   for id,item in pairs(shopping) do
-    local required=math.max(0,math.floor(tonumber(item.requiredQty) or tonumber(item.qty) or 0))
-    item.requiredQty=required
-    local owned=MFO_DB and MFO_DB.useOwned and tonumber(ownedReader(id)) or 0
-    owned=math.max(0,math.floor(owned or 0))
-    item.qty=math.max(0,required-owned)
+    -- Legacy lists may already contain net quantities; their original
+    -- requirements are unknown, so never subtract inventory again.
+    if item.requiredQty then
+      local required=math.max(0,math.floor(tonumber(item.requiredQty) or 0))
+      local owned=MFO_DB and MFO_DB.useOwned and tonumber(ownedReader(id)) or 0
+      owned=math.max(0,math.floor(owned or 0))
+      item.qty=math.max(0,required-owned)
+    end
   end
   return true
 end

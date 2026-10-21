@@ -126,6 +126,13 @@ local resetPurchaseDialogs
 local awaitingPurchase=false
 local purchaseElapsed=0
 local purchaseWarningShown=false
+local function resetFailedPurchase(message)
+ commodityOrder=nil;awaitingPurchase=false;purchaseElapsed=0;purchaseWarningShown=false
+ if resetPurchaseDialogs then resetPurchaseDialogs() end
+ live.offers={};live.waiting=false;selectedOffer=nil
+ live.message=message or "Purchase failed. Refresh the shopping list and search again."
+ if refreshOffers then refreshOffers() end
+end
 local function startLiveSearch(id)
  if commodityOrder or awaitingPurchase then
   live.message="Purchase pending. Wait for the Auction House result before searching again."
@@ -194,7 +201,7 @@ local function collectLive(event,arg)
  if refreshOffers then refreshOffers() end
 end
 local liveEvents=CreateFrame("Frame")
-for _,name in ipairs({"ITEM_SEARCH_RESULTS_UPDATED","COMMODITY_SEARCH_RESULTS_UPDATED","AUCTION_ITEM_LIST_UPDATE","COMMODITY_PRICE_UPDATED","COMMODITY_PRICE_UNAVAILABLE","COMMODITY_PURCHASE_SUCCEEDED","COMMODITY_PURCHASE_FAILED","AUCTION_HOUSE_THROTTLED_SYSTEM_READY"}) do
+for _,name in ipairs({"ITEM_SEARCH_RESULTS_UPDATED","COMMODITY_SEARCH_RESULTS_UPDATED","AUCTION_ITEM_LIST_UPDATE","COMMODITY_PRICE_UPDATED","COMMODITY_PRICE_UNAVAILABLE","COMMODITY_PURCHASE_SUCCEEDED","COMMODITY_PURCHASE_FAILED","UI_ERROR_MESSAGE","AUCTION_HOUSE_THROTTLED_SYSTEM_READY"}) do
  pcall(liveEvents.RegisterEvent,liveEvents,name)
 end
 liveEvents:SetScript("OnEvent",function(_,event,arg)
@@ -202,13 +209,22 @@ liveEvents:SetScript("OnEvent",function(_,event,arg)
   return -- Throttle notifications are not auction result payloads.
  elseif event=="COMMODITY_PRICE_UPDATED" then
   if commodityOrder and not awaitingPurchase and confirmCommodity then confirmCommodity() end
+ elseif event=="UI_ERROR_MESSAGE" then
+  if not commodityOrder and not awaitingPurchase then return end
+  -- WoW Forever may report insufficient funds as a generic UI error rather
+  -- than COMMODITY_PURCHASE_FAILED. Only clear a pending purchase for
+  -- recognisable purchase failures, never for unrelated UI notifications.
+  local message=type(arg)=="string" and arg or nil
+  if not message then return end
+  local lower=message:lower()
+  if lower:find("not enough money",1,true) or lower:find("insufficient funds",1,true)
+   or lower:find("not enough gold",1,true) or lower:find("cannot afford",1,true)
+   or lower:find("can't afford",1,true) then
+   resetFailedPurchase("Purchase failed: insufficient funds. You can try again.")
+  end
  elseif event=="COMMODITY_PRICE_UNAVAILABLE" or event=="COMMODITY_PURCHASE_FAILED" then
   if not commodityOrder and not awaitingPurchase then return end
-  commodityOrder=nil;awaitingPurchase=false;purchaseElapsed=0;purchaseWarningShown=false
-  if resetPurchaseDialogs then resetPurchaseDialogs() end
-  live.offers={};live.waiting=false;selectedOffer=nil
-  live.message="Commodity price changed or purchase failed. Search again before buying."
-  if refreshOffers then refreshOffers() end
+  resetFailedPurchase("Commodity price changed or purchase failed. Search again before buying.")
  elseif event=="COMMODITY_PURCHASE_SUCCEEDED" then
   if not awaitingPurchase then return end
   commodityOrder=nil;awaitingPurchase=false;purchaseElapsed=0;purchaseWarningShown=false
@@ -1001,12 +1017,12 @@ watcher:SetScript("OnUpdate",function(_,dt)
  timer=0
  local current=activeAH()
  if current and current~=host then attach(current) end
- if awaitingPurchase and not purchaseWarningShown then
+ if awaitingPurchase then
   purchaseElapsed=purchaseElapsed+.5
   if purchaseElapsed>=20 then
-   purchaseWarningShown=true
-   live.message="Purchase result delayed. Check your inventory or AH before trying again."
-   if refreshOffers then refreshOffers() end
+   -- Some Forever AH failures never emit a commodity result event.
+   -- Release the stuck UI lock but never repeat or confirm the purchase.
+   resetFailedPurchase("No purchase result received. Check your gold and inventory before retrying.")
   end
  end
  if live.waiting then

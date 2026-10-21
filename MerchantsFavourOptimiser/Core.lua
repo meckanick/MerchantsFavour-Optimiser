@@ -454,10 +454,10 @@ for i=1,#rows do
     local items={}
     local crateID=r.crate.id or resolve(r.crate.name)
     local materialID=resolve(r.b.name)
-    if not (MFO_DB.useOwned and r.crateOwned) and crateID then
-      items[crateID]={name=r.crate.name,qty=1,requiredQty=1}
+    if crateID then
+      items[crateID]={name=r.crate.name,qty=(MFO_DB.useOwned and r.crateOwned) and 0 or 1,requiredQty=1}
     end
-    if not (MFO_DB.useOwned and r.missing==0) and materialID then
+    if materialID then
       items[materialID]={name=r.b.name,qty=r.missing or r.b.qty,requiredQty=r.b.qty}
     end
     local ok,reason=MFO_AH.ReplaceShopping(items)
@@ -751,8 +751,8 @@ plannerShop:SetScript("OnClick",function()
     names[o.id]=o.name
     names[o.materialID]=o.bundle.name
   end
-  for id,qty in pairs(plannerShopping.items) do
-    items[id]={name=names[id] or tostring(id),qty=qty,requiredQty=plannerShopping.required[id] or qty}
+  for id,required in pairs(plannerShopping.required) do
+    items[id]={name=names[id] or tostring(id),qty=plannerShopping.items[id] or 0,requiredQty=required}
   end
   local ok,reason=MFO_AH.ReplaceShopping(items)
   plannerInfo:SetText(ok and "Shopping List Replaced. Open MFO Shop at the Auction House." or (reason or "Unable to create shopping list."))

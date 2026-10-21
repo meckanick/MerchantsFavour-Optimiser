@@ -119,6 +119,7 @@ end
 -- Live auction search; purchases require a separate explicit hardware click.
 local live={id=nil,waiting=false,offers={},message="Select an item to search.",elapsed=0}
 local refreshOffers
+local update
 local selectedOffer
 local commodityOrder
 local confirmCommodity
@@ -203,7 +204,7 @@ local function collectLive(event,arg)
  if refreshOffers then refreshOffers() end
 end
 local liveEvents=CreateFrame("Frame")
-for _,name in ipairs({"ITEM_SEARCH_RESULTS_UPDATED","COMMODITY_SEARCH_RESULTS_UPDATED","AUCTION_ITEM_LIST_UPDATE","COMMODITY_PRICE_UPDATED","COMMODITY_PRICE_UNAVAILABLE","COMMODITY_PURCHASE_SUCCEEDED","COMMODITY_PURCHASE_FAILED","UI_ERROR_MESSAGE","AUCTION_HOUSE_THROTTLED_SYSTEM_READY"}) do
+for _,name in ipairs({"ITEM_SEARCH_RESULTS_UPDATED","COMMODITY_SEARCH_RESULTS_UPDATED","AUCTION_ITEM_LIST_UPDATE","COMMODITY_PRICE_UPDATED","COMMODITY_PRICE_UNAVAILABLE","COMMODITY_PURCHASE_SUCCEEDED","COMMODITY_PURCHASE_FAILED","UI_ERROR_MESSAGE","BAG_UPDATE_DELAYED","AUCTION_HOUSE_THROTTLED_SYSTEM_READY"}) do
  pcall(liveEvents.RegisterEvent,liveEvents,name)
 end
 liveEvents:SetScript("OnEvent",function(_,event,arg,arg2)
@@ -231,9 +232,29 @@ liveEvents:SetScript("OnEvent",function(_,event,arg,arg2)
   if not awaitingPurchase then return end
   commodityOrder=nil;awaitingPurchase=false;purchaseElapsed=0;purchaseWarningShown=false
   if resetPurchaseDialogs then resetPurchaseDialogs() end
+  -- Reuse the inventory-based shopping calculation: never deduct the
+  -- purchased quantity independently, which would double-count bag updates.
+  if AH.RefreshShoppingInventory then AH.RefreshShoppingInventory() end
+  if AH.RecalculateShopping then AH.RecalculateShopping() end
+  if update then update() end
   live.offers={};live.waiting=false;selectedOffer=nil
-  live.message="Commodity purchase succeeded. Refresh your shopping list quantities."
+  local item=selected and AH.Shopping()[selected]
+  if item and (item.qty or 0)>0 then
+   live.message="Purchase succeeded. Refreshing remaining listings..."
+   startLiveSearch(selected) -- Search only; buying still requires a click.
+  else
+   live.id=nil
+   live.message="Purchase succeeded. Shopping quantities refreshed."
+  end
   if refreshOffers then refreshOffers() end
+ elseif event=="BAG_UPDATE_DELAYED" then
+  -- Auction delivery can reach bags after the purchase-success event.
+  if panel and panel:IsShown() and not awaitingPurchase and not commodityOrder then
+   if AH.RefreshShoppingInventory then AH.RefreshShoppingInventory() end
+   if AH.RecalculateShopping then AH.RecalculateShopping() end
+   if update then update() end
+   if refreshOffers then refreshOffers() end
+  end
  else collectLive(event,arg) end
 end)
 -- Crate membership is static; avoid rebuilding it on each UI refresh.
@@ -241,7 +262,7 @@ local crateIDs={}
 for _,crate in ipairs(MFO_DATA or {}) do
  if type(crate.id)=="number" then crateIDs[crate.id]=true end
 end
-local function update()
+update=function()
  if not panel or not panel:IsShown() then return end
  local shopping=AH.Shopping()
  local items={}

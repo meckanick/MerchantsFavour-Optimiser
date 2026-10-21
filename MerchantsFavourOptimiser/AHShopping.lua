@@ -246,14 +246,14 @@ local function update()
  end)
  panel.items=items
  panel.offset=math.min(panel.offset,math.max(0,#items-#rows))
- local total=0
+ local total,unpriced=0,0
  local prices={}
  for _,v in ipairs(items) do
   local price=AH.Price(v.id)
   prices[v.id]=price
-  if price then total=total+price*v.qty end
+  if price then total=total+price*v.qty else unpriced=unpriced+1 end
  end
- panel.total:SetText(#items.." items  |  Estimated total: "..gold(total))
+ panel.total:SetText(#items.." items  |  Priced estimate: "..gold(total)..(unpriced>0 and ("  |  "..unpriced.." missing AH price"..(unpriced==1 and "" or "s").." (total incomplete)") or ""))
  local current=selected and shopping[selected]
  if panel.detail then
   local selectedPrice=current and prices[selected]
@@ -896,6 +896,8 @@ local function attach(parent)
   update()
  end)
  local function activate()
+  if AH.RefreshShoppingInventory then AH.RefreshShoppingInventory() end
+  if AH.RecalculateShopping then AH.RecalculateShopping() end
   hideNative(parent)
   setNativeTitle(parent)
   panel:Show()

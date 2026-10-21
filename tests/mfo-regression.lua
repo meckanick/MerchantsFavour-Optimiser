@@ -479,6 +479,14 @@ check(coreSource:find('if not crate.id then',1,true)~=nil,"Only crates without I
 check(coreSource:find('if not resolve(crate.name) then missingIDs=missingIDs+1',1,true)~=nil,"Unresolved crates must still be counted")
 check(coreSource:find('elseif cp==nil then missingPrices=missingPrices+1 end',1,true)~=nil,"Known crates must still count missing prices")
 
+-- Repeated refreshes must not rewrite an unchanged scan-age footer.
+check(coreSource:find("if text~=lastScanAgeText then",1,true)~=nil and
+      coreSource:find("if color~=lastScanAgeColor then",1,true)~=nil,
+  "scan-age footer must avoid redundant text and colour updates")
+check(coreSource:find('setScanAgeDisplay("Last AH Scan: Unknown","unknown")',1,true)~=nil and
+      coreSource:find('setScanAgeDisplay("Last AH Scan: "..elapsed.." Ago",color)',1,true)~=nil,
+  "scan-age footer must update for both missing and completed scans")
+
 -- Scan progress callbacks should not recolour all 48 segments when only
 -- one segment (or none) has changed.
 check(coreSource:find("local lastScanLit=-1",1,true)~=nil and

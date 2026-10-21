@@ -91,33 +91,55 @@ end
 function AH.LastScan()
   return db().lastAHScan
 end
+-- Full requirements are retained separately from the quantity left to purchase.
+-- This prevents deducting the same owned stock twice on subsequent refreshes.
+local ownedReader
+function AH.SetOwnedReader(reader)
+  ownedReader=type(reader)=="function" and reader or nil
+end
+local function shoppingEntry(id,entry)
+  if type(id)~="number" or type(entry)~="table" then return nil end
+  local qty=tonumber(entry.qty)
+  if not qty or qty<1 then return nil end
+  qty=math.floor(qty)
+  local required=tonumber(entry.requiredQty)
+  required=required and math.floor(required) or qty
+  if required<qty then required=qty end
+  return {name=entry.name or tostring(id),qty=qty,requiredQty=required}
+end
 function AH.Shop(items)
+  if type(items)~="table" then return false,"Invalid shopping items" end
   local shopping=db().shopping
   for id,entry in pairs(items) do
-    if type(id)=="number" and type(entry)=="table" and (entry.qty or 0)>0 then
-      shopping[id]={name=entry.name or tostring(id),qty=math.floor(entry.qty)}
-    end
+    local item=shoppingEntry(id,entry)
+    if item then shopping[id]=item end
   end
   return true
 end
--- Replace the current market's shopping list in one operation. Build the
--- replacement first so invalid or empty input never erases a valid list.
+-- Replace atomically; an invalid or empty request must not erase a valid list.
 function AH.ReplaceShopping(items)
   if type(items)~="table" then return false,"Invalid shopping items" end
   local replacement={}
   for id,entry in pairs(items) do
-    if type(id)=="number" and type(entry)=="table" then
-      local qty=tonumber(entry.qty)
-      if qty and qty>=1 then
-        qty=math.floor(qty)
-        if qty>0 then
-          replacement[id]={name=entry.name or tostring(id),qty=qty}
-        end
-      end
-    end
+    local item=shoppingEntry(id,entry)
+    if item then replacement[id]=item end
   end
   if not next(replacement) then return false,"No valid items to shop for" end
   db().shopping=replacement
+  return true
+end
+-- Recompute from original demand, never from an already reduced purchase qty.
+-- Old lists without requiredQty retain their current quantities as baseline.
+function AH.RecalculateShopping()
+  local shopping=db().shopping
+  if not ownedReader then return false end
+  for id,item in pairs(shopping) do
+    local required=math.max(0,math.floor(tonumber(item.requiredQty) or tonumber(item.qty) or 0))
+    item.requiredQty=required
+    local owned=MFO_DB and MFO_DB.useOwned and tonumber(ownedReader(id)) or 0
+    owned=math.max(0,math.floor(owned or 0))
+    item.qty=math.max(0,required-owned)
+  end
   return true
 end
 function AH.Shopping()

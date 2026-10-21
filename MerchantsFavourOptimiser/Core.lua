@@ -836,8 +836,11 @@ minimapButton:SetScript("OnEnter",function(self)
 end)
 minimapButton:SetScript("OnLeave",function() GameTooltip:Hide() end)
 positionMinimapButton()
+local scanItemScratch={}
 local function scanRelevantItems()
-  local items={}
+  -- The scanner copies this list into its queue synchronously.
+  for id in pairs(scanItemScratch) do scanItemScratch[id]=nil end
+  local items=scanItemScratch
   for _,crate in ipairs(rows) do
     items[crate.id]=crate.name
     for _,bundle in ipairs(crate.bundles) do
@@ -861,8 +864,10 @@ for i=1,13 do
   line:SetPoint("TOPLEFT",20,-45-(i-1)*20);line:SetWidth(355);line:SetJustifyH("LEFT")
   shoppingLines[i]=line
 end
+local shoppingSortScratch={}
 local function showShopping()
-  local sorted={}
+  for i=#shoppingSortScratch,1,-1 do shoppingSortScratch[i]=nil end
+  local sorted=shoppingSortScratch
   for id,item in pairs(MFO_AH.Shopping()) do
     sorted[#sorted+1]={id=id,name=item.name,qty=item.qty}
   end
@@ -985,8 +990,8 @@ local function updateScanProgress()
     lastScanDisplayMode=mode
   end
   if mode=="complete" then
-    local missing=MFO_AH.Missing()
-    local summary="Scan Complete: "..priced.."/"..total.." Priced"..(#missing>0 and (" | "..#missing.." Missing") or "")
+    local missingCount=#MFO_AH.Missing()
+    local summary="Scan Complete: "..priced.."/"..total.." Priced"..(missingCount>0 and (" | "..missingCount.." Missing") or "")
     if summary~=lastScanSummaryText then
       scanSummaryText:SetText(summary)
       lastScanSummaryText=summary

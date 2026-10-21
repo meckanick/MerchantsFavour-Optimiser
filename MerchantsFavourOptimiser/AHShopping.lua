@@ -860,6 +860,7 @@ local function attach(parent)
    preflight:Hide();refreshOffers();return
   end
   commodityOrder={id=selected,qty=qty,estimated=offer.price*qty}
+  purchaseElapsed=0
   api.StartCommoditiesPurchase(selected,qty)
   preflight:Hide()
   live.message="Checking AH price..."
@@ -1017,7 +1018,7 @@ watcher:SetScript("OnUpdate",function(_,dt)
  timer=0
  local current=activeAH()
  if current and current~=host then attach(current) end
- if awaitingPurchase then
+ if awaitingPurchase or commodityOrder then
   purchaseElapsed=purchaseElapsed+.5
   if purchaseElapsed>=20 then
    -- Some Forever AH failures never emit a commodity result event.

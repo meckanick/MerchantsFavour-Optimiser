@@ -146,11 +146,11 @@ function AH.Scan(items)
     return false,"Legacy Auction House query API unavailable in this client"
   end
   queue={}
-  local seen={}
+  -- pairs() visits each item ID key once, so a separate deduplication
+  -- table would only allocate memory without filtering anything.
   for id,name in pairs(items) do
-    if type(id)=="number" and type(name)=="string" and name~="" and not seen[id] then
+    if type(id)=="number" and type(name)=="string" and name~="" then
       queue[#queue+1]={id=id,name=name}
-      seen[id]=true
     end
   end
   table.sort(queue,function(a,b)return a.name<b.name end)

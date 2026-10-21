@@ -524,13 +524,6 @@ local function refresh(inventoryFresh)
     t[2]:SetText(money(r.cp));t[3]:SetText(money(r.bc));t[4]:SetText(money(r.cp and r.bc and (r.cp+r.bc) or nil));t[5]:SetText(r.crate.favour or "?");t[6]:SetText(money(r.rate))
     t[6]:SetTextColor(r.rate and .95 or .6,r.rate and .8 or .6,r.rate and .35 or .6)
   end
-  local bankInfo=""
-  if MFO_DB.useOwned then
-    if MFO_DB.bankScanTime then
-      local elapsed=math.max(0,math.floor((time()-MFO_DB.bankScanTime)/3600))
-      bankInfo=" Bank Snapshot: "..elapsed.."h old."
-    else bankInfo=" Bank Not Scanned Yet." end
-  end
   local footerParts={MFO_AH.Market(),complete.."/"..#rows.." Crates"}
   if missingIDs>0 then footerParts[#footerParts+1]=missingIDs.." Unknown IDs" end
   if missingPrices>0 then footerParts[#footerParts+1]=missingPrices.." Missing Prices" end

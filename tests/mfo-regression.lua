@@ -491,6 +491,15 @@ check(coreSource:find('setScanAgeDisplay("Last AH Scan: Unknown","unknown")',1,t
       coreSource:find('setScanAgeDisplay("Last AH Scan: "..elapsed.." Ago",color)',1,true)~=nil,
   "scan-age footer must update for both missing and completed scans")
 
+-- Scan overlay visibility should only be toggled on state transitions.
+check(coreSource:find("local lastScanDisplayMode",1,true)~=nil and
+      coreSource:find('local mode=running and "running" or total>0 and "complete" or "idle"',1,true)~=nil and
+      coreSource:find("if mode~=lastScanDisplayMode then",1,true)~=nil and
+      coreSource:find("lastScanDisplayMode=mode",1,true)~=nil,
+  "AH overlay visibility must only change on scan state transitions")
+check(coreSource:find('if mode=="complete" then\n    local missing=MFO_AH.Missing()',1,true)~=nil,
+  "AH completion summary must refresh when counts change within completed state")
+
 -- Completion callbacks may repeat with identical priced/missing counts.
 check(coreSource:find("local lastScanSummaryText",1,true)~=nil and
       coreSource:find("if summary~=lastScanSummaryText then",1,true)~=nil and

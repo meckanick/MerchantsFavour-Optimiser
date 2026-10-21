@@ -137,6 +137,11 @@ local function auctionOpen()
   return (AuctionFrame and AuctionFrame.IsShown and AuctionFrame:IsShown()) or
     (AuctionHouseFrame and AuctionHouseFrame.IsShown and AuctionHouseFrame:IsShown())
 end
+local function stopScan(message)
+  busy=false;waiting=false
+  AH.message=message
+  if AH.onUpdate then AH.onUpdate() end
+end
 local function nextQuery()
   if modern then return end
   if not busy or waiting then return end
@@ -154,7 +159,7 @@ local function nextQuery()
   local entry=queue[position]
   if not entry then busy=false;return end
   local ok=pcall(QueryAuctionItems,entry.name,nil,nil,page,0,0,0,0,nil,false)
-  if not ok then busy=false;AH.message="AH query failed; scan not saved";return end
+  if not ok then stopScan("AH query failed; scan not saved");return end
   waiting=true
   started=GetTime and GetTime() or 0
 end
@@ -206,7 +211,7 @@ local function modernNext()
   -- Arm result handling before dispatch; a first query may respond synchronously.
   waiting=true;started=GetTime and GetTime() or 0
   local ok=pcall(C_AuctionHouse.SendSearchQuery,key,{},false)
-  if not ok then busy=false;waiting=false;AH.message="Modern AH query failed";return end
+  if not ok then stopScan("Modern AH query failed; scan not saved");return end
 end
 local modernEvents=CreateFrame("Frame")
 local modernOK=pcall(modernEvents.RegisterEvent,modernEvents,"ITEM_SEARCH_RESULTS_UPDATED")
@@ -296,7 +301,7 @@ events:SetScript("OnEvent",function()
   if not entry then return end
   local ok,count,total=pcall(GetNumAuctionItems,"list")
   if not ok or type(count)~="number" then
-    busy=false;waiting=false;AH.message="Scan stopped: auction results unavailable";return
+    stopScan("Scan stopped: auction results unavailable");return
   end
   for i=1,count do
     local good,name,texture,stack,quality,usable,level,minBid,minIncrement,buyout=pcall(GetAuctionItemInfo,"list",i)
@@ -320,6 +325,12 @@ end)
 local scanTick=0
 events:SetScript("OnUpdate",function(_,elapsed)
   if not busy then scanTick=0;return end
+  -- Closing the Auction House invalidates outstanding search results.
+  if not auctionOpen() then
+    stopScan("AH closed; scan cancelled without updating completion time")
+    scanTick=0
+    return
+  end
   -- Avoid polling item-cache readiness on every rendered frame.
   scanTick=scanTick+elapsed
   if scanTick<.2 then return end
@@ -327,7 +338,7 @@ events:SetScript("OnUpdate",function(_,elapsed)
   if modern and not waiting then modernNext();return end
   if waiting then
     if GetTime and GetTime()-started>15 then
-      busy=false;waiting=false;AH.message="Scan timed out; completion time unchanged"
+      stopScan("Scan timed out; completion time unchanged")
     end
   else
     nextQuery()

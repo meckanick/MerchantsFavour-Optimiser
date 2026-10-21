@@ -702,7 +702,8 @@ local function attach(parent)
    if selectedOffer==offerOffset+i then row.highlight:Show() else row.highlight:Hide() end
   end
   if panel.buyOffer then
-   panel.buyOffer:SetEnabled(selectedOffer~=nil and live.offers[selectedOffer]~=nil and not live.waiting)
+   local shoppingItem=selected and AH.Shopping()[selected]
+   panel.buyOffer:SetEnabled(selectedOffer~=nil and live.offers[selectedOffer]~=nil and not live.waiting and shoppingItem~=nil and (shoppingItem.qty or 0)>0)
   end
  end
  -- Original MFO transaction UI: protected calls are made directly from

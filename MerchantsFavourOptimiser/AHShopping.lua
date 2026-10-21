@@ -122,13 +122,14 @@ local refreshOffers
 local update
 local selectedOffer
 local commodityOrder
+local purchaseReceipt
 local confirmCommodity
 local resetPurchaseDialogs
 local awaitingPurchase=false
 local purchaseElapsed=0
 local purchaseWarningShown=false
 local function resetFailedPurchase(message)
- commodityOrder=nil;awaitingPurchase=false;purchaseElapsed=0;purchaseWarningShown=false
+ commodityOrder=nil;purchaseReceipt=nil;awaitingPurchase=false;purchaseElapsed=0;purchaseWarningShown=false
  if resetPurchaseDialogs then resetPurchaseDialogs() end
  -- Retain the selected item and highlighted offer for an immediate manual retry.
  -- A retry always starts a fresh commodity price check, never an automatic buy.
@@ -230,7 +231,11 @@ liveEvents:SetScript("OnEvent",function(_,event,arg,arg2)
   resetFailedPurchase("Commodity price changed or purchase failed. Search again before buying.")
  elseif event=="COMMODITY_PURCHASE_SUCCEEDED" then
   if not awaitingPurchase then return end
-  commodityOrder=nil;awaitingPurchase=false;purchaseElapsed=0;purchaseWarningShown=false
+  local receipt=purchaseReceipt
+  commodityOrder=nil;purchaseReceipt=nil;awaitingPurchase=false;purchaseElapsed=0;purchaseWarningShown=false
+  if receipt and AH.RecordShoppingPurchase then
+   AH.RecordShoppingPurchase(receipt.id,receipt.qty)
+  end
   if resetPurchaseDialogs then resetPurchaseDialogs() end
   -- Reuse the inventory-based shopping calculation: never deduct the
   -- purchased quantity independently, which would double-count bag updates.
@@ -801,6 +806,7 @@ local function attach(parent)
   dismiss()
   commodityOrder=nil
   if C_AuctionHouse and type(C_AuctionHouse.ConfirmCommoditiesPurchase)=="function" then
+   purchaseReceipt={id=order.id,qty=order.qty}
    awaitingPurchase=true;purchaseElapsed=0;purchaseWarningShown=false
    C_AuctionHouse.ConfirmCommoditiesPurchase(order.id,order.qty)
    live.message="Commodity confirmation submitted. Check Auction House result."

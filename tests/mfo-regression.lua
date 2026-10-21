@@ -672,6 +672,9 @@ do
   local failed=ah.ReplaceShopping({})
   check(not failed,"empty replacement must not clear existing list")
   equal(ah.Shopping()[1003].qty,7,"failed replacement preserves previous list")
+  check(ah.RemoveShoppingItem(1003),"existing item must be removable")
+  check(ah.Shopping()[1003]==nil,"removed item must disappear")
+  check(not ah.RemoveShoppingItem(1003),"removing an absent item must be safe")
   CreateFrame=previousCreateFrame
   GetRealmName=previousRealm
   UnitFactionGroup=previousFaction
@@ -688,3 +691,20 @@ check(ahTab:find("if AH.RecalculateShopping then AH.RecalculateShopping() end",1
       ahTab:find("missing AH price",1,true)~=nil and
       ahTab:find("total incomplete",1,true)~=nil,
   "shopping tab must refresh quantities and flag incomplete cost totals")
+
+-- Stage 2 must preserve shopping, pricing and purchase flow while adding controls.
+check(ahTab:find('local columnHeaders={{"Item",14},{"Need",142},{"Owned",183},{"Buy",224},{"Cost",266}}',1,true)~=nil,
+  "MFO Shop must show item, required, owned, to-buy and cost headers")
+check(ahTab:find("row.need:SetText(tostring(item.required))",1,true)~=nil and
+      ahTab:find('row.owned:SetText(item.owned and tostring(item.owned) or "?")',1,true)~=nil and
+      ahTab:find("row.buy:SetText(tostring(item.qty))",1,true)~=nil,
+  "shopping rows must display full demand, stock and remaining quantities")
+check(ahTab:find('local refreshShopping=button(left,"Refresh List",128)',1,true)~=nil and
+      ahTab:find('local removeShopping=button(left,"Remove Selected",146)',1,true)~=nil,
+  "shopping list must expose refresh and per-item removal controls")
+check(ahTab:find("if AH.RemoveShoppingItem(selected) then",1,true)~=nil and
+      ahTab:find("if AH.RefreshShoppingInventory then AH.RefreshShoppingInventory() end",1,true)~=nil,
+  "shopping controls must invoke inventory refresh and item removal APIs")
+check(ahTab:find("if v.qty>0 then",1,true)~=nil and
+      ahTab:find("if price then total=total+price*v.qty else unpriced=unpriced+1 end",1,true)~=nil,
+  "fully-owned rows must not inflate missing AH price counts")

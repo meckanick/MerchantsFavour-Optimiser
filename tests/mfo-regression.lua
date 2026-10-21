@@ -623,3 +623,62 @@ check(coreSource:find('plannerInfo:SetText("Some Required AH Scan Prices Are Mis
 -- Legacy GetAuctionItemInfo returns buyoutAmount in field 10, not field 9.
 check(ahTab:find('local name,_,qty,_,_,_,_,_,_,buyout=GetAuctionItemInfo("list",i)',1,true)~=nil,
   "legacy shopping live offers must use the actual buyout return value")
+
+-- Smart shopping stage 1: exercise the real SavedVariables shopping API with
+-- a minimal WoW frame stub (no client or external Lua test library required).
+do
+  local previousCreateFrame=CreateFrame
+  local previousRealm=GetRealmName
+  local previousFaction=UnitFactionGroup
+  local previousDB=MFO_DB
+  CreateFrame=function()
+    return {RegisterEvent=function() end,SetScript=function() end}
+  end
+  GetRealmName=function() return "ShoppingTestRealm" end
+  UnitFactionGroup=function() return "Alliance" end
+  MFO_DB={useOwned=true}
+  dofile("MerchantsFavourOptimiser/StandaloneAH.lua")
+  local ah=MFO_AH
+  local owned={[1001]=4,[1002]=3}
+  ah.SetOwnedReader(function(id) return owned[id] or 0 end)
+  local ok=ah.ReplaceShopping({
+    [1001]={name="Copper Bar",qty=6,requiredQty=10},
+    [1002]={name="Linen Cloth",qty=2,requiredQty=5}
+  })
+  check(ok,"full-requirement shopping list should be accepted")
+  equal(ah.Shopping()[1001].requiredQty,10,"full requirement must be saved")
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1001].qty,6,"initial owned subtraction must match demand")
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1001].qty,6,"repeated refresh must not subtract owned twice")
+  owned[1001]=8
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1001].qty,2,"acquired materials must reduce outstanding purchases")
+  owned[1001]=0
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1001].qty,10,"removed materials must restore full requirement")
+  MFO_DB.useOwned=false
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1002].qty,5,"turning off owned stock restores full requirement")
+  MFO_DB.useOwned=true
+  ah.ReplaceShopping({[1003]={name="Old List",qty=7}})
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1003].qty,7,"legacy net quantities must not be deducted again")
+  local failed=ah.ReplaceShopping({})
+  check(not failed,"empty replacement must not clear existing list")
+  equal(ah.Shopping()[1003].qty,7,"failed replacement preserves previous list")
+  CreateFrame=previousCreateFrame
+  GetRealmName=previousRealm
+  UnitFactionGroup=previousFaction
+  MFO_DB=previousDB
+end
+
+check(coreSource:find("requiredQty=r.b.qty",1,true)~=nil and
+      coreSource:find("requiredQty=plannerShopping.required[id] or qty",1,true)~=nil,
+  "crate and planner shopping must preserve full material requirements")
+check(coreSource:find("plannerShopping={items=bestShopping,details=bestDetails,required=fullDemand}",1,true)~=nil,
+  "planner must consolidate original requirements before owned deductions")
+check(ahTab:find("if AH.RecalculateShopping then AH.RecalculateShopping() end",1,true)~=nil and
+      ahTab:find("missing AH price",1,true)~=nil and
+      ahTab:find("total incomplete",1,true)~=nil,
+  "shopping tab must refresh quantities and flag incomplete cost totals")

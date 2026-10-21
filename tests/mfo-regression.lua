@@ -227,7 +227,11 @@ check(coreSource:find('MFO_AH.ReplaceShopping(items)',1,true)~=nil,"MFO must rep
 check(not coreSource:find('Auctionator.API.v1.MultiSearch',1,true),"MFO shopping must not depend on Auctionator")
 
 local ahSource=assert(io.open("MerchantsFavourOptimiser/StandaloneAH.lua","r")):read("*a")
-check(ahSource:find("root.markets[realm][faction]",1,true)~=nil,
+-- The market table may be accessed through local aliases to avoid repeated
+-- nested lookups; verify both realm and faction indexes are still present.
+check(ahSource:find("local realmMarkets=markets[realm]",1,true)~=nil and
+      ahSource:find("local market=realmMarkets[faction]",1,true)~=nil and
+      ahSource:find("realmMarkets[faction]=market",1,true)~=nil,
   "AH prices and shopping must be scoped to realm and faction")
 check(ahSource:find("root.legacyAHData",1,true)~=nil,
   "legacy account-wide data must be backed up before migration")

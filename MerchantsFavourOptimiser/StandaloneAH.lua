@@ -49,8 +49,8 @@ local function db()
     market={prices={},shopping={}}
     realmMarkets[faction]=market
   end
-  market.prices=market.prices or {}
-  market.shopping=market.shopping or {}
+  if not market.prices then market.prices={} end
+  if not market.shopping then market.shopping={} end
   -- Legacy account-wide prices have no reliable realm/faction provenance.
   -- Keep a recoverable backup and import into the first active market only.
   -- The original market is unknowable, so users should rescan on that market.

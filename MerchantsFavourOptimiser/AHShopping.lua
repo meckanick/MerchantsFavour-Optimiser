@@ -163,7 +163,7 @@ local function collectLive(event,arg)
   local count=GetNumAuctionItems("list") or 0
   local wanted=AH.Shopping()[id]
   for i=1,count do
-   local name,_,qty,_,_,_,_,_,buyout=GetAuctionItemInfo("list",i)
+   local name,_,qty,_,_,_,_,_,_,buyout=GetAuctionItemInfo("list",i)
    if wanted and name==wanted.name and type(buyout)=="number" and buyout>0 then
     offers[#offers+1]={price=math.ceil(buyout/math.max(1,qty or 1)),qty=qty or 1,legacyIndex=i,buyout=buyout}
    end

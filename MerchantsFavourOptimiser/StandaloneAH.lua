@@ -35,11 +35,15 @@ local function db()
   root.markets=root.markets or {}
   local realm,faction=marketIdentity()
   -- Use two levels so punctuation in realm names cannot collide with faction names.
-  root.markets[realm]=root.markets[realm] or {}
-  local market=root.markets[realm][faction]
+  local realmMarkets=root.markets[realm]
+  if not realmMarkets then
+    realmMarkets={}
+    root.markets[realm]=realmMarkets
+  end
+  local market=realmMarkets[faction]
   if not market then
     market={prices={},shopping={}}
-    root.markets[realm][faction]=market
+    realmMarkets[faction]=market
   end
   market.prices=market.prices or {}
   market.shopping=market.shopping or {}

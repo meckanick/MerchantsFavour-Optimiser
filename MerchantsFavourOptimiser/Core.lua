@@ -475,11 +475,11 @@ for i=1,#rows do
   end
 end
 local planFavour
-local function refresh()
+local function refresh(inventoryFresh)
   refreshPriceCache={}
   updateScanNote()
-  learnBagItems()
-  scanBags()
+  -- BAG_UPDATE_DELAYED already refreshed bag IDs and quantities.
+  if not inventoryFresh then learnBagItems();scanBags() end
   local results={};local complete=0;local missingIDs=0;local missingPrices=0
   for _,crate in ipairs(rows) do
     local rate,cp,b,bc,missing,owned,crateOwned=calc(crate)
@@ -998,7 +998,7 @@ events:SetScript("OnEvent",function(_,event,name)
    learnBagItems();scanBags()
    local bank=BankFrame or _G.BankFrame
    if bank and bank.IsShown and bank:IsShown() then scanBank() end
-   if frame:IsShown() then refresh() end
+   if frame:IsShown() then refresh(true) end
   end
   return
  end

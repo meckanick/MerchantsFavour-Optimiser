@@ -453,7 +453,7 @@ check(ahTab:find('if not awaitingPurchase then commodityOrder=nil end',1,true)~=
 -- Performance: avoid reconstructing static crate metadata and duplicate detail price reads.
 check(ahTab:find('local crateIDs={}',1,true)~=nil,"Crate membership must be cached")
 check(ahTab:find('local selectedPrice=current and prices[selected]',1,true)~=nil,"Selected price must be fetched once per detail update")
-check(ahTab:find('gold((selectedPrice or 0)*current.qty)',1,true)~=nil,"Selected total must reuse cached selected price")
+check(ahTab:find('selectedPrice and gold(selectedPrice*current.qty) or "Unknown"',1,true)~=nil,"Selected remaining cost must reuse cached price and show unknown when missing")
 
 -- First-search race: arm waiting state before dispatching an AH query.
 local armed=assert(ahTab:find('live.waiting=true;live.message="Searching live auctions..."',1,true))

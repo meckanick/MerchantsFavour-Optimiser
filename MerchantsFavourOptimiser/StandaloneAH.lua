@@ -137,7 +137,7 @@ function AH.RecordShoppingPurchase(id,qty)
   qty=math.floor(tonumber(qty) or 0)
   if not item or not item.requiredQty or qty<1 then return false end
   item.purchasedQty=(item.purchasedQty or 0)+qty
-  if ownedReader and MFO_DB and MFO_DB.useOwned then
+  if ownedReader then
     local observed=math.max(0,math.floor(tonumber(ownedReader(id)) or 0))
     if not item.pendingPurchaseQty or item.pendingPurchaseQty==0 then
       item.purchaseBaseline=observed

@@ -192,7 +192,7 @@ check(not coreSource:find('plannerBtn=CreateFrame',1,true),
 
 check(not coreSource:find("Bind Item", 1, true), "obsolete manual bind button must be absent")
 check(not coreSource:find("Item Link:", 1, true), "obsolete item link box must be absent")
-check(coreSource:find('refreshBtn:SetScript("OnClick",refresh)', 1, true) ~= nil, "refresh control must remain")
+check(coreSource:find('refreshBtn:SetScript("OnClick",function() refresh() end)', 1, true) ~= nil, "manual Refresh must rescan inventory rather than passing button as inventoryFresh")
 check(coreSource:find('note:Hide()',1,true)~=nil, "scan note must not clutter toolbar")
 check(not coreSource:find('GameTooltip:AddLine(note:GetText()',1,true), "Refresh must not display scan-age tooltip")
 check(coreSource:find('clearButton:SetPoint("RIGHT",refreshBtn,"LEFT",-10,0)',1,true)~=nil,
@@ -619,3 +619,7 @@ check(coreSource:find('plannerInfo:SetText("Enter a Whole-Number Favour Target B
   "invalid favour targets must clear previously displayed plan results")
 check(coreSource:find('plannerInfo:SetText("Some Required AH Scan Prices Are Missing.")\n    plannerSummary:SetText("")\n    for _,line in ipairs(plannerRows) do line:SetText("") end',1,true)~=nil,
   "missing-price failures must clear previously displayed plan results")
+
+-- Legacy GetAuctionItemInfo returns buyoutAmount in field 10, not field 9.
+check(ahTab:find('local name,_,qty,_,_,_,_,_,_,buyout=GetAuctionItemInfo("list",i)',1,true)~=nil,
+  "legacy shopping live offers must use the actual buyout return value")

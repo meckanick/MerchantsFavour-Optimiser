@@ -32,7 +32,7 @@ function AH.Market()
   local realm,faction=marketIdentity()
   return realm.." - "..faction
 end
-local function db()
+local function db(realm,faction)
   if not MFO_DB then MFO_DB={} end
   local root=MFO_DB
   local markets=root.markets
@@ -40,7 +40,7 @@ local function db()
     markets={}
     root.markets=markets
   end
-  local realm,faction=marketIdentity()
+  if not realm or not faction then realm,faction=marketIdentity() end
   -- Use two levels so punctuation in realm names cannot collide with faction names.
   local realmMarkets=markets[realm]
   if not realmMarkets then
@@ -80,7 +80,9 @@ function AH.Price(id)
   -- Compare the two market identifiers directly rather than allocating
   -- a combined realm/faction string on every item price lookup.
   if realm~=priceRealm or faction~=priceFaction or not priceRecords then
-    priceRecords=db().prices
+    -- The caller already resolved this identity; avoid querying the game
+    -- APIs a second time on a market-cache miss.
+    priceRecords=db(realm,faction).prices
     priceRealm,priceFaction=realm,faction
   end
   local record=priceRecords[id]

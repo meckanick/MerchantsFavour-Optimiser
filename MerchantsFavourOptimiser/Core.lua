@@ -972,10 +972,12 @@ local function updateScanProgress()
     scanOverlay:Hide()
     scanSummary:Hide()
   end
+  return running
 end
 MFO_AH.onUpdate=function()
-  updateScanProgress()
-  if not select(2,MFO_AH.Progress()) then status:SetText(MFO_AH.Status()) end
+  -- Progress was already sampled for the scan overlay; reuse its running flag.
+  local running=updateScanProgress()
+  if not running then status:SetText(MFO_AH.Status()) end
   if frame:IsShown() then refresh() end
 end
 SLASH_MFO1="/mfo"

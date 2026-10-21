@@ -150,6 +150,11 @@ end
 function AH.Shopping()
   return db().shopping
 end
+function AH.RemoveShoppingItem(id)
+  if type(id)~="number" or not db().shopping[id] then return false end
+  db().shopping[id]=nil
+  return true
+end
 function AH.ClearShopping()
   db().shopping={}
 end

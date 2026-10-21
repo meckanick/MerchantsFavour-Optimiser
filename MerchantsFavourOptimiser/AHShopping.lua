@@ -204,7 +204,7 @@ local liveEvents=CreateFrame("Frame")
 for _,name in ipairs({"ITEM_SEARCH_RESULTS_UPDATED","COMMODITY_SEARCH_RESULTS_UPDATED","AUCTION_ITEM_LIST_UPDATE","COMMODITY_PRICE_UPDATED","COMMODITY_PRICE_UNAVAILABLE","COMMODITY_PURCHASE_SUCCEEDED","COMMODITY_PURCHASE_FAILED","UI_ERROR_MESSAGE","AUCTION_HOUSE_THROTTLED_SYSTEM_READY"}) do
  pcall(liveEvents.RegisterEvent,liveEvents,name)
 end
-liveEvents:SetScript("OnEvent",function(_,event,arg)
+liveEvents:SetScript("OnEvent",function(_,event,arg,arg2)
  if event=="AUCTION_HOUSE_THROTTLED_SYSTEM_READY" then
   return -- Throttle notifications are not auction result payloads.
  elseif event=="COMMODITY_PRICE_UPDATED" then
@@ -214,7 +214,7 @@ liveEvents:SetScript("OnEvent",function(_,event,arg)
   -- WoW Forever may report insufficient funds as a generic UI error rather
   -- than COMMODITY_PURCHASE_FAILED. Only clear a pending purchase for
   -- recognisable purchase failures, never for unrelated UI notifications.
-  local message=type(arg)=="string" and arg or nil
+  local message=type(arg2)=="string" and arg2 or (type(arg)=="string" and arg or nil)
   if not message then return end
   local lower=message:lower()
   if lower:find("not enough money",1,true) or lower:find("insufficient funds",1,true)

@@ -178,6 +178,8 @@ function AH.Scan(items)
 end
 -- WoW Forever uses the modern C_AuctionHouse API, unlike legacy Classic.
 local modern = C_AuctionHouse and type(C_AuctionHouse.SendSearchQuery)=="function"
+-- Reuse the exact item key used for the active query when reading its results.
+local activeItemKey
 local function modernNext()
   if not busy or waiting then return end
   if position>#queue then
@@ -187,7 +189,11 @@ local function modernNext()
     return
   end
   local entry=queue[position]
-  local key=C_AuctionHouse.MakeItemKey and C_AuctionHouse.MakeItemKey(entry.id) or {itemID=entry.id}
+  local key=activeItemKey
+  if not key then
+    key=C_AuctionHouse.MakeItemKey and C_AuctionHouse.MakeItemKey(entry.id) or {itemID=entry.id}
+    activeItemKey=key
+  end
   if C_AuctionHouse.GetItemKeyInfo and not C_AuctionHouse.GetItemKeyInfo(key) then
     if type(GetItemInfo)=="function" then GetItemInfo(entry.id) end
     return
@@ -205,7 +211,8 @@ modernEvents:SetScript("OnEvent",function(_,event,arg)
   local entry=queue[position]
   local id=type(arg)=="table" and arg.itemID or arg
   if id~=entry.id then return end
-  local key=C_AuctionHouse.MakeItemKey and C_AuctionHouse.MakeItemKey(entry.id) or {itemID=entry.id}
+  local key=activeItemKey
+  if not key then return end
   local price=nil
   local isCommodity=event=="COMMODITY_SEARCH_RESULTS_UPDATED"
   local has=C_AuctionHouse.HasSearchResults and C_AuctionHouse.HasSearchResults(key)
@@ -252,6 +259,7 @@ modernEvents:SetScript("OnEvent",function(_,event,arg)
     recordMissing(entry)
   end
   attempts=0
+  activeItemKey=nil
   waiting=false;position=position+1
   if AH.onUpdate then AH.onUpdate() end
 end)
@@ -267,7 +275,7 @@ AH.Scan=function(items)
   end
   table.sort(queue,function(a,b)return a.name<b.name end)
   if #queue==0 then return false,"No resolved items to scan" end
-  position=1;busy=true;waiting=false;priced=0;scanTotal=#queue;attempts=0;missing={}
+  position=1;busy=true;waiting=false;priced=0;scanTotal=#queue;attempts=0;missing={};activeItemKey=nil
   AH.message="Scanning "..#queue.." items"
   modernNext()
   return true,AH.message

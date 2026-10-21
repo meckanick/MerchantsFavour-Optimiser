@@ -537,13 +537,26 @@ check(coreSource:find("local refreshPriceCache={}",1,true)~=nil and
 check(coreSource:find("if priceCacheActive then refreshPriceCache[id]=value==nil and false or value end",1,true)~=nil,
   "price cache must retain missing-price sentinel only while active")
 
+-- Batch allocation reductions must preserve fresh bank indices and table row layout.
+check(coreSource:find("local bankScanIDs={}",1,true)~=nil and
+      coreSource:find("for i=#bankScanIDs,1,-1 do bankScanIDs[i]=nil end",1,true)~=nil and
+      coreSource:find("ids[1]=-1",1,true)~=nil,
+  "bank index scratch table must be reset before every scan")
+check(coreSource:find("local rowWidths={341,76,76,76,48,76}",1,true)~=nil and
+      coreSource:find("t:SetWidth(rowWidths[j])",1,true)~=nil,
+  "rankings columns must reuse original fixed widths")
+check(coreSource:find("results[#results+1]={crate=crate,rate=rate",1,true)~=nil and
+      coreSource:find("table.sort(results,function(a,b)",1,true)~=nil,
+  "ranking result append must preserve sorted result processing")
+
 -- Repeated bank snapshots must reuse the static Forever bank bag key list.
 check(coreSource:find('local bankBagKeys={"Bank", "BankBag_1"',1,true)~=nil and
       coreSource:find("for _,key in ipairs(bankBagKeys) do",1,true)~=nil and
       coreSource:find("local bankIndex=Enum.BagIndex",1,true)~=nil,
   "bank snapshots must reuse bank bag keys while resolving live Enum indices")
-check(coreSource:find("local visited={}",1,true)~=nil and
-      coreSource:find("if not visited[bag] then",1,true)~=nil,
+check(coreSource:find("local bankVisited={}",1,true)~=nil and
+      coreSource:find("for bag in pairs(bankVisited) do bankVisited[bag]=nil end",1,true)~=nil and
+      coreSource:find("if not bankVisited[bag] then",1,true)~=nil,
   "bank scans must still deduplicate overlapping bank bag indices")
 
 -- Learning bag item IDs must not rewrite an unchanged saved mapping.

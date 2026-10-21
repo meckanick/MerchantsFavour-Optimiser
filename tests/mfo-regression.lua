@@ -721,3 +721,14 @@ check(ahTab:find('type(arg2)=="string" and arg2',1,true)~=nil and
 check(ahTab:find('if awaitingPurchase or commodityOrder then',1,true)~=nil and
       ahTab:find('resetFailedPurchase("No purchase result received.',1,true)~=nil,
   "unanswered commodity purchase must release the UI lock without auto buying")
+
+-- Failed purchases must not lose the shopping selection or require a 20s wait
+-- for a purchase the player could not afford in the first place.
+check(ahTab:find('if type(GetMoney)=="function" and estimated>GetMoney() then',1,true)~=nil,
+  "insufficient funds must stop a purchase before starting the AH transaction")
+check(ahTab:find('if type(GetMoney)=="function" and order.total and order.total>GetMoney() then',1,true)~=nil,
+  "confirmed AH price must be checked against available gold before buying")
+check(ahTab:find('live.waiting=false\n live.message=message or "Purchase failed. Select Buy again to retry."',1,true)~=nil,
+  "failed purchase must retain selected shopping item and offer")
+check(ahTab:find('not commodityOrder and not awaitingPurchase and shoppingItem~=nil',1,true)~=nil,
+  "Buy Selected must be disabled during a pending purchase and enabled after recovery")

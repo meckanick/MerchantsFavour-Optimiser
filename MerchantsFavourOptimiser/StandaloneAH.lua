@@ -5,37 +5,55 @@ local AH=MFO_AH
 local queue,position,busy,waiting,started,page,lowest={},1,false,false,0,0,nil
 local priced,attempts,scanTotal=0,0,0
 local missing={}
+-- Forward declarations ensure the legacy scanner sees the actual capability
+-- flags rather than unrelated globals.
+local modern,eventOK
 local function recordMissing(entry)
   if entry then missing[#missing+1]={id=entry.id,name=entry.name} end
 end
 function AH.Missing() return missing end
 -- Market-scoped prices and shopping lists; settings and character-owned inventory stay account-wide.
+local lastRawRealm,normalizedRealm
 local function marketIdentity()
-  local realm=(type(GetRealmName)=="function" and GetRealmName()) or
-    (type(GetNormalizedRealmName)=="function" and GetNormalizedRealmName()) or "Unknown"
-  local faction=(type(UnitFactionGroup)=="function" and UnitFactionGroup("player")) or "Unknown"
-  realm=tostring(realm):gsub("^%s+",""):gsub("%s+$","")
+  local realm=(GetRealmName and GetRealmName()) or
+    (GetNormalizedRealmName and GetNormalizedRealmName()) or "Unknown"
+  local faction=(UnitFactionGroup and UnitFactionGroup("player")) or "Unknown"
+  realm=tostring(realm)
+  -- Realm names rarely change during a session. Avoid repeated string
+  -- trimming during ranking, while still detecting a changed realm.
+  if realm~=lastRawRealm then
+    normalizedRealm=realm:gsub("^%s+",""):gsub("%s+$","")
+    lastRawRealm=realm
+  end
   faction=tostring(faction)
-  return realm,faction
+  return normalizedRealm,faction
 end
 function AH.Market()
   local realm,faction=marketIdentity()
   return realm.." - "..faction
 end
-local function db()
-  MFO_DB=MFO_DB or {}
+local function db(realm,faction)
+  if not MFO_DB then MFO_DB={} end
   local root=MFO_DB
-  root.markets=root.markets or {}
-  local realm,faction=marketIdentity()
+  local markets=root.markets
+  if not markets then
+    markets={}
+    root.markets=markets
+  end
+  if not realm or not faction then realm,faction=marketIdentity() end
   -- Use two levels so punctuation in realm names cannot collide with faction names.
-  root.markets[realm]=root.markets[realm] or {}
-  local market=root.markets[realm][faction]
+  local realmMarkets=markets[realm]
+  if not realmMarkets then
+    realmMarkets={}
+    markets[realm]=realmMarkets
+  end
+  local market=realmMarkets[faction]
   if not market then
     market={prices={},shopping={}}
-    root.markets[realm][faction]=market
+    realmMarkets[faction]=market
   end
-  market.prices=market.prices or {}
-  market.shopping=market.shopping or {}
+  if not market.prices then market.prices={} end
+  if not market.shopping then market.shopping={} end
   -- Legacy account-wide prices have no reliable realm/faction provenance.
   -- Keep a recoverable backup and import into the first active market only.
   -- The original market is unknowable, so users should rescan on that market.
@@ -53,8 +71,21 @@ local function db()
   end
   return market
 end
+-- Reuse the active market's price table across repeated ranking lookups.
+-- Recheck realm/faction so switching characters cannot reuse another market.
+local priceRealm,priceFaction,priceRecords
 function AH.Price(id)
-  local record=db().prices[id]
+  if not id then return nil end
+  local realm,faction=marketIdentity()
+  -- Compare the two market identifiers directly rather than allocating
+  -- a combined realm/faction string on every item price lookup.
+  if realm~=priceRealm or faction~=priceFaction or not priceRecords then
+    -- The caller already resolved this identity; avoid querying the game
+    -- APIs a second time on a market-cache miss.
+    priceRecords=db(realm,faction).prices
+    priceRealm,priceFaction=realm,faction
+  end
+  local record=priceRecords[id]
   return record and record.price or nil
 end
 function AH.LastScan()
@@ -67,6 +98,26 @@ function AH.Shop(items)
       shopping[id]={name=entry.name or tostring(id),qty=math.floor(entry.qty)}
     end
   end
+  return true
+end
+-- Replace the current market's shopping list in one operation. Build the
+-- replacement first so invalid or empty input never erases a valid list.
+function AH.ReplaceShopping(items)
+  if type(items)~="table" then return false,"Invalid shopping items" end
+  local replacement={}
+  for id,entry in pairs(items) do
+    if type(id)=="number" and type(entry)=="table" then
+      local qty=tonumber(entry.qty)
+      if qty and qty>=1 then
+        qty=math.floor(qty)
+        if qty>0 then
+          replacement[id]={name=entry.name or tostring(id),qty=qty}
+        end
+      end
+    end
+  end
+  if not next(replacement) then return false,"No valid items to shop for" end
+  db().shopping=replacement
   return true
 end
 function AH.Shopping()
@@ -86,6 +137,11 @@ local function auctionOpen()
   return (AuctionFrame and AuctionFrame.IsShown and AuctionFrame:IsShown()) or
     (AuctionHouseFrame and AuctionHouseFrame.IsShown and AuctionHouseFrame:IsShown())
 end
+local function stopScan(message)
+  busy=false;waiting=false
+  AH.message=message
+  if AH.onUpdate then AH.onUpdate() end
+end
 local function nextQuery()
   if modern then return end
   if not busy or waiting then return end
@@ -103,7 +159,7 @@ local function nextQuery()
   local entry=queue[position]
   if not entry then busy=false;return end
   local ok=pcall(QueryAuctionItems,entry.name,nil,nil,page,0,0,0,0,nil,false)
-  if not ok then busy=false;AH.message="AH query failed; scan not saved";return end
+  if not ok then stopScan("AH query failed; scan not saved");return end
   waiting=true
   started=GetTime and GetTime() or 0
 end
@@ -116,11 +172,11 @@ function AH.Scan(items)
     return false,"Legacy Auction House query API unavailable in this client"
   end
   queue={}
-  local seen={}
+  -- pairs() visits each item ID key once, so a separate deduplication
+  -- table would only allocate memory without filtering anything.
   for id,name in pairs(items) do
-    if type(id)=="number" and type(name)=="string" and name~="" and not seen[id] then
+    if type(id)=="number" and type(name)=="string" and name~="" then
       queue[#queue+1]={id=id,name=name}
-      seen[id]=true
     end
   end
   table.sort(queue,function(a,b)return a.name<b.name end)
@@ -131,7 +187,9 @@ function AH.Scan(items)
   return true,AH.message
 end
 -- WoW Forever uses the modern C_AuctionHouse API, unlike legacy Classic.
-local modern = C_AuctionHouse and type(C_AuctionHouse.SendSearchQuery)=="function"
+modern = C_AuctionHouse and type(C_AuctionHouse.SendSearchQuery)=="function"
+-- Reuse the exact item key used for the active query when reading its results.
+local activeItemKey
 local function modernNext()
   if not busy or waiting then return end
   if position>#queue then
@@ -141,14 +199,19 @@ local function modernNext()
     return
   end
   local entry=queue[position]
-  local key=C_AuctionHouse.MakeItemKey and C_AuctionHouse.MakeItemKey(entry.id) or {itemID=entry.id}
+  local key=activeItemKey
+  if not key then
+    key=C_AuctionHouse.MakeItemKey and C_AuctionHouse.MakeItemKey(entry.id) or {itemID=entry.id}
+    activeItemKey=key
+  end
   if C_AuctionHouse.GetItemKeyInfo and not C_AuctionHouse.GetItemKeyInfo(key) then
     if type(GetItemInfo)=="function" then GetItemInfo(entry.id) end
     return
   end
-  local ok=pcall(C_AuctionHouse.SendSearchQuery,key,{},false)
-  if not ok then busy=false;AH.message="Modern AH query failed";return end
+  -- Arm result handling before dispatch; a first query may respond synchronously.
   waiting=true;started=GetTime and GetTime() or 0
+  local ok=pcall(C_AuctionHouse.SendSearchQuery,key,{},false)
+  if not ok then stopScan("Modern AH query failed; scan not saved");return end
 end
 local modernEvents=CreateFrame("Frame")
 local modernOK=pcall(modernEvents.RegisterEvent,modernEvents,"ITEM_SEARCH_RESULTS_UPDATED")
@@ -158,7 +221,8 @@ modernEvents:SetScript("OnEvent",function(_,event,arg)
   local entry=queue[position]
   local id=type(arg)=="table" and arg.itemID or arg
   if id~=entry.id then return end
-  local key=C_AuctionHouse.MakeItemKey and C_AuctionHouse.MakeItemKey(entry.id) or {itemID=entry.id}
+  local key=activeItemKey
+  if not key then return end
   local price=nil
   local isCommodity=event=="COMMODITY_SEARCH_RESULTS_UPDATED"
   local has=C_AuctionHouse.HasSearchResults and C_AuctionHouse.HasSearchResults(key)
@@ -179,7 +243,11 @@ modernEvents:SetScript("OnEvent",function(_,event,arg)
     for i=1,(C_AuctionHouse.GetNumCommoditySearchResults and C_AuctionHouse.GetNumCommoditySearchResults(entry.id) or 0) do
       local item=C_AuctionHouse.GetCommoditySearchResultInfo(entry.id,i)
       local p=item and item.unitPrice
-      if type(p)=="number" and p>0 and (not price or p<price) then price=p end
+      if type(p)=="number" and p>0 and (not price or p<price) then
+        price=p
+        -- One copper is the lowest possible valid unit price.
+        if price==1 then break end
+      end
     end
   elseif not isCommodity and C_AuctionHouse.GetItemSearchResultInfo then
     for i=1,(C_AuctionHouse.GetNumItemSearchResults and C_AuctionHouse.GetNumItemSearchResults(key) or 0) do
@@ -187,7 +255,10 @@ modernEvents:SetScript("OnEvent",function(_,event,arg)
       local p=item and item.buyoutAmount
       if type(p)=="number" and p>0 then
         p=math.ceil(p/math.max(1,item.quantity or 1))
-        if not price or p<price then price=p end
+        if not price or p<price then
+          price=p
+          if price==1 then break end
+        end
       end
     end
   end
@@ -198,6 +269,7 @@ modernEvents:SetScript("OnEvent",function(_,event,arg)
     recordMissing(entry)
   end
   attempts=0
+  activeItemKey=nil
   waiting=false;position=position+1
   if AH.onUpdate then AH.onUpdate() end
 end)
@@ -213,13 +285,13 @@ AH.Scan=function(items)
   end
   table.sort(queue,function(a,b)return a.name<b.name end)
   if #queue==0 then return false,"No resolved items to scan" end
-  position=1;busy=true;waiting=false;priced=0;scanTotal=#queue;attempts=0;missing={}
+  position=1;busy=true;waiting=false;priced=0;scanTotal=#queue;attempts=0;missing={};activeItemKey=nil
   AH.message="Scanning "..#queue.." items"
   modernNext()
   return true,AH.message
 end
 local events=CreateFrame("Frame")
-local eventOK=pcall(events.RegisterEvent,events,"AUCTION_ITEM_LIST_UPDATE")
+eventOK=pcall(events.RegisterEvent,events,"AUCTION_ITEM_LIST_UPDATE")
 if not eventOK then
   AH.message="AH scan event unavailable in this client"
 end
@@ -229,7 +301,7 @@ events:SetScript("OnEvent",function()
   if not entry then return end
   local ok,count,total=pcall(GetNumAuctionItems,"list")
   if not ok or type(count)~="number" then
-    busy=false;waiting=false;AH.message="Scan stopped: auction results unavailable";return
+    stopScan("Scan stopped: auction results unavailable");return
   end
   for i=1,count do
     local good,name,texture,stack,quality,usable,level,minBid,minIncrement,buyout=pcall(GetAuctionItemInfo,"list",i)
@@ -237,6 +309,7 @@ events:SetScript("OnEvent",function()
       type(buyout)=="number" and buyout>0 then
       local unit=math.ceil(buyout/stack)
       if not lowest or unit<lowest then lowest=unit end
+      if lowest==1 then break end
     end
   end
   waiting=false
@@ -249,12 +322,23 @@ events:SetScript("OnEvent",function()
   end
   if AH.onUpdate then AH.onUpdate() end
 end)
+local scanTick=0
 events:SetScript("OnUpdate",function(_,elapsed)
-  if not busy then return end
+  if not busy then scanTick=0;return end
+  -- Closing the Auction House invalidates outstanding search results.
+  if not auctionOpen() then
+    stopScan("AH closed; scan cancelled without updating completion time")
+    scanTick=0
+    return
+  end
+  -- Avoid polling item-cache readiness on every rendered frame.
+  scanTick=scanTick+elapsed
+  if scanTick<.2 then return end
+  scanTick=0
   if modern and not waiting then modernNext();return end
   if waiting then
     if GetTime and GetTime()-started>15 then
-      busy=false;waiting=false;AH.message="Scan timed out; completion time unchanged"
+      stopScan("Scan timed out; completion time unchanged")
     end
   else
     nextQuery()

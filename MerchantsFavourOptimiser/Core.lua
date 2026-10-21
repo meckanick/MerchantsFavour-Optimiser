@@ -15,24 +15,28 @@ local function money(v)
   v = math.floor(v + 0.5)
   return string.format("%dg %ds %dc", math.floor(v/10000), math.floor(v/100)%100, v%100)
 end
--- Match What's Training? Professions: use Auctionator's public v1 API for per-item scan age.
-local function auctionatorAPI()
-  local a = _G.Auctionator
-  return type(a) == "table" and type(a.API) == "table" and a.API.v1 or nil
-end
-local function formatAgeDays(days)
-  days = math.floor(days)
-  if days == 0 then return "Less Than 1 Day Ago" end
-  return days .. (days == 1 and " Day Ago" or " Days Ago")
-end
 local scanAgeFooter
--- Auctionator Forever records the successful full-scan completion timestamp
--- in AUCTIONATOR_LAST_SCAN_TIME. Item price ages are not scan timestamps.
+local lastScanAgeText,lastScanAgeColor
+local function setScanAgeDisplay(text,color)
+  -- The visible age usually stays unchanged across multiple refreshes.
+  if text~=lastScanAgeText then
+    scanAgeFooter:SetText(text)
+    lastScanAgeText=text
+  end
+  if color~=lastScanAgeColor then
+    if color=="unknown" then scanAgeFooter:SetTextColor(.65,.65,.65)
+    elseif color=="fresh" then scanAgeFooter:SetTextColor(.3,.95,.3)
+    elseif color=="recent" then scanAgeFooter:SetTextColor(1,.85,.2)
+    elseif color=="old" then scanAgeFooter:SetTextColor(1,.55,.15)
+    else scanAgeFooter:SetTextColor(1,.25,.25) end
+    lastScanAgeColor=color
+  end
+end
+-- Display the timestamp of the last completed MFO standalone AH scan.
 local function updateScanNote()
   local scannedAt=MFO_AH and MFO_AH.LastScan()
   if type(scannedAt)~="number" or scannedAt<=0 then
-    scanAgeFooter:SetText("Last AH Scan: Unknown")
-    scanAgeFooter:SetTextColor(.65,.65,.65)
+    setScanAgeDisplay("Last AH Scan: Unknown","unknown")
     return
   end
   local ageSeconds=math.max(0,time()-scannedAt)
@@ -60,14 +64,22 @@ local function updateScanNote()
   else
     elapsed=amount.." "..unit..(amount==1 and "" or "s")
   end
-  scanAgeFooter:SetText("Last AH Scan: "..elapsed.." Ago")
-  if days<1 then scanAgeFooter:SetTextColor(.3,.95,.3)
-  elseif days<3 then scanAgeFooter:SetTextColor(1,.85,.2)
-  elseif days<7 then scanAgeFooter:SetTextColor(1,.55,.15)
-  else scanAgeFooter:SetTextColor(1,.25,.25) end
+  local color=days<1 and "fresh" or days<3 and "recent" or days<7 and "old" or "stale"
+  setScanAgeDisplay("Last AH Scan: "..elapsed.." Ago",color)
 end
+-- Cache repeated item price reads only during a single ranking/planner refresh.
+-- Nil prices are cached too; the cache is discarded after refresh.
+local refreshPriceCache={}
+local priceCacheActive=false
 price = function(id)
-  return id and MFO_AH and MFO_AH.Price(id) or nil
+  if not id or not MFO_AH then return nil end
+  if priceCacheActive then
+    local cached=refreshPriceCache[id]
+    if cached~=nil then return cached~=false and cached or nil end
+  end
+  local value=MFO_AH.Price(id)
+  if priceCacheActive then refreshPriceCache[id]=value==nil and false or value end
+  return value
 end
 -- Stable item IDs avoid depending on the local item-name cache.
 -- Unknown IDs are never guessed; they can be learned using the binder.
@@ -107,7 +119,9 @@ local function learnBagItems()
       if link then
         local id=tonumber(link:match("item:(%d+)"))
         local name=link:match("%[([^%]]+)%]")
-        if id and name and MFO_DB and MFO_DB.ids then MFO_DB.ids[name]=id end
+        if id and name and MFO_DB and MFO_DB.ids and MFO_DB.ids[name]~=id then
+          MFO_DB.ids[name]=id
+        end
       end
     end
   end
@@ -126,7 +140,9 @@ end
 -- Bank quantities are cached on bank visits; the client does not expose remote bank contents.
 local bagCounts={}
 local function scanBags()
-  bagCounts={}
+  -- Reuse the snapshot table instead of allocating one on every bag event.
+  -- Clear old counts first so removed items never remain counted.
+  for id in pairs(bagCounts) do bagCounts[id]=nil end
   if not (C_Container and C_Container.GetContainerNumSlots and C_Container.GetContainerItemInfo) then return end
   for bag=0,4 do
     for slot=1,(C_Container.GetContainerNumSlots(bag) or 0) do
@@ -135,21 +151,29 @@ local function scanBags()
     end
   end
 end
+-- Reuse the fixed list of Forever bank bag names across bank visits.
+local bankBagKeys={"Bank", "BankBag_1", "BankBag_2", "BankBag_3", "BankBag_4", "BankBag_5", "BankBag_6", "BankBag_7", "ReagentBank"}
+local bankScanIDs={}
+local bankVisited={}
 local function scanBank()
   if not MFO_DB or not C_Container or not C_Container.GetContainerNumSlots or not C_Container.GetContainerItemInfo then return end
   local counts={}
-  local ids={-1}
+  -- Clear both scratch tables on each scan; bank indices may change.
+  for i=#bankScanIDs,1,-1 do bankScanIDs[i]=nil end
+  for bag in pairs(bankVisited) do bankVisited[bag]=nil end
+  local ids=bankScanIDs
+  ids[1]=-1
   -- WoW Forever bank bag IDs are provided by Enum.BagIndex where available.
   if Enum and Enum.BagIndex then
-    for _,key in ipairs({"Bank", "BankBag_1", "BankBag_2", "BankBag_3", "BankBag_4", "BankBag_5", "BankBag_6", "BankBag_7", "ReagentBank"}) do
-      if type(Enum.BagIndex[key])=="number" then table.insert(ids,Enum.BagIndex[key]) end
+    local bankIndex=Enum.BagIndex
+    for _,key in ipairs(bankBagKeys) do
+      if type(bankIndex[key])=="number" then ids[#ids+1]=bankIndex[key] end
     end
   end
-  for bag=5,11 do table.insert(ids,bag) end
-  local visited={}
+  for bag=5,11 do ids[#ids+1]=bag end
   for _,bag in ipairs(ids) do
-    if not visited[bag] then
-      visited[bag]=true
+    if not bankVisited[bag] then
+      bankVisited[bag]=true
       local slots=C_Container.GetContainerNumSlots(bag) or 0
       for slot=1,slots do
         local info=C_Container.GetContainerItemInfo(bag,slot)
@@ -232,7 +256,7 @@ local status=frame:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
 status:SetPoint("BOTTOMLEFT",19,16)
 status:SetWidth(550)
 status:SetJustifyH("LEFT")
--- Footer scan-age indicator uses the oldest available Auctionator item price.
+-- Footer scan-age indicator uses the last completed standalone AH scan.
 -- The API reports age in days (including fractional days).
 scanAgeFooter=frame:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
 scanAgeFooter:SetPoint("BOTTOMRIGHT",frame,"BOTTOMRIGHT",-19,16)
@@ -402,6 +426,7 @@ if scrollBar then
   scrollBar:HookScript("OnUpdate",UpdateScrollAppearance)
   UpdateScrollAppearance()
 end
+local rowWidths={341,76,76,76,48,76}
 local entries={}
 local shopButtons={}
 local displayedResults={}
@@ -433,8 +458,8 @@ for i=1,#rows do
     if not (MFO_DB.useOwned and r.missing==0) and materialID then
       items[materialID]={name=r.b.name,qty=r.missing or r.b.qty}
     end
-    MFO_AH.Shop(items)
-    status:SetText("Added to MFO Shopping List. Use /mfo shop to view.")
+    local ok,reason=MFO_AH.ReplaceShopping(items)
+    status:SetText(ok and "Shopping List Replaced. Open MFO Shop at the Auction House." or (reason or "Unable to create shopping list."))
   end)
   shopButtons[i]=shop
   -- Net C/F has its own hover target; the crate-name column stays tooltip-free.
@@ -471,21 +496,26 @@ for i=1,#rows do
     local t=scrollChild:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
     -- Align numeric values under their existing header labels without moving the headers.
     -- Move only the crate-name text and Shop buttons to match their header labels.
-    t:SetPoint("TOPLEFT",xpos[j]+(j==1 and 8 or -5),y);t:SetWidth(({341,76,76,76,48,76})[j]);t:SetJustifyH("LEFT");t:SetWordWrap(false)
+    t:SetPoint("TOPLEFT",xpos[j]+(j==1 and 8 or -5),y);t:SetWidth(rowWidths[j]);t:SetJustifyH("LEFT");t:SetWordWrap(false)
     entries[i][j]=t
   end
 end
 local planFavour
-local function refresh()
+local function refresh(inventoryFresh)
+  -- Clear and reuse the per-refresh price cache rather than allocating a new table.
+  for id in pairs(refreshPriceCache) do refreshPriceCache[id]=nil end
+  priceCacheActive=true
   updateScanNote()
-  learnBagItems()
-  scanBags()
+  -- BAG_UPDATE_DELAYED already refreshed bag IDs and quantities.
+  if not inventoryFresh then learnBagItems();scanBags() end
   local results={};local complete=0;local missingIDs=0;local missingPrices=0
   for _,crate in ipairs(rows) do
     local rate,cp,b,bc,missing,owned,crateOwned=calc(crate)
-    if not (crate.id or resolve(crate.name)) then missingIDs=missingIDs+1 elseif cp==nil then missingPrices=missingPrices+1 end
+    if not crate.id then
+     if not resolve(crate.name) then missingIDs=missingIDs+1 elseif cp==nil then missingPrices=missingPrices+1 end
+   elseif cp==nil then missingPrices=missingPrices+1 end
     if rate then complete=complete+1 end
-    table.insert(results,{crate=crate,rate=rate,cp=cp,b=b,bc=bc,missing=missing,owned=owned,crateOwned=crateOwned})
+    results[#results+1]={crate=crate,rate=rate,cp=cp,b=b,bc=bc,missing=missing,owned=owned,crateOwned=crateOwned}
   end
   table.sort(results,function(a,b)
     if a.rate and b.rate then return a.rate<b.rate end
@@ -500,13 +530,6 @@ local function refresh()
     t[2]:SetText(money(r.cp));t[3]:SetText(money(r.bc));t[4]:SetText(money(r.cp and r.bc and (r.cp+r.bc) or nil));t[5]:SetText(r.crate.favour or "?");t[6]:SetText(money(r.rate))
     t[6]:SetTextColor(r.rate and .95 or .6,r.rate and .8 or .6,r.rate and .35 or .6)
   end
-  local bankInfo=""
-  if MFO_DB.useOwned then
-    if MFO_DB.bankScanTime then
-      local elapsed=math.max(0,math.floor((time()-MFO_DB.bankScanTime)/3600))
-      bankInfo=" Bank Snapshot: "..elapsed.."h old."
-    else bankInfo=" Bank Not Scanned Yet." end
-  end
   local footerParts={MFO_AH.Market(),complete.."/"..#rows.." Crates"}
   if missingIDs>0 then footerParts[#footerParts+1]=missingIDs.." Unknown IDs" end
   if missingPrices>0 then footerParts[#footerParts+1]=missingPrices.." Missing Prices" end
@@ -515,10 +538,11 @@ local function refresh()
     if not MFO_DB.bankScanTime then footerParts[#footerParts+1]="Bank Not Scanned" end
   end
   status:SetText(table.concat(footerParts," | "))
-  if planFavour then planFavour() end
+  if planFavour then planFavour(true) end
+  priceCacheActive=false
 end
--- Update the timestamp after an Auctionator scan without requiring a manual MFO refresh.
--- Only read Auctionator's reported timestamp; never assume opening the AH means a completed scan.
+-- Update the timestamp of MFO's completed standalone scan without requiring a manual refresh.
+-- Opening the AH alone does not mark a scan as complete.
 local lastScanDisplayUpdate=0
 frame:HookScript("OnShow",function() updateScanNote() end)
 frame:HookScript("OnUpdate",function(_,elapsed)
@@ -528,7 +552,7 @@ frame:HookScript("OnUpdate",function(_,elapsed)
     updateScanNote()
   end
 end)
-local refreshBtn=CreateFrame("Button",nil,frame);refreshBtn:SetSize(82,22);refreshBtn:SetPoint("TOPRIGHT",frame,"TOPRIGHT",-38,-44);refreshBtn:SetText("Refresh");SkinWoodButton(refreshBtn);refreshBtn:SetScript("OnClick",refresh)
+local refreshBtn=CreateFrame("Button",nil,frame);refreshBtn:SetSize(82,22);refreshBtn:SetPoint("TOPRIGHT",frame,"TOPRIGHT",-38,-44);refreshBtn:SetText("Refresh");SkinWoodButton(refreshBtn);refreshBtn:SetScript("OnClick",function() refresh() end)
 -- Inline planner: the target entry lives in the existing toolbar and
 -- replaces the rankings table only while a target is entered.
 local targetLabel=frame:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
@@ -577,7 +601,9 @@ local plannerShop=CreateFrame("Button",nil,planner)
 plannerShop:SetSize(165,24);plannerShop:SetPoint("BOTTOMRIGHT",-12,9)
 plannerShop:SetText("Shop Planned Items");SkinWoodButton(plannerShop)
 local plannerShopping=nil
-planFavour=function()
+planFavour=function(inventoryFresh)
+  -- A previous shopping plan is invalid as soon as its target or prices change.
+  plannerShopping=nil
   local raw=targetInput:GetText()
   if raw=="" then
     planner:Hide();subheader:Show();scrollFrame:Show()
@@ -587,10 +613,13 @@ planFavour=function()
   local target=tonumber(targetInput:GetText())
   if not target or target<1 or target>1000 or target~=math.floor(target) then
     plannerInfo:SetText("Enter a Whole-Number Favour Target Between 1 and 1000.")
+    plannerSummary:SetText("")
+    for _,line in ipairs(plannerRows) do line:SetText("") end
     return
   end
   MFO_DB.plannerTarget=target
-  learnBagItems();scanBags()
+  -- refresh() already scanned bags; text edits still need fresh inventory.
+  if not inventoryFresh then learnBagItems();scanBags() end
   local options,lookup={},{}
   for _,crate in ipairs(rows) do
     local crateID=crate.id or resolve(crate.name)
@@ -660,7 +689,12 @@ planFavour=function()
       end
     end
   end
-  if not bestCost then plannerInfo:SetText("Some Required Auctionator Prices Are Missing.");return end
+  if not bestCost then
+    plannerInfo:SetText("Some Required AH Scan Prices Are Missing.")
+    plannerSummary:SetText("")
+    for _,line in ipairs(plannerRows) do line:SetText("") end
+    return
+  end
   plannerInfo:SetText("Cheapest Priced Combination"..(MFO_DB.useOwned and " (Owned-Stock Estimate)" or "")..":")
   plannerSummary:SetText("Target: "..target.." | Favour: "..solution.favour..
     " | Net Cost: "..money(bestCost).." | "..#bestDetails.." Crate Types")
@@ -712,8 +746,8 @@ plannerShop:SetScript("OnClick",function()
   for id,qty in pairs(plannerShopping.items) do
     items[id]={name=names[id] or tostring(id),qty=qty}
   end
-  MFO_AH.Shop(items)
-  plannerInfo:SetText("Items added to MFO Shopping List. Use /mfo shop to view.")
+  local ok,reason=MFO_AH.ReplaceShopping(items)
+  plannerInfo:SetText(ok and "Shopping List Replaced. Open MFO Shop at the Auction House." or (reason or "Unable to create shopping list."))
 end)
 local ownedCheck=CreateFrame("CheckButton",nil,subheader,"UICheckButtonTemplate")
 -- Align the checkbox at the right edge of the first column, before its divider.
@@ -811,8 +845,11 @@ minimapButton:SetScript("OnEnter",function(self)
 end)
 minimapButton:SetScript("OnLeave",function() GameTooltip:Hide() end)
 positionMinimapButton()
+local scanItemScratch={}
 local function scanRelevantItems()
-  local items={}
+  -- The scanner copies this list into its queue synchronously.
+  for id in pairs(scanItemScratch) do scanItemScratch[id]=nil end
+  local items=scanItemScratch
   for _,crate in ipairs(rows) do
     items[crate.id]=crate.name
     for _,bundle in ipairs(crate.bundles) do
@@ -836,15 +873,18 @@ for i=1,13 do
   line:SetPoint("TOPLEFT",20,-45-(i-1)*20);line:SetWidth(355);line:SetJustifyH("LEFT")
   shoppingLines[i]=line
 end
+local shoppingSortScratch={}
 local function showShopping()
-  local sorted={}
+  for i=#shoppingSortScratch,1,-1 do shoppingSortScratch[i]=nil end
+  local sorted=shoppingSortScratch
   for id,item in pairs(MFO_AH.Shopping()) do
     sorted[#sorted+1]={id=id,name=item.name,qty=item.qty}
   end
   table.sort(sorted,function(a,b)return a.name<b.name end)
   for i,line in ipairs(shoppingLines) do
     local item=sorted[i]
-    line:SetText(item and (item.name.." x "..item.qty.." ("..money(MFO_AH.Price(item.id) and MFO_AH.Price(item.id)*item.qty)..")") or "")
+    local price=item and MFO_AH.Price(item.id)
+    line:SetText(item and (item.name.." x "..item.qty.." ("..money(price and price*item.qty)..")") or "")
   end
   shoppingFrame:Show()
 end
@@ -917,31 +957,61 @@ scanSummary:SetScript("OnEnter",function(self)
   GameTooltip:Show()
 end)
 scanSummary:SetScript("OnLeave",function() GameTooltip:Hide() end)
+local lastScanLit=-1
+local lastScanPercent=-1
+local lastScanSummaryText
+local lastScanDisplayMode
 local function updateScanProgress()
   local percent,running,priced,total=MFO_AH.Progress()
   percent=math.max(0,math.min(100,tonumber(percent) or 0))
-  scanPercent:SetText(math.floor(percent).."%")
+  local shownPercent=math.floor(percent)
+  if shownPercent~=lastScanPercent then
+    scanPercent:SetText(shownPercent.."%")
+    lastScanPercent=shownPercent
+  end
   local lit=math.floor(percent*scanSegmentCount/100+.5)
-  for i=1,scanSegmentCount do
-    if i<=lit then scanSegments[i]:SetVertexColor(.95,.73,.30,1)
-    else scanSegments[i]:SetVertexColor(.29,.24,.16,.85) end
+  if lit~=lastScanLit then
+    -- Only segments whose state changed need a texture update.
+    if lit>lastScanLit then
+      for i=math.max(1,lastScanLit+1),lit do
+        scanSegments[i]:SetVertexColor(.95,.73,.30,1)
+      end
+    else
+      for i=lit+1,lastScanLit do
+        scanSegments[i]:SetVertexColor(.29,.24,.16,.85)
+      end
+    end
+    lastScanLit=lit
   end
-  if running then
-    scanSummary:Hide()
-    scanOverlay:Show()
-  elseif total>0 then
-    scanOverlay:Hide()
-    local missing=MFO_AH.Missing()
-    scanSummaryText:SetText("Scan Complete: "..priced.."/"..total.." Priced"..(#missing>0 and (" | "..#missing.." Missing") or ""))
-    scanSummary:Show()
-  else
-    scanOverlay:Hide()
-    scanSummary:Hide()
+  local mode=running and "running" or total>0 and "complete" or "idle"
+  if mode~=lastScanDisplayMode then
+    -- Visibility only changes when the scan enters a different state.
+    if mode=="running" then
+      scanSummary:Hide()
+      scanOverlay:Show()
+    elseif mode=="complete" then
+      scanOverlay:Hide()
+      scanSummary:Show()
+    else
+      scanOverlay:Hide()
+      scanSummary:Hide()
+    end
+    lastScanDisplayMode=mode
   end
+  if mode=="complete" then
+    local missingCount=#MFO_AH.Missing()
+    local summary="Scan Complete: "..priced.."/"..total.." Priced"..(missingCount>0 and (" | "..missingCount.." Missing") or "")
+    if summary~=lastScanSummaryText then
+      scanSummaryText:SetText(summary)
+      lastScanSummaryText=summary
+    end
+  end
+  return running
 end
 MFO_AH.onUpdate=function()
-  updateScanProgress()
-  if not select(2,MFO_AH.Progress()) then status:SetText(MFO_AH.Status()) end
+  -- Progress was already sampled for the scan overlay; reuse its running flag.
+  local running=updateScanProgress()
+  if not running then status:SetText(MFO_AH.Status()) end
   if frame:IsShown() then refresh() end
 end
 SLASH_MFO1="/mfo"
@@ -978,7 +1048,7 @@ events:SetScript("OnEvent",function(_,event,name)
    learnBagItems();scanBags()
    local bank=BankFrame or _G.BankFrame
    if bank and bank.IsShown and bank:IsShown() then scanBank() end
-   if frame:IsShown() then refresh() end
+   if frame:IsShown() then refresh(true) end
   end
   return
  end

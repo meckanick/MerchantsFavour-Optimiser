@@ -188,6 +188,8 @@ local function ownedCount(id)
   if not MFO_DB or not MFO_DB.useOwned then return 0 end
   return (bagCounts[id] or 0)+(MFO_DB.bankCounts and MFO_DB.bankCounts[id] or 0)
 end
+if MFO_AH.SetOwnedReader then MFO_AH.SetOwnedReader(function(id) return ownedCount(id) end) end
+MFO_AH.RefreshShoppingInventory=function() learnBagItems();scanBags() end
 local function calc(crate)
   return MFO_Calculations.calculate(crate, price, ownedCount, resolve)
 end
@@ -453,10 +455,10 @@ for i=1,#rows do
     local crateID=r.crate.id or resolve(r.crate.name)
     local materialID=resolve(r.b.name)
     if not (MFO_DB.useOwned and r.crateOwned) and crateID then
-      items[crateID]={name=r.crate.name,qty=1}
+      items[crateID]={name=r.crate.name,qty=1,requiredQty=1}
     end
     if not (MFO_DB.useOwned and r.missing==0) and materialID then
-      items[materialID]={name=r.b.name,qty=r.missing or r.b.qty}
+      items[materialID]={name=r.b.name,qty=r.missing or r.b.qty,requiredQty=r.b.qty}
     end
     local ok,reason=MFO_AH.ReplaceShopping(items)
     status:SetText(ok and "Shopping List Replaced. Open MFO Shop at the Auction House." or (reason or "Unable to create shopping list."))
@@ -708,7 +710,13 @@ planFavour=function(inventoryFresh)
       line:SetText("Additional Crate Types Not Shown")
     else line:SetText("") end
   end
-  plannerShopping={items=bestShopping,details=bestDetails}
+  local fullDemand={}
+  for _,entry in ipairs(bestDetails) do
+    local o=entry.option
+    fullDemand[o.id]=(fullDemand[o.id] or 0)+entry.qty
+    fullDemand[o.materialID]=(fullDemand[o.materialID] or 0)+entry.qty*o.bundle.qty
+  end
+  plannerShopping={items=bestShopping,details=bestDetails,required=fullDemand}
   plannerWarning:SetText(MFO_DB.useOwned and
     "Owned Items Counted Once; Mixed-Stock Optimisation Is an Estimate. Coin Rewards Are Beta-Reported." or
     "Minimum Net Cost at Current Prices; Turn-In Coin Rewards Are Beta-Reported.")
@@ -744,7 +752,7 @@ plannerShop:SetScript("OnClick",function()
     names[o.materialID]=o.bundle.name
   end
   for id,qty in pairs(plannerShopping.items) do
-    items[id]={name=names[id] or tostring(id),qty=qty}
+    items[id]={name=names[id] or tostring(id),qty=qty,requiredQty=plannerShopping.required[id] or qty}
   end
   local ok,reason=MFO_AH.ReplaceShopping(items)
   plannerInfo:SetText(ok and "Shopping List Replaced. Open MFO Shop at the Auction House." or (reason or "Unable to create shopping list."))

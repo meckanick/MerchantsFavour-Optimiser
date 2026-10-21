@@ -30,7 +30,7 @@ function AH.Market()
   return realm.." - "..faction
 end
 local function db()
-  MFO_DB=MFO_DB or {}
+  if not MFO_DB then MFO_DB={} end
   local root=MFO_DB
   local markets=root.markets
   if not markets then

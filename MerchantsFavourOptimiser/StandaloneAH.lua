@@ -210,7 +210,11 @@ modernEvents:SetScript("OnEvent",function(_,event,arg)
     for i=1,(C_AuctionHouse.GetNumCommoditySearchResults and C_AuctionHouse.GetNumCommoditySearchResults(entry.id) or 0) do
       local item=C_AuctionHouse.GetCommoditySearchResultInfo(entry.id,i)
       local p=item and item.unitPrice
-      if type(p)=="number" and p>0 and (not price or p<price) then price=p end
+      if type(p)=="number" and p>0 and (not price or p<price) then
+        price=p
+        -- One copper is the lowest possible valid unit price.
+        if price==1 then break end
+      end
     end
   elseif not isCommodity and C_AuctionHouse.GetItemSearchResultInfo then
     for i=1,(C_AuctionHouse.GetNumItemSearchResults and C_AuctionHouse.GetNumItemSearchResults(key) or 0) do
@@ -218,7 +222,10 @@ modernEvents:SetScript("OnEvent",function(_,event,arg)
       local p=item and item.buyoutAmount
       if type(p)=="number" and p>0 then
         p=math.ceil(p/math.max(1,item.quantity or 1))
-        if not price or p<price then price=p end
+        if not price or p<price then
+          price=p
+          if price==1 then break end
+        end
       end
     end
   end
@@ -268,6 +275,7 @@ events:SetScript("OnEvent",function()
       type(buyout)=="number" and buyout>0 then
       local unit=math.ceil(buyout/stack)
       if not lowest or unit<lowest then lowest=unit end
+      if lowest==1 then break end
     end
   end
   waiting=false

@@ -100,11 +100,13 @@ end
 local function shoppingEntry(id,entry)
   if type(id)~="number" or type(entry)~="table" then return nil end
   local qty=tonumber(entry.qty)
-  if not qty or qty<1 then return nil end
+  if not qty or qty<0 then return nil end
   qty=math.floor(qty)
   local required=tonumber(entry.requiredQty)
   required=required and math.floor(required) or qty
   if required<qty then required=qty end
+  -- Keep fully-owned items only when their original demand is known.
+  if required<1 then return nil end
   return {name=entry.name or tostring(id),qty=qty,requiredQty=required}
 end
 function AH.Shop(items)

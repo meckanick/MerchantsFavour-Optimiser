@@ -10,13 +10,20 @@ local function recordMissing(entry)
 end
 function AH.Missing() return missing end
 -- Market-scoped prices and shopping lists; settings and character-owned inventory stay account-wide.
+local lastRawRealm,normalizedRealm
 local function marketIdentity()
   local realm=(type(GetRealmName)=="function" and GetRealmName()) or
     (type(GetNormalizedRealmName)=="function" and GetNormalizedRealmName()) or "Unknown"
   local faction=(type(UnitFactionGroup)=="function" and UnitFactionGroup("player")) or "Unknown"
-  realm=tostring(realm):gsub("^%s+",""):gsub("%s+$","")
+  realm=tostring(realm)
+  -- Realm names rarely change during a session. Avoid repeated string
+  -- trimming during ranking, while still detecting a changed realm.
+  if realm~=lastRawRealm then
+    normalizedRealm=realm:gsub("^%s+",""):gsub("%s+$","")
+    lastRawRealm=realm
+  end
   faction=tostring(faction)
-  return realm,faction
+  return normalizedRealm,faction
 end
 function AH.Market()
   local realm,faction=marketIdentity()

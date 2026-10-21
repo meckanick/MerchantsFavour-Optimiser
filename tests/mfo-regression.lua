@@ -522,6 +522,11 @@ check(coreSource:find("local lastScanLit=-1",1,true)~=nil and
 check(coreSource:find("if shownPercent~=lastScanPercent then",1,true)~=nil,
   "AH scan progress must avoid redundant percentage text updates")
 
+-- Learning bag item IDs must not rewrite an unchanged saved mapping.
+check(coreSource:find("MFO_DB.ids[name]~=id then",1,true)~=nil and
+      coreSource:find("MFO_DB.ids[name]=id",1,true)~=nil,
+  "bag item learning must only save new or corrected item IDs")
+
 -- Repeated bag events must reuse the count snapshot without retaining stale items.
 check(coreSource:find("local bagCounts={}",1,true)~=nil and
       coreSource:find("for id in pairs(bagCounts) do bagCounts[id]=nil end",1,true)~=nil,

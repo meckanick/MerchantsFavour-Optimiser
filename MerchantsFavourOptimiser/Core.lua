@@ -16,12 +16,27 @@ local function money(v)
   return string.format("%dg %ds %dc", math.floor(v/10000), math.floor(v/100)%100, v%100)
 end
 local scanAgeFooter
+local lastScanAgeText,lastScanAgeColor
+local function setScanAgeDisplay(text,color)
+  -- The visible age usually stays unchanged across multiple refreshes.
+  if text~=lastScanAgeText then
+    scanAgeFooter:SetText(text)
+    lastScanAgeText=text
+  end
+  if color~=lastScanAgeColor then
+    if color=="unknown" then scanAgeFooter:SetTextColor(.65,.65,.65)
+    elseif color=="fresh" then scanAgeFooter:SetTextColor(.3,.95,.3)
+    elseif color=="recent" then scanAgeFooter:SetTextColor(1,.85,.2)
+    elseif color=="old" then scanAgeFooter:SetTextColor(1,.55,.15)
+    else scanAgeFooter:SetTextColor(1,.25,.25) end
+    lastScanAgeColor=color
+  end
+end
 -- Display the timestamp of the last completed MFO standalone AH scan.
 local function updateScanNote()
   local scannedAt=MFO_AH and MFO_AH.LastScan()
   if type(scannedAt)~="number" or scannedAt<=0 then
-    scanAgeFooter:SetText("Last AH Scan: Unknown")
-    scanAgeFooter:SetTextColor(.65,.65,.65)
+    setScanAgeDisplay("Last AH Scan: Unknown","unknown")
     return
   end
   local ageSeconds=math.max(0,time()-scannedAt)
@@ -49,11 +64,8 @@ local function updateScanNote()
   else
     elapsed=amount.." "..unit..(amount==1 and "" or "s")
   end
-  scanAgeFooter:SetText("Last AH Scan: "..elapsed.." Ago")
-  if days<1 then scanAgeFooter:SetTextColor(.3,.95,.3)
-  elseif days<3 then scanAgeFooter:SetTextColor(1,.85,.2)
-  elseif days<7 then scanAgeFooter:SetTextColor(1,.55,.15)
-  else scanAgeFooter:SetTextColor(1,.25,.25) end
+  local color=days<1 and "fresh" or days<3 and "recent" or days<7 and "old" or "stale"
+  setScanAgeDisplay("Last AH Scan: "..elapsed.." Ago",color)
 end
 -- Cache repeated item price reads only during a single ranking/planner refresh.
 -- Nil prices are cached too; the cache is discarded after refresh.

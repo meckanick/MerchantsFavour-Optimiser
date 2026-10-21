@@ -489,6 +489,15 @@ check(coreSource:find("local lastScanLit=-1",1,true)~=nil and
 check(coreSource:find("if shownPercent~=lastScanPercent then",1,true)~=nil,
   "AH scan progress must avoid redundant percentage text updates")
 
+-- BAG_UPDATE_DELAYED already scans bags before requesting a visible refresh.
+-- Reuse that snapshot, but keep normal refreshes scanning inventory.
+check(coreSource:find("local function refresh(inventoryFresh)",1,true)~=nil and
+      coreSource:find("if not inventoryFresh then learnBagItems();scanBags() end",1,true)~=nil,
+  "rankings refresh must reuse fresh inventory when supplied")
+check(coreSource:find("learnBagItems();scanBags()\n   local bank=BankFrame",1,true)~=nil and
+      coreSource:find("if frame:IsShown() then refresh(true) end",1,true)~=nil,
+  "bag update must scan inventory once and refresh using that snapshot")
+
 -- Planner refresh reuses inventory freshly scanned by the main rankings refresh.
 check(coreSource:find('if planFavour then planFavour(true) end',1,true)~=nil,"Rankings refresh should pass fresh-inventory hint")
 check(coreSource:find('planFavour=function(inventoryFresh)',1,true)~=nil,"Planner should accept fresh-inventory hint")

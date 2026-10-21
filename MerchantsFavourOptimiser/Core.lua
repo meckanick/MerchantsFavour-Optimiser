@@ -66,8 +66,18 @@ local function updateScanNote()
   elseif days<7 then scanAgeFooter:SetTextColor(1,.55,.15)
   else scanAgeFooter:SetTextColor(1,.25,.25) end
 end
+-- Cache repeated item price reads only during a single ranking/planner refresh.
+-- Nil prices are cached too; the cache is discarded after refresh.
+local refreshPriceCache
 price = function(id)
-  return id and MFO_AH and MFO_AH.Price(id) or nil
+  if not id or not MFO_AH then return nil end
+  if refreshPriceCache then
+    local cached=refreshPriceCache[id]
+    if cached~=nil then return cached~=false and cached or nil end
+  end
+  local value=MFO_AH.Price(id)
+  if refreshPriceCache then refreshPriceCache[id]=value==nil and false or value end
+  return value
 end
 -- Stable item IDs avoid depending on the local item-name cache.
 -- Unknown IDs are never guessed; they can be learned using the binder.
@@ -477,6 +487,7 @@ for i=1,#rows do
 end
 local planFavour
 local function refresh()
+  refreshPriceCache={}
   updateScanNote()
   learnBagItems()
   scanBags()
@@ -518,6 +529,7 @@ local function refresh()
   end
   status:SetText(table.concat(footerParts," | "))
   if planFavour then planFavour(true) end
+  refreshPriceCache=nil
 end
 -- Update the timestamp after an Auctionator scan without requiring a manual MFO refresh.
 -- Only read Auctionator's reported timestamp; never assume opening the AH means a completed scan.

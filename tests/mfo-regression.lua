@@ -489,6 +489,13 @@ check(coreSource:find("local lastScanLit=-1",1,true)~=nil and
 check(coreSource:find("if shownPercent~=lastScanPercent then",1,true)~=nil,
   "AH scan progress must avoid redundant percentage text updates")
 
+-- Repeated bag events must reuse the count snapshot without retaining stale items.
+check(coreSource:find("local bagCounts={}",1,true)~=nil and
+      coreSource:find("for id in pairs(bagCounts) do bagCounts[id]=nil end",1,true)~=nil,
+  "bag scans must clear and reuse their count table")
+check(coreSource:find("bagCounts={}",1,true)==coreSource:find("local bagCounts={}",1,true)+6,
+  "bag scans must not allocate a replacement bag count table")
+
 -- BAG_UPDATE_DELAYED already scans bags before requesting a visible refresh.
 -- Reuse that snapshot, but keep normal refreshes scanning inventory.
 check(coreSource:find("local function refresh(inventoryFresh)",1,true)~=nil and

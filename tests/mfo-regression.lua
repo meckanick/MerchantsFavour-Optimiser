@@ -597,3 +597,15 @@ check(coreSource:find("learnBagItems();scanBags()\n   local bank=BankFrame",1,tr
 check(coreSource:find('if planFavour then planFavour(true) end',1,true)~=nil,"Rankings refresh should pass fresh-inventory hint")
 check(coreSource:find('planFavour=function(inventoryFresh)',1,true)~=nil,"Planner should accept fresh-inventory hint")
 check(coreSource:find('if not inventoryFresh then learnBagItems();scanBags() end',1,true)~=nil,"Independent planner changes must still rescan bags")
+
+-- Interrupted AH scans must not claim completion or leave the overlay running.
+check(ahSource:find('local function stopScan(message)',1,true)~=nil and
+      ahSource:find('busy=false;waiting=false',1,true)~=nil and
+      ahSource:find('if AH.onUpdate then AH.onUpdate() end',1,true)~=nil,
+  "AH failure handling must notify UI and clear scanner state")
+check(ahSource:find('if not auctionOpen() then\n    stopScan("AH closed; scan cancelled without updating completion time")',1,true)~=nil,
+  "closing the AH must cancel an active scan without saving a completion timestamp")
+check(ahSource:find('stopScan("Modern AH query failed; scan not saved")',1,true)~=nil and
+      ahSource:find('stopScan("AH query failed; scan not saved")',1,true)~=nil and
+      ahSource:find('stopScan("Scan timed out; completion time unchanged")',1,true)~=nil,
+  "query failures and timeouts must report the stopped scan")

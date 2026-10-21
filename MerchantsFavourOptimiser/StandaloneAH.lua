@@ -130,6 +130,22 @@ function AH.ReplaceShopping(items)
   db().shopping=replacement
   return true
 end
+-- Confirmed purchases are credited immediately, even before the bag update.
+-- Once inventory reflects delivery, remove only the temporary stock credit.
+function AH.RecordShoppingPurchase(id,qty)
+  local item=db().shopping[id]
+  qty=math.floor(tonumber(qty) or 0)
+  if not item or not item.requiredQty or qty<1 then return false end
+  item.purchasedQty=(item.purchasedQty or 0)+qty
+  if ownedReader and MFO_DB and MFO_DB.useOwned then
+    local observed=math.max(0,math.floor(tonumber(ownedReader(id)) or 0))
+    if not item.pendingPurchaseQty or item.pendingPurchaseQty==0 then
+      item.purchaseBaseline=observed
+    end
+    item.pendingPurchaseQty=(item.pendingPurchaseQty or 0)+qty
+  end
+  return true
+end
 -- Recompute from original demand, never from an already reduced purchase qty.
 -- Old lists without requiredQty retain their current quantities as baseline.
 function AH.RecalculateShopping()
@@ -140,9 +156,27 @@ function AH.RecalculateShopping()
     -- requirements are unknown, so never subtract inventory again.
     if item.requiredQty then
       local required=math.max(0,math.floor(tonumber(item.requiredQty) or 0))
-      local owned=MFO_DB and MFO_DB.useOwned and tonumber(ownedReader(id)) or 0
+      local useOwned=MFO_DB and MFO_DB.useOwned
+      local owned=useOwned and tonumber(ownedReader(id)) or 0
       owned=math.max(0,math.floor(owned or 0))
-      item.qty=math.max(0,required-owned)
+      if useOwned then
+        local pending=item.pendingPurchaseQty or 0
+        if pending>0 then
+          local baseline=item.purchaseBaseline or 0
+          local delivered=math.max(0,owned-baseline)
+          if delivered>=pending then
+            item.pendingPurchaseQty=0
+            item.purchaseBaseline=nil
+          else
+            owned=owned+(pending-delivered)
+          end
+        end
+        item.qty=math.max(0,required-owned)
+      else
+        -- Owned stock is intentionally ignored, but purchases made from
+        -- this list must still reduce the outstanding shopping quantity.
+        item.qty=math.max(0,required-(item.purchasedQty or 0))
+      end
     end
   end
   return true

@@ -661,6 +661,11 @@ do
   ah.RecalculateShopping()
   equal(ah.Shopping()[1002].qty,5,"turning off owned stock restores full requirement")
   MFO_DB.useOwned=true
+  ah.ReplaceShopping({[1004]={name="Fully Owned",qty=0,requiredQty=5}})
+  equal(ah.Shopping()[1004].qty,0,"fully owned requirements must be retained")
+  owned[1004]=1
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1004].qty,4,"fully owned item must reappear when stock falls")
   ah.ReplaceShopping({[1003]={name="Old List",qty=7}})
   ah.RecalculateShopping()
   equal(ah.Shopping()[1003].qty,7,"legacy net quantities must not be deducted again")
@@ -674,7 +679,8 @@ do
 end
 
 check(coreSource:find("requiredQty=r.b.qty",1,true)~=nil and
-      coreSource:find("requiredQty=plannerShopping.required[id] or qty",1,true)~=nil,
+      coreSource:find("for id,required in pairs(plannerShopping.required) do",1,true)~=nil and
+      coreSource:find("qty=plannerShopping.items[id] or 0,requiredQty=required",1,true)~=nil,
   "crate and planner shopping must preserve full material requirements")
 check(coreSource:find("plannerShopping={items=bestShopping,details=bestDetails,required=fullDemand}",1,true)~=nil,
   "planner must consolidate original requirements before owned deductions")

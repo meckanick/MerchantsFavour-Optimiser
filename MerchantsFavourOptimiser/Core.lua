@@ -150,17 +150,20 @@ local function scanBags()
     end
   end
 end
+-- Reuse the fixed list of Forever bank bag names across bank visits.
+local bankBagKeys={"Bank", "BankBag_1", "BankBag_2", "BankBag_3", "BankBag_4", "BankBag_5", "BankBag_6", "BankBag_7", "ReagentBank"}
 local function scanBank()
   if not MFO_DB or not C_Container or not C_Container.GetContainerNumSlots or not C_Container.GetContainerItemInfo then return end
   local counts={}
   local ids={-1}
   -- WoW Forever bank bag IDs are provided by Enum.BagIndex where available.
   if Enum and Enum.BagIndex then
-    for _,key in ipairs({"Bank", "BankBag_1", "BankBag_2", "BankBag_3", "BankBag_4", "BankBag_5", "BankBag_6", "BankBag_7", "ReagentBank"}) do
-      if type(Enum.BagIndex[key])=="number" then table.insert(ids,Enum.BagIndex[key]) end
+    local bankIndex=Enum.BagIndex
+    for _,key in ipairs(bankBagKeys) do
+      if type(bankIndex[key])=="number" then ids[#ids+1]=bankIndex[key] end
     end
   end
-  for bag=5,11 do table.insert(ids,bag) end
+  for bag=5,11 do ids[#ids+1]=bag end
   local visited={}
   for _,bag in ipairs(ids) do
     if not visited[bag] then

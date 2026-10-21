@@ -727,7 +727,7 @@ check(ahTab:find("if v.qty>0 then",1,true)~=nil and
 check(ahTab:find('"COMMODITY_PURCHASE_FAILED","UI_ERROR_MESSAGE"',1,true)~=nil,
   "MFO Shop must subscribe to WoW purchase UI failures")
 check(ahTab:find('local function resetFailedPurchase(message)',1,true)~=nil and
-      ahTab:find('commodityOrder=nil;awaitingPurchase=false;purchaseElapsed=0',1,true)~=nil,
+      ahTab:find('commodityOrder=nil;purchaseReceipt=nil;awaitingPurchase=false;purchaseElapsed=0',1,true)~=nil,
   "purchase failure must clear the pending transaction state")
 check(ahTab:find('type(arg2)=="string" and arg2',1,true)~=nil and
       ahTab:find('lower:find("not enough money"',1,true)~=nil,

@@ -125,7 +125,9 @@ end
 -- Bank quantities are cached on bank visits; the client does not expose remote bank contents.
 local bagCounts={}
 local function scanBags()
-  bagCounts={}
+  -- Reuse the snapshot table instead of allocating one on every bag event.
+  -- Clear old counts first so removed items never remain counted.
+  for id in pairs(bagCounts) do bagCounts[id]=nil end
   if not (C_Container and C_Container.GetContainerNumSlots and C_Container.GetContainerItemInfo) then return end
   for bag=0,4 do
     for slot=1,(C_Container.GetContainerNumSlots(bag) or 0) do

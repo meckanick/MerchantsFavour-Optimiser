@@ -326,7 +326,10 @@ update=function()
    row.need:SetText(tostring(item.required))
    row.owned:SetText(item.owned and tostring(item.owned) or "?")
    row.buy:SetText(tostring(item.qty))
-   if selected==item.id then row.highlight:Show() else row.highlight:Hide() end
+   if row.hovered or selected==item.id then
+    row.highlight:SetVertexColor(.85,.76,.59,row.hovered and .52 or .38)
+    row.highlight:Show()
+   else row.highlight:Hide() end
    local price=prices[item.id]
    row.cost:SetText(item.qty==0 and "-" or (price and gold(price*item.qty) or "No price"))
    row:Show()
@@ -717,9 +720,22 @@ local function attach(parent)
   row.quantity=quantity
   local highlight=row:CreateTexture(nil,"BACKGROUND")
   highlight:SetAllPoints(row)
-  highlight:SetColorTexture(.63,.41,.08,.32)
+  highlight:SetTexture(ART.."WTP_ProfessionRow")
   row.highlight=highlight
+  row.hovered=false
   highlight:Hide()
+  row:SetScript("OnEnter",function(self)
+   self.hovered=true
+   self.highlight:SetVertexColor(.85,.76,.59,.52)
+   self.highlight:Show()
+  end)
+  row:SetScript("OnLeave",function(self)
+   self.hovered=false
+   if selectedOffer==offerOffset+i then
+    self.highlight:SetVertexColor(.85,.76,.59,.38)
+    self.highlight:Show()
+   else self.highlight:Hide() end
+  end)
   row:SetScript("OnClick",function()
    if live.offers[offerOffset+i] then selectedOffer=offerOffset+i;refreshOffers() end
   end)
@@ -743,7 +759,10 @@ local function attach(parent)
    row.price:SetText(offer and gold(offer.price) or "")
    row.quantity:SetText(offer and ("x"..offer.qty) or "")
    if offer then row:Show() else row:Hide() end
-   if selectedOffer==offerOffset+i then row.highlight:Show() else row.highlight:Hide() end
+   if offer and (row.hovered or selectedOffer==offerOffset+i) then
+    row.highlight:SetVertexColor(.85,.76,.59,row.hovered and .52 or .38)
+    row.highlight:Show()
+   else row.highlight:Hide() end
   end
   if panel.buyOffer then
    local shoppingItem=selected and AH.Shopping()[selected]
@@ -938,8 +957,9 @@ local function attach(parent)
   row:SetHeight(25)
   local highlight=row:CreateTexture(nil,"BACKGROUND")
   highlight:SetAllPoints(row)
-  highlight:SetColorTexture(.60,.39,.08,.32)
+  highlight:SetTexture(ART.."WTP_ProfessionRow")
   row.highlight=highlight
+  row.hovered=false
   highlight:Hide()
   row:SetPoint("TOPLEFT",left,"TOPLEFT",10,-62-(i-1)*26)
   row:SetPoint("RIGHT",left,"RIGHT",-10,0)
@@ -959,6 +979,9 @@ local function attach(parent)
   row:SetScript("OnClick",function(self)if self.item then selected=self.item.id;startLiveSearch(selected);update();if refreshOffers then refreshOffers() end end end)
   row:SetScript("OnEnter",function(self)
    if self.item then
+    self.hovered=true
+    self.highlight:SetVertexColor(.85,.76,.59,.52)
+    self.highlight:Show()
     GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
     GameTooltip:AddLine(self.item.name,1,.82,.2)
     GameTooltip:AddLine("Required: "..self.item.required.."   Owned: "..(self.item.owned or "Unknown").."   To buy: "..self.item.qty,1,1,1)
@@ -966,7 +989,14 @@ local function attach(parent)
     GameTooltip:Show()
    end
   end)
-  row:SetScript("OnLeave",function()GameTooltip:Hide()end)
+  row:SetScript("OnLeave",function(self)
+   self.hovered=false
+   if self.item and selected==self.item.id then
+    self.highlight:SetVertexColor(.85,.76,.59,.38)
+    self.highlight:Show()
+   else self.highlight:Hide() end
+   GameTooltip:Hide()
+  end)
   rows[i]=row
  end
  local refreshShopping=button(left,"Refresh List",128)

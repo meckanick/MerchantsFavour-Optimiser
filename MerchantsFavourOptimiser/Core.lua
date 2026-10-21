@@ -602,6 +602,8 @@ plannerShop:SetSize(165,24);plannerShop:SetPoint("BOTTOMRIGHT",-12,9)
 plannerShop:SetText("Shop Planned Items");SkinWoodButton(plannerShop)
 local plannerShopping=nil
 planFavour=function(inventoryFresh)
+  -- A previous shopping plan is invalid as soon as its target or prices change.
+  plannerShopping=nil
   local raw=targetInput:GetText()
   if raw=="" then
     planner:Hide();subheader:Show();scrollFrame:Show()
@@ -611,6 +613,8 @@ planFavour=function(inventoryFresh)
   local target=tonumber(targetInput:GetText())
   if not target or target<1 or target>1000 or target~=math.floor(target) then
     plannerInfo:SetText("Enter a Whole-Number Favour Target Between 1 and 1000.")
+    plannerSummary:SetText("")
+    for _,line in ipairs(plannerRows) do line:SetText("") end
     return
   end
   MFO_DB.plannerTarget=target
@@ -685,7 +689,12 @@ planFavour=function(inventoryFresh)
       end
     end
   end
-  if not bestCost then plannerInfo:SetText("Some Required AH Scan Prices Are Missing.");return end
+  if not bestCost then
+    plannerInfo:SetText("Some Required AH Scan Prices Are Missing.")
+    plannerSummary:SetText("")
+    for _,line in ipairs(plannerRows) do line:SetText("") end
+    return
+  end
   plannerInfo:SetText("Cheapest Priced Combination"..(MFO_DB.useOwned and " (Owned-Stock Estimate)" or "")..":")
   plannerSummary:SetText("Target: "..target.." | Favour: "..solution.favour..
     " | Net Cost: "..money(bestCost).." | "..#bestDetails.." Crate Types")

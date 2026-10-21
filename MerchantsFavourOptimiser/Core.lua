@@ -118,7 +118,9 @@ local function learnBagItems()
       if link then
         local id=tonumber(link:match("item:(%d+)"))
         local name=link:match("%[([^%]]+)%]")
-        if id and name and MFO_DB and MFO_DB.ids then MFO_DB.ids[name]=id end
+        if id and name and MFO_DB and MFO_DB.ids and MFO_DB.ids[name]~=id then
+          MFO_DB.ids[name]=id
+        end
       end
     end
   end

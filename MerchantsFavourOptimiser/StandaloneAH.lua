@@ -32,13 +32,17 @@ end
 local function db()
   MFO_DB=MFO_DB or {}
   local root=MFO_DB
-  root.markets=root.markets or {}
+  local markets=root.markets
+  if not markets then
+    markets={}
+    root.markets=markets
+  end
   local realm,faction=marketIdentity()
   -- Use two levels so punctuation in realm names cannot collide with faction names.
-  local realmMarkets=root.markets[realm]
+  local realmMarkets=markets[realm]
   if not realmMarkets then
     realmMarkets={}
-    root.markets[realm]=realmMarkets
+    markets[realm]=realmMarkets
   end
   local market=realmMarkets[faction]
   if not market then

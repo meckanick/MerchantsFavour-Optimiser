@@ -15,9 +15,9 @@ function AH.Missing() return missing end
 -- Market-scoped prices and shopping lists; settings and character-owned inventory stay account-wide.
 local lastRawRealm,normalizedRealm
 local function marketIdentity()
-  local realm=(type(GetRealmName)=="function" and GetRealmName()) or
-    (type(GetNormalizedRealmName)=="function" and GetNormalizedRealmName()) or "Unknown"
-  local faction=(type(UnitFactionGroup)=="function" and UnitFactionGroup("player")) or "Unknown"
+  local realm=(GetRealmName and GetRealmName()) or
+    (GetNormalizedRealmName and GetNormalizedRealmName()) or "Unknown"
+  local faction=(UnitFactionGroup and UnitFactionGroup("player")) or "Unknown"
   realm=tostring(realm)
   -- Realm names rarely change during a session. Avoid repeated string
   -- trimming during ranking, while still detecting a changed realm.

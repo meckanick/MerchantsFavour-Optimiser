@@ -255,7 +255,8 @@ check(coreSource:find("MFO_AH.Market()",1,true)~=nil,
 
 check(coreSource:find('scanOverlay:SetPoint("TOPLEFT",scrollFrame',1,true)~=nil,
   "AH scan overlay must cover the crate table")
-check(coreSource:find('scanPercent:SetText(math.floor(percent).."%"',1,true)~=nil,
+check(coreSource:find('scanPercent:SetText(shownPercent.."%"',1,true)~=nil and
+      coreSource:find('local shownPercent=math.floor(percent)',1,true)~=nil,
   "radial scan progress must display a percentage")
 check(coreSource:find('scanOverlay:Hide()',1,true)~=nil,
   "AH scan overlay must disappear after completion")

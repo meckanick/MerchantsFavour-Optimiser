@@ -153,10 +153,16 @@ local function scanBags()
 end
 -- Reuse the fixed list of Forever bank bag names across bank visits.
 local bankBagKeys={"Bank", "BankBag_1", "BankBag_2", "BankBag_3", "BankBag_4", "BankBag_5", "BankBag_6", "BankBag_7", "ReagentBank"}
+local bankScanIDs={}
+local bankVisited={}
 local function scanBank()
   if not MFO_DB or not C_Container or not C_Container.GetContainerNumSlots or not C_Container.GetContainerItemInfo then return end
   local counts={}
-  local ids={-1}
+  -- Clear both scratch tables on each scan; bank indices may change.
+  for i=#bankScanIDs,1,-1 do bankScanIDs[i]=nil end
+  for bag in pairs(bankVisited) do bankVisited[bag]=nil end
+  local ids=bankScanIDs
+  ids[1]=-1
   -- WoW Forever bank bag IDs are provided by Enum.BagIndex where available.
   if Enum and Enum.BagIndex then
     local bankIndex=Enum.BagIndex
@@ -165,10 +171,9 @@ local function scanBank()
     end
   end
   for bag=5,11 do ids[#ids+1]=bag end
-  local visited={}
   for _,bag in ipairs(ids) do
-    if not visited[bag] then
-      visited[bag]=true
+    if not bankVisited[bag] then
+      bankVisited[bag]=true
       local slots=C_Container.GetContainerNumSlots(bag) or 0
       for slot=1,slots do
         local info=C_Container.GetContainerItemInfo(bag,slot)
@@ -421,6 +426,7 @@ if scrollBar then
   scrollBar:HookScript("OnUpdate",UpdateScrollAppearance)
   UpdateScrollAppearance()
 end
+local rowWidths={341,76,76,76,48,76}
 local entries={}
 local shopButtons={}
 local displayedResults={}
@@ -490,7 +496,7 @@ for i=1,#rows do
     local t=scrollChild:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
     -- Align numeric values under their existing header labels without moving the headers.
     -- Move only the crate-name text and Shop buttons to match their header labels.
-    t:SetPoint("TOPLEFT",xpos[j]+(j==1 and 8 or -5),y);t:SetWidth(({341,76,76,76,48,76})[j]);t:SetJustifyH("LEFT");t:SetWordWrap(false)
+    t:SetPoint("TOPLEFT",xpos[j]+(j==1 and 8 or -5),y);t:SetWidth(rowWidths[j]);t:SetJustifyH("LEFT");t:SetWordWrap(false)
     entries[i][j]=t
   end
 end
@@ -509,7 +515,7 @@ local function refresh(inventoryFresh)
      if not resolve(crate.name) then missingIDs=missingIDs+1 elseif cp==nil then missingPrices=missingPrices+1 end
    elseif cp==nil then missingPrices=missingPrices+1 end
     if rate then complete=complete+1 end
-    table.insert(results,{crate=crate,rate=rate,cp=cp,b=b,bc=bc,missing=missing,owned=owned,crateOwned=crateOwned})
+    results[#results+1]={crate=crate,rate=rate,cp=cp,b=b,bc=bc,missing=missing,owned=owned,crateOwned=crateOwned}
   end
   table.sort(results,function(a,b)
     if a.rate and b.rate then return a.rate<b.rate end

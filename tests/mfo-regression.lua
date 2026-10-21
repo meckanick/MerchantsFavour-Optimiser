@@ -708,3 +708,16 @@ check(ahTab:find("if AH.RemoveShoppingItem(selected) then",1,true)~=nil and
 check(ahTab:find("if v.qty>0 then",1,true)~=nil and
       ahTab:find("if price then total=total+price*v.qty else unpriced=unpriced+1 end",1,true)~=nil,
   "fully-owned rows must not inflate missing AH price counts")
+
+-- Purchase failures must release both commodity confirmation and search locks.
+check(ahTab:find('"COMMODITY_PURCHASE_FAILED","UI_ERROR_MESSAGE"',1,true)~=nil,
+  "MFO Shop must subscribe to WoW purchase UI failures")
+check(ahTab:find('local function resetFailedPurchase(message)',1,true)~=nil and
+      ahTab:find('commodityOrder=nil;awaitingPurchase=false;purchaseElapsed=0',1,true)~=nil,
+  "purchase failure must clear the pending transaction state")
+check(ahTab:find('type(arg2)=="string" and arg2',1,true)~=nil and
+      ahTab:find('lower:find("not enough money"',1,true)~=nil,
+  "insufficient-funds error must support modern UI error event arguments")
+check(ahTab:find('if awaitingPurchase or commodityOrder then',1,true)~=nil and
+      ahTab:find('resetFailedPurchase("No AH purchase response received.',1,true)~=nil,
+  "unanswered commodity purchase must release the UI lock without auto buying")

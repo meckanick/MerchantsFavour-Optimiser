@@ -244,7 +244,7 @@ liveEvents:SetScript("OnEvent",function(_,event,arg,arg2)
   if update then update() end
   live.offers={};live.waiting=false;selectedOffer=nil
   local item=selected and AH.Shopping()[selected]
-  if item and (item.qty or 0)>0 then
+  if item and (item.qty or 0)>0 and panel and panel:IsShown() then
    live.message="Purchase succeeded. Refreshing remaining listings..."
    startLiveSearch(selected) -- Search only; buying still requires a click.
   else

@@ -719,5 +719,5 @@ check(ahTab:find('type(arg2)=="string" and arg2',1,true)~=nil and
       ahTab:find('lower:find("not enough money"',1,true)~=nil,
   "insufficient-funds error must support modern UI error event arguments")
 check(ahTab:find('if awaitingPurchase or commodityOrder then',1,true)~=nil and
-      ahTab:find('resetFailedPurchase("No AH purchase response received.',1,true)~=nil,
+      ahTab:find('resetFailedPurchase("No purchase result received.',1,true)~=nil,
   "unanswered commodity purchase must release the UI lock without auto buying")

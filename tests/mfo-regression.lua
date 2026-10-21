@@ -471,7 +471,9 @@ check(ahSource:find('if scanTick<.2 then return end',1,true)~=nil,"AH scan polli
 local armed=assert(ahSource:find('waiting=true;started=GetTime and GetTime() or 0',1,true))
 local dispatched=assert(ahSource:find('pcall(C_AuctionHouse.SendSearchQuery,key,{},false)',1,true))
 check(armed<dispatched,"Modern AH scanner must arm result handler before dispatch")
-check(ahSource:find('if not ok then busy=false;waiting=false;AH.message="Modern AH query failed"',1,true)~=nil,"Failed dispatch must reset waiting state")
+check(ahSource:find('if not ok then stopScan("Modern AH query failed; scan not saved")',1,true)~=nil and
+      ahSource:find('local function stopScan(message)\n  busy=false;waiting=false',1,true)~=nil,
+  "Failed dispatch must reset waiting state and notify UI")
 
 -- Legacy shopping popup should read each cached price only once.
 local coreSource=assert(io.open("MerchantsFavourOptimiser/Core.lua","r")):read("*a")

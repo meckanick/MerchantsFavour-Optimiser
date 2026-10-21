@@ -205,9 +205,13 @@ print("PASS: 30 crate definitions, calculations and UI capitalization guards")
 
 check(coreSource:find('scanAgeFooter:SetPoint("BOTTOMRIGHT"',1,true)~=nil,
   "scan-age indicator must sit at bottom-right")
-check(coreSource:find('scanAgeFooter:SetText("Last AH Scan: "..elapsed.." Ago")',1,true)~=nil,
+check(coreSource:find('setScanAgeDisplay("Last AH Scan: "..elapsed.." Ago",color)',1,true)~=nil,
   "scan-age indicator must display measured elapsed age")
-check(coreSource:find('if days<1 then scanAgeFooter:SetTextColor',1,true)~=nil,
+check(coreSource:find('local color=days<1 and "fresh" or days<3 and "recent" or days<7 and "old" or "stale"',1,true)~=nil and
+      coreSource:find('scanAgeFooter:SetTextColor(.3,.95,.3)',1,true)~=nil and
+      coreSource:find('scanAgeFooter:SetTextColor(1,.85,.2)',1,true)~=nil and
+      coreSource:find('scanAgeFooter:SetTextColor(1,.55,.15)',1,true)~=nil and
+      coreSource:find('scanAgeFooter:SetTextColor(1,.25,.25)',1,true)~=nil,
   "scan-age indicator must use freshness colors")
 
 check(coreSource:find('footerParts={MFO_AH.Market(),complete.."/"..#rows.." Crates"}',1,true)~=nil,

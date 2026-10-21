@@ -611,3 +611,11 @@ check(ahSource:find('stopScan("Modern AH query failed; scan not saved")',1,true)
       ahSource:find('stopScan("AH query failed; scan not saved")',1,true)~=nil and
       ahSource:find('stopScan("Scan timed out; completion time unchanged")',1,true)~=nil,
   "query failures and timeouts must report the stopped scan")
+
+-- Invalid planner targets and missing AH prices must not reuse an old shopping plan.
+check(coreSource:find('planFavour=function(inventoryFresh)\n  -- A previous shopping plan is invalid as soon as its target or prices change.\n  plannerShopping=nil',1,true)~=nil,
+  "planner must invalidate previous shopping quantities before recalculation")
+check(coreSource:find('plannerInfo:SetText("Enter a Whole-Number Favour Target Between 1 and 1000.")\n    plannerSummary:SetText("")\n    for _,line in ipairs(plannerRows) do line:SetText("") end',1,true)~=nil,
+  "invalid favour targets must clear previously displayed plan results")
+check(coreSource:find('plannerInfo:SetText("Some Required AH Scan Prices Are Missing.")\n    plannerSummary:SetText("")\n    for _,line in ipairs(plannerRows) do line:SetText("") end',1,true)~=nil,
+  "missing-price failures must clear previously displayed plan results")

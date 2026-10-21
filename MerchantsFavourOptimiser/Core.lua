@@ -15,19 +15,8 @@ local function money(v)
   v = math.floor(v + 0.5)
   return string.format("%dg %ds %dc", math.floor(v/10000), math.floor(v/100)%100, v%100)
 end
--- Match What's Training? Professions: use Auctionator's public v1 API for per-item scan age.
-local function auctionatorAPI()
-  local a = _G.Auctionator
-  return type(a) == "table" and type(a.API) == "table" and a.API.v1 or nil
-end
-local function formatAgeDays(days)
-  days = math.floor(days)
-  if days == 0 then return "Less Than 1 Day Ago" end
-  return days .. (days == 1 and " Day Ago" or " Days Ago")
-end
 local scanAgeFooter
--- Auctionator Forever records the successful full-scan completion timestamp
--- in AUCTIONATOR_LAST_SCAN_TIME. Item price ages are not scan timestamps.
+-- Display the timestamp of the last completed MFO standalone AH scan.
 local function updateScanNote()
   local scannedAt=MFO_AH and MFO_AH.LastScan()
   if type(scannedAt)~="number" or scannedAt<=0 then
@@ -242,7 +231,7 @@ local status=frame:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
 status:SetPoint("BOTTOMLEFT",19,16)
 status:SetWidth(550)
 status:SetJustifyH("LEFT")
--- Footer scan-age indicator uses the oldest available Auctionator item price.
+-- Footer scan-age indicator uses the last completed standalone AH scan.
 -- The API reports age in days (including fractional days).
 scanAgeFooter=frame:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
 scanAgeFooter:SetPoint("BOTTOMRIGHT",frame,"BOTTOMRIGHT",-19,16)
@@ -531,8 +520,8 @@ local function refresh()
   if planFavour then planFavour(true) end
   refreshPriceCache=nil
 end
--- Update the timestamp after an Auctionator scan without requiring a manual MFO refresh.
--- Only read Auctionator's reported timestamp; never assume opening the AH means a completed scan.
+-- Update the timestamp of MFO's completed standalone scan without requiring a manual refresh.
+-- Opening the AH alone does not mark a scan as complete.
 local lastScanDisplayUpdate=0
 frame:HookScript("OnShow",function() updateScanNote() end)
 frame:HookScript("OnUpdate",function(_,elapsed)
@@ -675,7 +664,7 @@ planFavour=function(inventoryFresh)
       end
     end
   end
-  if not bestCost then plannerInfo:SetText("Some Required Auctionator Prices Are Missing.");return end
+  if not bestCost then plannerInfo:SetText("Some Required AH Scan Prices Are Missing.");return end
   plannerInfo:SetText("Cheapest Priced Combination"..(MFO_DB.useOwned and " (Owned-Stock Estimate)" or "")..":")
   plannerSummary:SetText("Target: "..target.." | Favour: "..solution.favour..
     " | Net Cost: "..money(bestCost).." | "..#bestDetails.." Crate Types")

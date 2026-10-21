@@ -478,6 +478,16 @@ check(coreSource:find('if not crate.id then',1,true)~=nil,"Only crates without I
 check(coreSource:find('if not resolve(crate.name) then missingIDs=missingIDs+1',1,true)~=nil,"Unresolved crates must still be counted")
 check(coreSource:find('elseif cp==nil then missingPrices=missingPrices+1 end',1,true)~=nil,"Known crates must still count missing prices")
 
+-- Scan progress callbacks should not recolour all 48 segments when only
+-- one segment (or none) has changed.
+check(coreSource:find("local lastScanLit=-1",1,true)~=nil and
+      coreSource:find("if lit~=lastScanLit then",1,true)~=nil and
+      coreSource:find("for i=math.max(1,lastScanLit+1),lit do",1,true)~=nil and
+      coreSource:find("for i=lit+1,lastScanLit do",1,true)~=nil,
+  "AH scan progress must only recolour changed segments")
+check(coreSource:find("if shownPercent~=lastScanPercent then",1,true)~=nil,
+  "AH scan progress must avoid redundant percentage text updates")
+
 -- Planner refresh reuses inventory freshly scanned by the main rankings refresh.
 check(coreSource:find('if planFavour then planFavour(true) end',1,true)~=nil,"Rankings refresh should pass fresh-inventory hint")
 check(coreSource:find('planFavour=function(inventoryFresh)',1,true)~=nil,"Planner should accept fresh-inventory hint")

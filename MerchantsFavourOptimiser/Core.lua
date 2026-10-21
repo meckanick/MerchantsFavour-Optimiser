@@ -938,6 +938,7 @@ end)
 scanSummary:SetScript("OnLeave",function() GameTooltip:Hide() end)
 local lastScanLit=-1
 local lastScanPercent=-1
+local lastScanSummaryText
 local function updateScanProgress()
   local percent,running,priced,total=MFO_AH.Progress()
   percent=math.max(0,math.min(100,tonumber(percent) or 0))
@@ -966,7 +967,11 @@ local function updateScanProgress()
   elseif total>0 then
     scanOverlay:Hide()
     local missing=MFO_AH.Missing()
-    scanSummaryText:SetText("Scan Complete: "..priced.."/"..total.." Priced"..(#missing>0 and (" | "..#missing.." Missing") or ""))
+    local summary="Scan Complete: "..priced.."/"..total.." Priced"..(#missing>0 and (" | "..#missing.." Missing") or "")
+    if summary~=lastScanSummaryText then
+      scanSummaryText:SetText(summary)
+      lastScanSummaryText=summary
+    end
     scanSummary:Show()
   else
     scanOverlay:Hide()

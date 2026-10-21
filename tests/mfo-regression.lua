@@ -242,6 +242,12 @@ check(ahSource:find("local modern,eventOK",1,true)~=nil and
 check(ahSource:find('local realm=(GetRealmName and GetRealmName())',1,true)~=nil and
       ahSource:find('local faction=(UnitFactionGroup and UnitFactionGroup("player"))',1,true)~=nil,
   "market identity should avoid repeated function type checks")
+-- The price cache already resolved the realm/faction: pass it into db()
+-- rather than repeating the client API lookups on a cache miss.
+check(ahSource:find("local function db(realm,faction)",1,true)~=nil and
+      ahSource:find("if not realm or not faction then realm,faction=marketIdentity() end",1,true)~=nil and
+      ahSource:find("priceRecords=db(realm,faction).prices",1,true)~=nil,
+  "price cache must reuse resolved market identity without changing other db callers")
 check(ahSource:find("root.legacyAHData",1,true)~=nil,
   "legacy account-wide data must be backed up before migration")
 check(coreSource:find("MFO_AH.Market()",1,true)~=nil,

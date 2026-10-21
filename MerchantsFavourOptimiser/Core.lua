@@ -552,7 +552,7 @@ frame:HookScript("OnUpdate",function(_,elapsed)
     updateScanNote()
   end
 end)
-local refreshBtn=CreateFrame("Button",nil,frame);refreshBtn:SetSize(82,22);refreshBtn:SetPoint("TOPRIGHT",frame,"TOPRIGHT",-38,-44);refreshBtn:SetText("Refresh");SkinWoodButton(refreshBtn);refreshBtn:SetScript("OnClick",refresh)
+local refreshBtn=CreateFrame("Button",nil,frame);refreshBtn:SetSize(82,22);refreshBtn:SetPoint("TOPRIGHT",frame,"TOPRIGHT",-38,-44);refreshBtn:SetText("Refresh");SkinWoodButton(refreshBtn);refreshBtn:SetScript("OnClick",function() refresh() end)
 -- Inline planner: the target entry lives in the existing toolbar and
 -- replaces the rankings table only while a target is entered.
 local targetLabel=frame:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")

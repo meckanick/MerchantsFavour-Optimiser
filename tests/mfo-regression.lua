@@ -537,6 +537,19 @@ check(coreSource:find("local refreshPriceCache={}",1,true)~=nil and
 check(coreSource:find("if priceCacheActive then refreshPriceCache[id]=value==nil and false or value end",1,true)~=nil,
   "price cache must retain missing-price sentinel only while active")
 
+-- Scratch tables are cleared between independent scans and shopping window redraws.
+check(coreSource:find("local scanItemScratch={}",1,true)~=nil and
+      coreSource:find("for id in pairs(scanItemScratch) do scanItemScratch[id]=nil end",1,true)~=nil and
+      coreSource:find("local items=scanItemScratch",1,true)~=nil,
+  "AH scan requests must clear and reuse their item scratch table")
+check(coreSource:find("local shoppingSortScratch={}",1,true)~=nil and
+      coreSource:find("for i=#shoppingSortScratch,1,-1 do shoppingSortScratch[i]=nil end",1,true)~=nil and
+      coreSource:find("local sorted=shoppingSortScratch",1,true)~=nil,
+  "shopping list redraw must reuse a cleared scratch table")
+check(coreSource:find("local missingCount=#MFO_AH.Missing()",1,true)~=nil and
+      coreSource:find("missingCount>0",1,true)~=nil,
+  "scan completion summary must preserve missing-price counts")
+
 -- Batch allocation reductions must preserve fresh bank indices and table row layout.
 check(coreSource:find("local bankScanIDs={}",1,true)~=nil and
       coreSource:find("for i=#bankScanIDs,1,-1 do bankScanIDs[i]=nil end",1,true)~=nil and

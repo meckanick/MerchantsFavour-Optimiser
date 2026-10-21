@@ -491,6 +491,12 @@ check(coreSource:find('setScanAgeDisplay("Last AH Scan: Unknown","unknown")',1,t
       coreSource:find('setScanAgeDisplay("Last AH Scan: "..elapsed.." Ago",color)',1,true)~=nil,
   "scan-age footer must update for both missing and completed scans")
 
+-- The AH update callback must reuse the progress sample's running flag.
+check(coreSource:find("  return running\nend\nMFO_AH.onUpdate=function()",1,true)~=nil and
+      coreSource:find("local running=updateScanProgress()",1,true)~=nil and
+      coreSource:find("if not running then status:SetText(MFO_AH.Status()) end",1,true)~=nil,
+  "AH callback must reuse scan progress instead of sampling twice")
+
 -- Scan progress callbacks should not recolour all 48 segments when only
 -- one segment (or none) has changed.
 check(coreSource:find("local lastScanLit=-1",1,true)~=nil and

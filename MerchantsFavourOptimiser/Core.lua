@@ -922,14 +922,29 @@ scanSummary:SetScript("OnEnter",function(self)
   GameTooltip:Show()
 end)
 scanSummary:SetScript("OnLeave",function() GameTooltip:Hide() end)
+local lastScanLit=-1
+local lastScanPercent=-1
 local function updateScanProgress()
   local percent,running,priced,total=MFO_AH.Progress()
   percent=math.max(0,math.min(100,tonumber(percent) or 0))
-  scanPercent:SetText(math.floor(percent).."%")
+  local shownPercent=math.floor(percent)
+  if shownPercent~=lastScanPercent then
+    scanPercent:SetText(shownPercent.."%")
+    lastScanPercent=shownPercent
+  end
   local lit=math.floor(percent*scanSegmentCount/100+.5)
-  for i=1,scanSegmentCount do
-    if i<=lit then scanSegments[i]:SetVertexColor(.95,.73,.30,1)
-    else scanSegments[i]:SetVertexColor(.29,.24,.16,.85) end
+  if lit~=lastScanLit then
+    -- Only segments whose state changed need a texture update.
+    if lit>lastScanLit then
+      for i=math.max(1,lastScanLit+1),lit do
+        scanSegments[i]:SetVertexColor(.95,.73,.30,1)
+      end
+    else
+      for i=lit+1,lastScanLit do
+        scanSegments[i]:SetVertexColor(.29,.24,.16,.85)
+      end
+    end
+    lastScanLit=lit
   end
   if running then
     scanSummary:Hide()

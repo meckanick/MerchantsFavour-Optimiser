@@ -228,8 +228,11 @@ local function update()
  local shopping=AH.Shopping()
  local items={}
  for id,v in pairs(shopping) do
-  if type(id)=="number" and type(v)=="table" and (v.qty or 0)>0 then
-   items[#items+1]={id=id,name=v.name or tostring(id),qty=v.qty}
+  if type(id)=="number" and type(v)=="table" and ((v.qty or 0)>0 or (v.requiredQty or 0)>0) then
+   local required=math.max(0,math.floor(tonumber(v.requiredQty) or tonumber(v.qty) or 0))
+   local toBuy=math.max(0,math.floor(tonumber(v.qty) or 0))
+   local owned=v.requiredQty and math.max(0,required-toBuy) or nil
+   items[#items+1]={id=id,name=v.name or tostring(id),qty=toBuy,required=required,owned=owned}
   end
  end
  -- Always list Waylaid Crates before their required materials.
@@ -251,13 +254,17 @@ local function update()
  for _,v in ipairs(items) do
   local price=AH.Price(v.id)
   prices[v.id]=price
-  if price then total=total+price*v.qty else unpriced=unpriced+1 end
+  if v.qty>0 then
+   if price then total=total+price*v.qty else unpriced=unpriced+1 end
+  end
  end
  panel.total:SetText(#items.." items  |  Priced estimate: "..gold(total)..(unpriced>0 and ("  |  "..unpriced.." missing AH price"..(unpriced==1 and "" or "s").." (total incomplete)") or ""))
  local current=selected and shopping[selected]
  if panel.detail then
   local selectedPrice=current and prices[selected]
-  panel.detail:SetText(current and (current.name.."\nRequired quantity: "..current.qty.."\nCached unit price: "..gold(selectedPrice).."\nEstimated total: "..gold((selectedPrice or 0)*current.qty)) or "")
+  local required=current and (current.requiredQty or current.qty) or 0
+  local owned=current and current.requiredQty and math.max(0,required-current.qty) or nil
+  panel.detail:SetText(current and (current.name.."\nRequired: "..required.."   Owned: "..(owned or "?").."   To buy: "..current.qty.."\nCached unit price: "..(selectedPrice and gold(selectedPrice) or "No AH Price").."\nEstimated remaining cost: "..(selectedPrice and gold(selectedPrice*current.qty) or "Unknown")) or "")
  end
  if panel.itemIcon then
   if current then
@@ -271,10 +278,13 @@ local function update()
   local item=items[i+panel.offset]
   row.item=item
   if item then
-   row.label:SetText((selected==item.id and "|cffffd45a> |r" or "")..item.name.." x"..item.qty)
+   row.label:SetText((selected==item.id and "|cffffd45a> |r" or "")..item.name)
+   row.need:SetText(tostring(item.required))
+   row.owned:SetText(item.owned and tostring(item.owned) or "?")
+   row.buy:SetText(tostring(item.qty))
    if selected==item.id then row.highlight:Show() else row.highlight:Hide() end
    local price=prices[item.id]
-   row.cost:SetText(price and gold(price*item.qty) or "No price")
+   row.cost:SetText(item.qty==0 and "-" or (price and gold(price*item.qty) or "No price"))
    row:Show()
   else row.highlight:Hide();row:Hide() end
  end
@@ -860,7 +870,13 @@ local function attach(parent)
  skinPurchaseDialog(preflight,"Purchase Item")
  panel:Hide()
  panel.offset=0
- for i=1,9 do
+ local columnHeaders={{"Item",14},{"Need",142},{"Owned",183},{"Buy",224},{"Cost",266}}
+ for _,col in ipairs(columnHeaders) do
+  local heading=left:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+  heading:SetPoint("TOPLEFT",left,"TOPLEFT",col[2],-43)
+  heading:SetText(col[1])
+ end
+ for i=1,8 do
   local row=CreateFrame("Button",nil,left)
   row:SetHeight(25)
   local highlight=row:CreateTexture(nil,"BACKGROUND")
@@ -868,18 +884,27 @@ local function attach(parent)
   highlight:SetColorTexture(.60,.39,.08,.32)
   row.highlight=highlight
   highlight:Hide()
-  row:SetPoint("TOPLEFT",left,"TOPLEFT",10,-52-(i-1)*26)
+  row:SetPoint("TOPLEFT",left,"TOPLEFT",10,-62-(i-1)*26)
   row:SetPoint("RIGHT",left,"RIGHT",-10,0)
   row.label=row:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-  row.label:SetPoint("LEFT",4,0);row.label:SetPoint("RIGHT",row,"RIGHT",-78,0);row.label:SetJustifyH("LEFT");row.label:SetWordWrap(false)
-  row.cost=row:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-  row.cost:SetPoint("RIGHT",-4,0);row.cost:SetWidth(72);row.cost:SetJustifyH("RIGHT")
+  row.label:SetPoint("LEFT",4,0);row.label:SetWidth(124);row.label:SetJustifyH("LEFT");row.label:SetWordWrap(false)
+  local function numberColumn(offset,width)
+   local label=row:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+   label:SetPoint("LEFT",row,"LEFT",offset,0)
+   label:SetWidth(width)
+   label:SetJustifyH("RIGHT")
+   return label
+  end
+  row.need=numberColumn(130,35)
+  row.owned=numberColumn(171,35)
+  row.buy=numberColumn(212,35)
+  row.cost=numberColumn(253,66)
   row:SetScript("OnClick",function(self)if self.item then selected=self.item.id;startLiveSearch(selected);update();if refreshOffers then refreshOffers() end end end)
   row:SetScript("OnEnter",function(self)
    if self.item then
     GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
     GameTooltip:AddLine(self.item.name,1,.82,.2)
-    GameTooltip:AddLine("Required: "..self.item.qty,1,1,1)
+    GameTooltip:AddLine("Required: "..self.item.required.."   Owned: "..(self.item.owned or "Unknown").."   To buy: "..self.item.qty,1,1,1)
     GameTooltip:AddLine("Cached unit price: "..gold(AH.Price(self.item.id)),1,1,1)
     GameTooltip:Show()
    end

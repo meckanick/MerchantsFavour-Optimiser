@@ -522,6 +522,15 @@ check(coreSource:find("local lastScanLit=-1",1,true)~=nil and
 check(coreSource:find("if shownPercent~=lastScanPercent then",1,true)~=nil,
   "AH scan progress must avoid redundant percentage text updates")
 
+-- AH price cache must be cleared per refresh, reused, and inactive outside refreshes.
+check(coreSource:find("local refreshPriceCache={}",1,true)~=nil and
+      coreSource:find("for id in pairs(refreshPriceCache) do refreshPriceCache[id]=nil end",1,true)~=nil and
+      coreSource:find("priceCacheActive=true",1,true)~=nil and
+      coreSource:find("priceCacheActive=false",1,true)~=nil,
+  "price cache must reuse a cleared table for each refresh")
+check(coreSource:find("if priceCacheActive then refreshPriceCache[id]=value==nil and false or value end",1,true)~=nil,
+  "price cache must retain missing-price sentinel only while active")
+
 -- Repeated bank snapshots must reuse the static Forever bank bag key list.
 check(coreSource:find('local bankBagKeys={"Bank", "BankBag_1"',1,true)~=nil and
       coreSource:find("for _,key in ipairs(bankBagKeys) do",1,true)~=nil and

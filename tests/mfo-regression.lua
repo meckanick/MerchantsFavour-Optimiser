@@ -447,7 +447,7 @@ check(ahTab:find('awaitingPurchase=true;purchaseElapsed=0;purchaseWarningShown=f
 check(ahTab:find('if commodityOrder or awaitingPurchase then',1,true)~=nil,"Search and purchase must guard active commodity transactions")
 check(ahTab:find('or commodityOrder or awaitingPurchase then return end',1,true)~=nil,"Buy Selected must reject duplicate in-flight purchases")
 check(ahTab:find('purchaseElapsed>=20',1,true)~=nil,"Delayed purchase must be reported")
-check(ahTab:find('Check your inventory or AH before trying again.',1,true)~=nil,"Delayed purchase warning must discourage blind retries")
+check(ahTab:find('Check your gold and inventory before retrying.',1,true)~=nil,"Delayed purchase warning must discourage blind retries")
 check(ahTab:find('if not awaitingPurchase then commodityOrder=nil end',1,true)~=nil,"Reactivating shopping must preserve an in-flight confirmation")
 
 -- Performance: avoid reconstructing static crate metadata and duplicate detail price reads.

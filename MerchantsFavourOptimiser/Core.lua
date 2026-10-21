@@ -69,15 +69,16 @@ local function updateScanNote()
 end
 -- Cache repeated item price reads only during a single ranking/planner refresh.
 -- Nil prices are cached too; the cache is discarded after refresh.
-local refreshPriceCache
+local refreshPriceCache={}
+local priceCacheActive=false
 price = function(id)
   if not id or not MFO_AH then return nil end
-  if refreshPriceCache then
+  if priceCacheActive then
     local cached=refreshPriceCache[id]
     if cached~=nil then return cached~=false and cached or nil end
   end
   local value=MFO_AH.Price(id)
-  if refreshPriceCache then refreshPriceCache[id]=value==nil and false or value end
+  if priceCacheActive then refreshPriceCache[id]=value==nil and false or value end
   return value
 end
 -- Stable item IDs avoid depending on the local item-name cache.
@@ -495,7 +496,9 @@ for i=1,#rows do
 end
 local planFavour
 local function refresh(inventoryFresh)
-  refreshPriceCache={}
+  -- Clear and reuse the per-refresh price cache rather than allocating a new table.
+  for id in pairs(refreshPriceCache) do refreshPriceCache[id]=nil end
+  priceCacheActive=true
   updateScanNote()
   -- BAG_UPDATE_DELAYED already refreshed bag IDs and quantities.
   if not inventoryFresh then learnBagItems();scanBags() end
@@ -537,7 +540,7 @@ local function refresh(inventoryFresh)
   end
   status:SetText(table.concat(footerParts," | "))
   if planFavour then planFavour(true) end
-  refreshPriceCache=nil
+  priceCacheActive=false
 end
 -- Update the timestamp of MFO's completed standalone scan without requiring a manual refresh.
 -- Opening the AH alone does not mark a scan as complete.

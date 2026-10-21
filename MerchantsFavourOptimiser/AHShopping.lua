@@ -912,6 +912,27 @@ local function attach(parent)
   row:SetScript("OnLeave",function()GameTooltip:Hide()end)
   rows[i]=row
  end
+ local refreshShopping=button(left,"Refresh List",128)
+ refreshShopping:SetPoint("BOTTOMLEFT",left,"BOTTOMLEFT",12,13)
+ refreshShopping:SetScript("OnClick",function()
+  if AH.RefreshShoppingInventory then AH.RefreshShoppingInventory() end
+  if AH.RecalculateShopping then AH.RecalculateShopping() end
+  update()
+  if refreshOffers then refreshOffers() end
+ end)
+ local removeShopping=button(left,"Remove Selected",146)
+ removeShopping:SetPoint("BOTTOMRIGHT",left,"BOTTOMRIGHT",-12,13)
+ removeShopping:SetScript("OnClick",function()
+  if not selected or not AH.RemoveShoppingItem then return end
+  if AH.RemoveShoppingItem(selected) then
+   selected=nil
+   selectedOffer=nil
+   live.id=nil;live.offers={};live.waiting=false
+   live.message="Item removed from shopping list."
+   update()
+   if refreshOffers then refreshOffers() end
+  end
+ end)
  -- Mouse-wheel scrolling keeps larger shopping plans accessible without
  -- the redundant footer page counter and arrow controls.
  left:EnableMouseWheel(true)

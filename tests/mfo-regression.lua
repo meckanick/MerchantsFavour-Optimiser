@@ -522,6 +522,12 @@ check(coreSource:find("local lastScanLit=-1",1,true)~=nil and
 check(coreSource:find("if shownPercent~=lastScanPercent then",1,true)~=nil,
   "AH scan progress must avoid redundant percentage text updates")
 
+-- The rankings footer does not display bank snapshot age; do not compute it.
+check(coreSource:find('local bankInfo=""',1,true)==nil and
+      coreSource:find('bankInfo=" Bank Snapshot: "',1,true)==nil and
+      coreSource:find('if not MFO_DB.bankScanTime then footerParts[#footerParts+1]="Bank Not Scanned" end',1,true)~=nil,
+  "rankings refresh should avoid unused bank age calculation while preserving bank status")
+
 -- AH price cache must be cleared per refresh, reused, and inactive outside refreshes.
 check(coreSource:find("local refreshPriceCache={}",1,true)~=nil and
       coreSource:find("for id in pairs(refreshPriceCache) do refreshPriceCache[id]=nil end",1,true)~=nil and

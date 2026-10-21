@@ -522,6 +522,15 @@ check(coreSource:find("local lastScanLit=-1",1,true)~=nil and
 check(coreSource:find("if shownPercent~=lastScanPercent then",1,true)~=nil,
   "AH scan progress must avoid redundant percentage text updates")
 
+-- Repeated bank snapshots must reuse the static Forever bank bag key list.
+check(coreSource:find('local bankBagKeys={"Bank", "BankBag_1"',1,true)~=nil and
+      coreSource:find("for _,key in ipairs(bankBagKeys) do",1,true)~=nil and
+      coreSource:find("local bankIndex=Enum.BagIndex",1,true)~=nil,
+  "bank snapshots must reuse bank bag keys while resolving live Enum indices")
+check(coreSource:find("local visited={}",1,true)~=nil and
+      coreSource:find("if not visited[bag] then",1,true)~=nil,
+  "bank scans must still deduplicate overlapping bank bag indices")
+
 -- Learning bag item IDs must not rewrite an unchanged saved mapping.
 check(coreSource:find("MFO_DB.ids[name]~=id then",1,true)~=nil and
       coreSource:find("MFO_DB.ids[name]=id",1,true)~=nil,

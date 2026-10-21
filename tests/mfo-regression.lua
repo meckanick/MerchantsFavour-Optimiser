@@ -654,12 +654,26 @@ do
   owned[1001]=8
   ah.RecalculateShopping()
   equal(ah.Shopping()[1001].qty,2,"acquired materials must reduce outstanding purchases")
+  check(ah.RecordShoppingPurchase(1001,2),"confirmed purchase must be credited")
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1001].qty,0,"confirmed purchase must immediately reduce outstanding qty")
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1001].qty,0,"repeat refresh must not double deduct provisional purchases")
+  owned[1001]=10
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1001].qty,0,"bag delivery must replace provisional purchase credit")
+  owned[1001]=8
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1001].qty,2,"once delivered, stock removal must restore outstanding need")
   owned[1001]=0
   ah.RecalculateShopping()
   equal(ah.Shopping()[1001].qty,10,"removed materials must restore full requirement")
   MFO_DB.useOwned=false
   ah.RecalculateShopping()
   equal(ah.Shopping()[1002].qty,5,"turning off owned stock restores full requirement")
+  check(ah.RecordShoppingPurchase(1002,2),"purchases must be recorded when owned tracking is off")
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1002].qty,3,"confirmed purchases must reduce quantity with owned tracking off")
   MFO_DB.useOwned=true
   ah.ReplaceShopping({[1004]={name="Fully Owned",qty=0,requiredQty=5}})
   equal(ah.Shopping()[1004].qty,0,"fully owned requirements must be retained")
@@ -732,3 +746,13 @@ check(ahTab:find('live.waiting=false\n live.message=message or "Purchase failed.
   "failed purchase must retain selected shopping item and offer")
 check(ahTab:find('not commodityOrder and not awaitingPurchase and shoppingItem~=nil',1,true)~=nil,
   "Buy Selected must be disabled during a pending purchase and enabled after recovery")
+
+-- Confirmed purchases update shopping, but pending/failed purchases never do.
+check(ahTab:find('if receipt and AH.RecordShoppingPurchase then',1,true)~=nil and
+      ahTab:find('AH.RecordShoppingPurchase(receipt.id,receipt.qty)',1,true)~=nil,
+  "shopping credits must be applied only on confirmed AH success")
+check(ahTab:find('elseif event=="BAG_UPDATE_DELAYED" then',1,true)~=nil and
+      ahTab:find('if AH.RefreshShoppingInventory then AH.RefreshShoppingInventory() end',1,true)~=nil,
+  "bag delivery must automatically refresh remaining shopping quantities")
+check(ahTab:find('startLiveSearch(selected) -- Search only; buying still requires a click.',1,true)~=nil,
+  "successful purchase must preserve item selection and search remaining listings without buying")

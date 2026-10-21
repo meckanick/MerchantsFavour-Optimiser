@@ -491,6 +491,12 @@ check(coreSource:find('setScanAgeDisplay("Last AH Scan: Unknown","unknown")',1,t
       coreSource:find('setScanAgeDisplay("Last AH Scan: "..elapsed.." Ago",color)',1,true)~=nil,
   "scan-age footer must update for both missing and completed scans")
 
+-- Completion callbacks may repeat with identical priced/missing counts.
+check(coreSource:find("local lastScanSummaryText",1,true)~=nil and
+      coreSource:find("if summary~=lastScanSummaryText then",1,true)~=nil and
+      coreSource:find("scanSummaryText:SetText(summary)",1,true)~=nil,
+  "AH completion summary should update only when its text changes")
+
 -- The AH update callback must reuse the progress sample's running flag.
 check(coreSource:find("  return running\nend\nMFO_AH.onUpdate=function()",1,true)~=nil and
       coreSource:find("local running=updateScanProgress()",1,true)~=nil and

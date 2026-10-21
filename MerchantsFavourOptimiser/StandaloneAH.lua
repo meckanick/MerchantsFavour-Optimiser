@@ -55,14 +55,15 @@ local function db()
 end
 -- Reuse the active market's price table across repeated ranking lookups.
 -- Recheck realm/faction so switching characters cannot reuse another market.
-local priceMarketKey,priceRecords
+local priceRealm,priceFaction,priceRecords
 function AH.Price(id)
   if not id then return nil end
   local realm,faction=marketIdentity()
-  local key=realm.."\0"..faction
-  if key~=priceMarketKey or not priceRecords then
+  -- Compare the two market identifiers directly rather than allocating
+  -- a combined realm/faction string on every item price lookup.
+  if realm~=priceRealm or faction~=priceFaction or not priceRecords then
     priceRecords=db().prices
-    priceMarketKey=key
+    priceRealm,priceFaction=realm,faction
   end
   local record=priceRecords[id]
   return record and record.price or nil

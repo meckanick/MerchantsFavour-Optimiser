@@ -5,6 +5,9 @@ local AH=MFO_AH
 local queue,position,busy,waiting,started,page,lowest={},1,false,false,0,0,nil
 local priced,attempts,scanTotal=0,0,0
 local missing={}
+-- Forward declarations ensure the legacy scanner sees the actual capability
+-- flags rather than unrelated globals.
+local modern,eventOK
 local function recordMissing(entry)
   if entry then missing[#missing+1]={id=entry.id,name=entry.name} end
 end
@@ -177,7 +180,7 @@ function AH.Scan(items)
   return true,AH.message
 end
 -- WoW Forever uses the modern C_AuctionHouse API, unlike legacy Classic.
-local modern = C_AuctionHouse and type(C_AuctionHouse.SendSearchQuery)=="function"
+modern = C_AuctionHouse and type(C_AuctionHouse.SendSearchQuery)=="function"
 -- Reuse the exact item key used for the active query when reading its results.
 local activeItemKey
 local function modernNext()
@@ -281,7 +284,7 @@ AH.Scan=function(items)
   return true,AH.message
 end
 local events=CreateFrame("Frame")
-local eventOK=pcall(events.RegisterEvent,events,"AUCTION_ITEM_LIST_UPDATE")
+eventOK=pcall(events.RegisterEvent,events,"AUCTION_ITEM_LIST_UPDATE")
 if not eventOK then
   AH.message="AH scan event unavailable in this client"
 end

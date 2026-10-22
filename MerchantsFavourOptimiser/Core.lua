@@ -499,7 +499,7 @@ for i=1,#rows do
     GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
     GameTooltip:AddLine("Crate Readiness - Individual Estimate",1,.82,.2)
     GameTooltip:AddLine("This crate is assessed independently; other crates may share these materials.",.75,.75,.75,true)
-    MFO_CrateTracking.AddTooltip(GameTooltip,record)
+    MFO_CrateTracking.AddTooltip(GameTooltip,record,displayedResults[i].b and displayedResults[i].b.name)
     GameTooltip:Show()
   end)
   readiness:SetScript("OnLeave",function()GameTooltip:Hide()end)

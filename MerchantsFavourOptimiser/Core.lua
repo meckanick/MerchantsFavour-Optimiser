@@ -1032,6 +1032,11 @@ MFO_AH.onUpdate=function()
   if not running then status:SetText(MFO_AH.Status()) end
   if frame:IsShown() then refresh() end
 end
+-- Explicit open action for other MFO views (never toggle an already-open window).
+MFO_OpenMainWindow=function()
+  refresh()
+  frame:Show()
+end
 SLASH_MFO1="/mfo"
 SlashCmdList.MFO=function(msg)
   if msg=="refresh" then refresh()

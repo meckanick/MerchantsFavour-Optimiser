@@ -1122,9 +1122,9 @@ local function attach(parent)
      if self.item.readiness then
       local bucket=self.item.readiness
       GameTooltip:AddLine("Planned crates ready: "..bucket.ready.."/"..bucket.total,1,.82,.2)
-      GameTooltip:AddLine("Shared materials are allocated once across the plan.",.75,.75,.75,true)
+      GameTooltip:AddLine("Materials are allocated once across the plan.",.75,.75,.75,true)
       for _,record in ipairs(bucket.records) do
-       MFO_CrateTracking.AddTooltip(GameTooltip,record)
+       MFO_CrateTracking.AddTooltip(GameTooltip,record,(AH.Shopping()[record.materialID] or {}).name)
       end
      end
     GameTooltip:AddLine("Required: "..self.item.required.."   Owned: "..(self.item.owned or "Unknown").."   To buy: "..self.item.qty,1,1,1)

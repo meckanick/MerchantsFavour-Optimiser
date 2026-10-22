@@ -103,7 +103,14 @@ local MFO_COIN_SILVER="|TInterface\\MoneyFrame\\UI-SilverIcon:12:12:0:0|t"
 local MFO_COIN_COPPER="|TInterface\\MoneyFrame\\UI-CopperIcon:12:12:0:0|t"
 local function gold(c)
  if not c then return "No Price" end
- return string.format("%d%s %d%s %d%s",math.floor(c/10000),MFO_COIN_GOLD,math.floor(c/100)%100,MFO_COIN_SILVER,c%100,MFO_COIN_COPPER)
+ local goldAmount=math.floor(c/10000)
+ local silverAmount=math.floor(c/100)%100
+ local copperAmount=c%100
+ local silverCopper=string.format("%d%s %d%s",silverAmount,MFO_COIN_SILVER,copperAmount,MFO_COIN_COPPER)
+ if goldAmount>0 then
+  return string.format("%d%s %s",goldAmount,MFO_COIN_GOLD,silverCopper)
+ end
+ return silverCopper
 end
 local function button(parent,label,width)
  local b=CreateFrame("Button",nil,parent,"UIPanelButtonTemplate")

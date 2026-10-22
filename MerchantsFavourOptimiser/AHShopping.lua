@@ -742,10 +742,13 @@ local function attach(parent)
   liveRows[i]=row
  end
  local liveStatus=right:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
- liveStatus:SetPoint("BOTTOMLEFT",right,"BOTTOMLEFT",16,16)
- liveStatus:SetWidth(285)
+ -- Keep long purchase messages above the footer button, not behind it.
+ liveStatus:SetPoint("BOTTOMLEFT",right,"BOTTOMLEFT",16,43)
+ liveStatus:SetPoint("BOTTOMRIGHT",right,"BOTTOMRIGHT",-16,43)
+ liveStatus:SetHeight(34)
  liveStatus:SetJustifyH("LEFT")
- liveStatus:SetWordWrap(false)
+ liveStatus:SetJustifyV("BOTTOM")
+ liveStatus:SetWordWrap(true)
  refreshOffers=function()
   if not panel or not panel:IsShown() then return end
   local msg=live.message or ""

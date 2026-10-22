@@ -838,7 +838,7 @@ local function attach(parent)
   label:SetTextColor(1,.78,.24)
  end
  local confirm=CreateFrame("Frame",nil,panel,"BackdropTemplate")
- confirm:SetSize(390,190)
+ confirm:SetSize(390,215)
  confirm:SetPoint("CENTER",panel,"CENTER")
  confirm:SetFrameStrata("DIALOG")
  confirm:SetFrameLevel(panel:GetFrameLevel()+30)
@@ -848,6 +848,7 @@ local function attach(parent)
  local confirmText=confirm:CreateFontString(nil,"OVERLAY","GameFontHighlight")
  confirmText:SetPoint("TOP",confirm,"TOP",0,-60)
  confirmText:SetWidth(350)
+ confirmText:SetJustifyH("CENTER")
  local accept=button(confirm,"Buy",105)
  accept:SetPoint("BOTTOMLEFT",confirm,"BOTTOMLEFT",42,22)
  local cancel=button(confirm,"Cancel",90)
@@ -895,7 +896,10 @@ local function attach(parent)
    elseif type(info)=="number" then total=info end
   end
   pending={id=order.id,qty=order.qty,total=total,stage="commodity-confirm"}
-  confirmText:SetText("Confirm Commodity Purchase\nQuantity: "..order.qty.."\nAuction House Total: "..gold(total))
+  local item=AH.Shopping()[order.id]
+   local itemName=(item and item.name) or (type(GetItemInfo)=="function" and GetItemInfo(order.id)) or ("Item "..order.id)
+   local unitPrice=order.qty>0 and math.floor(total/order.qty+.5) or 0
+   confirmText:SetText(itemName.."\nQuantity: "..order.qty.."\nQuoted Unit Price: "..gold(unitPrice).."\nFinal AH Total: "..gold(total))
   accept:SetText("Confirm Buy")
   confirm:Show()
  end
@@ -903,7 +907,7 @@ local function attach(parent)
  -- player's explicit purchase click. Keep the working API call first.
  local chainBuy=false
  local preflight=CreateFrame("Frame",nil,panel,"BackdropTemplate")
- preflight:SetSize(390,215)
+ preflight:SetSize(420,265)
  preflight:SetPoint("CENTER",panel,"CENTER")
  preflight:SetFrameStrata("DIALOG")
  preflight:SetFrameLevel(panel:GetFrameLevel()+31)
@@ -917,22 +921,31 @@ local function attach(parent)
  dialogFill:SetColorTexture(.065,.042,.02,1)
  local preflightText=preflight:CreateFontString(nil,"OVERLAY","GameFontHighlight")
  preflightText:SetPoint("TOP",preflight,"TOP",0,-61)
- preflightText:SetWidth(350)
+ preflightText:SetWidth(382)
+ preflightText:SetJustifyH("CENTER")
+ local function updatePreflightSummary()
+  local offer=selectedOffer and live.offers[selectedOffer]
+  local item=selected and AH.Shopping()[selected]
+  if not offer or not item then return end
+  local needed=math.max(0,math.floor(tonumber(item.qty) or 0))
+  local available=math.max(0,math.floor(tonumber(offer.qty) or 0))
+  local qty=chainBuy and needed or math.min(needed,available)
+  local total=math.floor((tonumber(offer.price) or 0)*qty+.5)
+  preflightText:SetText(item.name.."\nBuy Quantity: "..qty.." / Needed: "..needed..
+   "\nSelected Unit Price: "..gold(offer.price)..
+   "\nEstimated Total: "..gold(total)..
+   "\nRemaining After Purchase: "..math.max(0,needed-qty))
+ end
  local chainToggle=CreateFrame("CheckButton",nil,preflight,"UICheckButtonTemplate")
  chainToggle:SetSize(24,24)
- chainToggle:SetPoint("TOPLEFT",preflight,"TOPLEFT",38,-130)
+ chainToggle:SetPoint("TOPLEFT",preflight,"TOPLEFT",38,-174)
  chainToggle:SetChecked(false)
  local chainLabel=preflight:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
  chainLabel:SetPoint("LEFT",chainToggle,"RIGHT",4,0)
  chainLabel:SetText("Chain Buy - Full Required Quantity")
  chainToggle:SetScript("OnClick",function(self)
   chainBuy=self:GetChecked() and true or false
-  local offer=selectedOffer and live.offers[selectedOffer]
-  local item=selected and AH.Shopping()[selected]
-  if offer and item then
-   local qty=chainBuy and item.qty or math.min(item.qty,offer.qty)
-   preflightText:SetText(item.name.."\nBuy Quantity: "..qty.."    Needed: "..item.qty)
-  end
+  updatePreflightSummary()
  end)
  local proceed=button(preflight,"Buy",100)
  proceed:SetPoint("BOTTOMLEFT",preflight,"BOTTOMLEFT",35,22)
@@ -982,7 +995,7 @@ local function attach(parent)
   local item=selected and AH.Shopping()[selected]
   if not offer or not item or live.id~=selected or live.waiting or commodityOrder or awaitingPurchase then return end
   local qty=chainBuy and item.qty or math.min(item.qty,offer.qty)
-  preflightText:SetText(item.name.."\nBuy Quantity: "..qty.." / Needed: "..item.qty)
+  updatePreflightSummary()
   preflight:Show()
  end)
 

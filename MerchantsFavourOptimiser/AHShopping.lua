@@ -1128,6 +1128,17 @@ local function attach(parent)
       end
      end
     GameTooltip:AddLine("Required: "..self.item.required.."   Owned: "..(self.item.owned or "Unknown").."   To buy: "..self.item.qty,1,1,1)
+    if AH.ShoppingItemStock then
+     local bags,bank,bankScan=AH.ShoppingItemStock(self.item.id)
+     GameTooltip:AddLine("In bags: "..bags.."   In bank: "..bank,1,1,1)
+     if bank>0 then
+      if bankScan and type(time)=="function" then
+       GameTooltip:AddLine("Bank stock last checked "..math.max(0,math.floor((time()-bankScan)/60)).." minutes ago (cached).",.85,.7,.4,true)
+      else
+       GameTooltip:AddLine("Bank stock is cached and may be outdated.",.85,.7,.4,true)
+      end
+     end
+    end
     GameTooltip:AddLine("Cached Unit Price: "..gold(AH.Price(self.item.id)),1,1,1)
     GameTooltip:Show()
    end

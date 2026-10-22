@@ -299,7 +299,7 @@ check(ahTab:find('region:SetText("MFO - Shopping")',1,true)~=nil,"MFO must set n
 
 check(ahTab:find('left:SetWidth(340)',1,true)~=nil,"Shopping list must use Auctionator-style pane proportions")
 check(ahTab:find('row.cost=row:CreateFontString',1,true)~=nil and
-      ahTab:find('row.cost:SetWidth(126)',1,true)~=nil,
+      ahTab:find('row.cost:SetWidth(215)',1,true)~=nil,
   "Shopping prices must retain a dedicated, wider cost column")
 check(ahTab:find('header:SetText("")',1,true)~=nil,"Duplicate shopping title must be hidden")
 
@@ -746,11 +746,15 @@ for _,source in ipairs({coreSource,ahTab}) do
 end
 
 -- Shopping cost column must fit a full gold/silver/copper string on one line.
-check(ahTab:find('costHeading:SetText("Total Cost")',1,true)~=nil and
-      ahTab:find('row.cost:SetWidth(126)',1,true)~=nil and
+check(ahTab:find('costLabel:SetText("Total Cost:")',1,true)~=nil and
+      ahTab:find('row.cost:SetWidth(215)',1,true)~=nil and
       ahTab:find('row.cost:SetWordWrap(false)',1,true)~=nil and
-      ahTab:find('row.cost:SetPoint("RIGHT",row,"RIGHT",-5,0)',1,true)~=nil,
+      ahTab:find('row.cost:SetPoint("BOTTOMRIGHT",row,"BOTTOMRIGHT",-5,4)',1,true)~=nil,
   "shopping cost column must right-align full currency without wrapping")
+
+check(ahTab:find('row:SetHeight(39)',1,true)~=nil and
+      ahTab:find('row:SetPoint("TOPLEFT",left,"TOPLEFT",10,-62-(i-1)*40)',1,true)~=nil,
+  "two-line shopping rows must have enough vertical spacing")
 
 -- Purchase status feedback must remain visual-only, with distinct success,
 -- failure and in-progress colours and a neutral default.
@@ -761,8 +765,8 @@ check(ahTab:find('liveStatus:SetTextColor(.36,.90,.42)',1,true)~=nil and
   "shopping purchase feedback must distinguish success, failure, pending and neutral states")
 
 -- Stage 2 must preserve shopping, pricing and purchase flow while adding controls.
-check(ahTab:find('local columnHeaders={{"Item",14},{"Need",151},{"Owned",199},{"Buy",247}}',1,true)~=nil and
-      ahTab:find('costHeading:SetText("Total Cost")',1,true)~=nil,
+check(ahTab:find('local columnHeaders={{"Item",14},{"Need",194},{"Owned",240},{"Buy",290}}',1,true)~=nil and
+      ahTab:find('costLabel:SetText("Total Cost:")',1,true)~=nil,
   "MFO Shop must show aligned item, required, owned, to-buy and total-cost headers")
 check(ahTab:find("row.need:SetText(tostring(item.required))",1,true)~=nil and
       ahTab:find('row.owned:SetText(item.owned and tostring(item.owned) or "?")',1,true)~=nil and

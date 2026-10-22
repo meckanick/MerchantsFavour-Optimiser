@@ -342,8 +342,8 @@ update=function()
  if panel.progressBar then
   local total=math.max(1,requiredTotal)
   panel.progressLabel:SetText("Shopping Progress: "..math.floor(100*(availableTotal+purchasedTotal)/total+.5).."%")
-  panel.progressAvailable:SetWidth(math.max(.01,330*availableTotal/total))
-  panel.progressPurchased:SetWidth(math.max(.01,330*purchasedTotal/total))
+  panel.progressAvailable:SetWidth(math.max(.01,250*availableTotal/total))
+  panel.progressPurchased:SetWidth(math.max(.01,250*purchasedTotal/total))
   panel.progressPurchased:ClearAllPoints()
   panel.progressPurchased:SetPoint("LEFT",panel.progressAvailable,"RIGHT",0,0)
   panel.progressSummary:SetText("Available: "..availableTotal.."  |  Purchased: "..purchasedTotal..
@@ -1107,7 +1107,7 @@ local function attach(parent)
   heading:SetText(col[1])
  end
  -- Keep the progress footer clear of shopping rows; mousewheel scroll remains available.
- for i=1,7 do
+ for i=1,8 do
   local row=CreateFrame("Button",nil,left)
   row:SetHeight(39)
   local highlight=row:CreateTexture(nil,"BACKGROUND")
@@ -1184,12 +1184,12 @@ local function attach(parent)
   rows[i]=row
  end
  -- Compact, noninteractive three-state shopping progress display.
- panel.progressLabel=left:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
- panel.progressLabel:SetPoint("BOTTOMLEFT",left,"BOTTOMLEFT",14,109)
+ panel.progressLabel=panel:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+ panel.progressLabel:SetPoint("TOPLEFT",panel,"TOPLEFT",265,-57)
  panel.progressLabel:SetText("Shopping Progress: 0%")
- panel.progressBar=CreateFrame("Frame",nil,left,"BackdropTemplate")
- panel.progressBar:SetPoint("BOTTOMLEFT",left,"BOTTOMLEFT",14,88)
- panel.progressBar:SetSize(330,12)
+ panel.progressBar=CreateFrame("Frame",nil,panel,"BackdropTemplate")
+ panel.progressBar:SetPoint("TOPLEFT",panel,"TOPLEFT",265,-78)
+ panel.progressBar:SetSize(250,12)
  panel.progressBar:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8",edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",edgeSize=9,insets={left=2,right=2,top=2,bottom=2}})
  panel.progressBar:SetBackdropColor(.18,.12,.08,1)
  panel.progressBar:SetBackdropBorderColor(.52,.39,.21,1)
@@ -1200,9 +1200,9 @@ local function attach(parent)
  panel.progressPurchased=panel.progressBar:CreateTexture(nil,"ARTWORK")
  panel.progressPurchased:SetHeight(8)
  panel.progressPurchased:SetColorTexture(.75,.56,.19,1)
- panel.progressSummary=left:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
- panel.progressSummary:SetPoint("BOTTOMLEFT",left,"BOTTOMLEFT",14,71)
- panel.progressSummary:SetWidth(360)
+ panel.progressSummary=panel:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+ panel.progressSummary:SetPoint("TOPLEFT",panel,"TOPLEFT",530,-78)
+ panel.progressSummary:SetWidth(440)
  panel.progressSummary:SetJustifyH("LEFT")
  panel.progressSummary:SetText("Available: 0  |  Purchased: 0  |  To buy: 0")
  -- Reserve a footer line within the shopping panel, above the action buttons.

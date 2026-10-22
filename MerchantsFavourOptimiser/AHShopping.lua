@@ -99,7 +99,7 @@ local function restoreNativeTitle()
  wipe(originalTitles)
 end
 local function gold(c)
- if not c then return "No price" end
+ if not c then return "No Price" end
  return string.format("%dg %ds %dc",math.floor(c/10000),math.floor(c/100)%100,c%100)
 end
 local function button(parent,label,width)
@@ -117,7 +117,7 @@ local function activeAH()
  if AuctionFrame and AuctionFrame:IsShown() then return AuctionFrame end
 end
 -- Live auction search; purchases require a separate explicit hardware click.
-local live={id=nil,waiting=false,offers={},message="Select an item to search.",elapsed=0}
+local live={id=nil,waiting=false,offers={},message="Select an Item to Search.",elapsed=0}
 local refreshOffers
 local update
 local selectedOffer
@@ -134,25 +134,25 @@ local function resetFailedPurchase(message)
  -- Retain the selected item and highlighted offer for an immediate manual retry.
  -- A retry always starts a fresh commodity price check, never an automatic buy.
  live.waiting=false
- live.message=message or "Purchase failed. Select Buy again to retry."
+ live.message=message or "Purchase Failed. Select Buy Again to Retry."
  if refreshOffers then refreshOffers() end
 end
 local function startLiveSearch(id)
  if commodityOrder or awaitingPurchase then
-  live.message="Purchase pending. Wait for the Auction House result before searching again."
+  live.message="Purchase Pending. Wait for the Auction House Result Before Searching Again."
   if refreshOffers then refreshOffers() end
   return
  end
  if resetPurchaseDialogs then resetPurchaseDialogs() end
  if panel and panel.offerScroll then panel.offerScroll:SetValue(select(2,panel.offerScroll:GetMinMaxValues()) or 0) end
  live.id=id;live.offers={};live.waiting=false;live.elapsed=0;selectedOffer=nil
- if not id then live.message="Select an item to search.";return end
- if select(2,AH.Progress()) then live.message="Wait for the MFO price scan to finish.";return end
+ if not id then live.message="Select an Item to Search.";return end
+ if select(2,AH.Progress()) then live.message="Wait for the MFO Price Scan to Finish.";return end
  local item=AH.Shopping()[id]
- if not item then live.message="Item no longer in shopping list.";return end
+ if not item then live.message="Item No Longer in Shopping List.";return end
  -- Mark the request as waiting BEFORE dispatch: some AH clients deliver
  -- results during SendSearchQuery, before the call returns.
- live.waiting=true;live.message="Searching live auctions..."
+ live.waiting=true;live.message="Searching Live Auctions..."
  if C_AuctionHouse and type(C_AuctionHouse.SendSearchQuery)=="function" then
   local key=C_AuctionHouse.MakeItemKey and C_AuctionHouse.MakeItemKey(id) or {itemID=id}
   local ok=pcall(C_AuctionHouse.SendSearchQuery,key,{},false)
@@ -163,7 +163,7 @@ local function startLiveSearch(id)
   if ok then return end
  end
  live.waiting=false
- live.message="Live search unavailable in this client."
+ live.message="Live Search Unavailable in This Client."
 end
 local function collectLive(event,arg)
  if not live.waiting or not live.id or not panel or not panel:IsShown() then return end
@@ -201,7 +201,7 @@ local function collectLive(event,arg)
  end
  table.sort(offers,function(a,b)return a.price<b.price end)
  live.offers=offers;live.waiting=false;live.elapsed=0;selectedOffer=nil
- live.message=#offers>0 and (#offers.." listings found - scroll to see all") or "No live buyout listings found."
+ live.message=#offers>0 and (#offers.." Listings Found - Scroll to See All") or "No Live Buyout Listings Found."
  if refreshOffers then refreshOffers() end
 end
 local liveEvents=CreateFrame("Frame")
@@ -245,11 +245,11 @@ liveEvents:SetScript("OnEvent",function(_,event,arg,arg2)
   live.offers={};live.waiting=false;selectedOffer=nil
   local item=selected and AH.Shopping()[selected]
   if item and (item.qty or 0)>0 and panel and panel:IsShown() then
-   live.message="Purchase succeeded. Refreshing remaining listings..."
+   live.message="Purchase Succeeded. Refreshing Remaining Listings..."
    startLiveSearch(selected) -- Search only; buying still requires a click.
   else
    live.id=nil
-   live.message="Purchase succeeded. Shopping quantities refreshed."
+   live.message="Purchase Succeeded. Shopping Quantities Refreshed."
   end
   if refreshOffers then refreshOffers() end
  elseif event=="BAG_UPDATE_DELAYED" then
@@ -302,13 +302,13 @@ update=function()
    if price then total=total+price*v.qty else unpriced=unpriced+1 end
   end
  end
- panel.total:SetText(#items.." items  |  Priced estimate: "..gold(total)..(unpriced>0 and ("  |  "..unpriced.." missing AH price"..(unpriced==1 and "" or "s").." (total incomplete)") or ""))
+ panel.total:SetText(#items.." Items  |  Priced Estimate: "..gold(total)..(unpriced>0 and ("  |  "..unpriced.." Missing AH Price"..(unpriced==1 and "" or "s").." (Total Incomplete)") or ""))
  local current=selected and shopping[selected]
  if panel.detail then
   local selectedPrice=current and prices[selected]
   local required=current and (current.requiredQty or current.qty) or 0
   local owned=current and current.requiredQty and math.max(0,required-current.qty) or nil
-  panel.detail:SetText(current and (current.name.."\nRequired: "..required.."   Owned: "..(owned or "?").."   To buy: "..current.qty.."\nCached unit price: "..(selectedPrice and gold(selectedPrice) or "No AH Price").."\nEstimated remaining cost: "..(selectedPrice and gold(selectedPrice*current.qty) or "Unknown")) or "")
+  panel.detail:SetText(current and (current.name.."\nRequired: "..required.."   Owned: "..(owned or "?").."   To buy: "..current.qty.."\nCached Unit Price: "..(selectedPrice and gold(selectedPrice) or "No AH Price").."\nEstimated Remaining Cost: "..(selectedPrice and gold(selectedPrice*current.qty) or "Unknown")) or "")
  end
  if panel.itemIcon then
   if current then
@@ -331,7 +331,7 @@ update=function()
     row.highlight:Show()
    else row.highlight:Hide() end
    local price=prices[item.id]
-   row.cost:SetText(item.qty==0 and "-" or (price and gold(price*item.qty) or "No price"))
+   row.cost:SetText(item.qty==0 and "-" or (price and gold(price*item.qty) or "No Price"))
    row:Show()
   else row.highlight:Hide();row:Hide() end
  end
@@ -749,7 +749,7 @@ local function attach(parent)
  refreshOffers=function()
   if not panel or not panel:IsShown() then return end
   local msg=live.message or ""
-  if msg:find("Checking Auction House price",1,true) then msg="Checking AH price..." end
+  if msg:find("Checking Auction House Price",1,true) then msg="Checking AH Price..." end
   liveStatus:SetText(msg)
   offerScroll:SetMinMaxValues(0,math.max(0,#live.offers-visibleOffers))
   offerScroll:SetValue(math.max(0,#live.offers-visibleOffers)-offerOffset)
@@ -828,9 +828,9 @@ local function attach(parent)
    purchaseReceipt={id=order.id,qty=order.qty}
    awaitingPurchase=true;purchaseElapsed=0;purchaseWarningShown=false
    C_AuctionHouse.ConfirmCommoditiesPurchase(order.id,order.qty)
-   live.message="Commodity confirmation submitted. Check Auction House result."
+   live.message="Commodity Confirmation Submitted. Check Auction House Result."
   else
-   live.message="Commodity confirmation API unavailable."
+   live.message="Commodity Confirmation API Unavailable."
   end
   refreshOffers()
  end)
@@ -846,7 +846,7 @@ local function attach(parent)
    elseif type(info)=="number" then total=info end
   end
   pending={id=order.id,qty=order.qty,total=total,stage="commodity-confirm"}
-  confirmText:SetText("Confirm commodity purchase\nQuantity: "..order.qty.."\nAuction House total: "..gold(total))
+  confirmText:SetText("Confirm Commodity Purchase\nQuantity: "..order.qty.."\nAuction House Total: "..gold(total))
   accept:SetText("Confirm Buy")
   confirm:Show()
  end
@@ -875,14 +875,14 @@ local function attach(parent)
  chainToggle:SetChecked(false)
  local chainLabel=preflight:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
  chainLabel:SetPoint("LEFT",chainToggle,"RIGHT",4,0)
- chainLabel:SetText("Chain Buy - full required quantity")
+ chainLabel:SetText("Chain Buy - Full Required Quantity")
  chainToggle:SetScript("OnClick",function(self)
   chainBuy=self:GetChecked() and true or false
   local offer=selectedOffer and live.offers[selectedOffer]
   local item=selected and AH.Shopping()[selected]
   if offer and item then
    local qty=chainBuy and item.qty or math.min(item.qty,offer.qty)
-   preflightText:SetText(item.name.."\nBuy quantity: "..qty.."    Needed: "..item.qty)
+   preflightText:SetText(item.name.."\nBuy Quantity: "..qty.."    Needed: "..item.qty)
   end
  end)
  local proceed=button(preflight,"Buy",100)
@@ -895,11 +895,11 @@ local function attach(parent)
   local item=selected and AH.Shopping()[selected]
   if not offer or not item or live.id~=selected or live.waiting then return end
   if commodityOrder or awaitingPurchase then
-   live.message="Purchase already pending. Wait for the Auction House result."
+   live.message="Purchase Already Pending. Wait for the Auction House Result."
    preflight:Hide();refreshOffers();return
   end
   if not offer.commodity then
-   live.message="Regular auction buyouts remain disabled."
+   live.message="Regular Auction Buyouts Remain Disabled."
    preflight:Hide();refreshOffers();return
   end
   local needed=math.floor(tonumber(item.qty) or 0)
@@ -908,20 +908,20 @@ local function attach(parent)
   if qty<1 then return end
   local api=C_AuctionHouse
   if not api or type(api.StartCommoditiesPurchase)~="function" then
-   live.message="Commodity purchase API unavailable."
+   live.message="Commodity Purchase API Unavailable."
    preflight:Hide();refreshOffers();return
   end
   local estimated=offer.price*qty
   if type(GetMoney)=="function" and estimated>GetMoney() then
    preflight:Hide()
-   resetFailedPurchase("Not enough gold for this purchase. Add gold or choose a cheaper offer.")
+   resetFailedPurchase("Not Enough Gold for This Purchase. Add Gold or Choose a Cheaper Offer.")
    return
   end
   commodityOrder={id=selected,qty=qty,estimated=estimated}
   purchaseElapsed=0
   api.StartCommoditiesPurchase(selected,qty)
   preflight:Hide()
-  live.message="Checking AH price..."
+  live.message="Checking AH Price..."
   refreshOffers()
  end)
  preflight:Hide()
@@ -933,7 +933,7 @@ local function attach(parent)
   local item=selected and AH.Shopping()[selected]
   if not offer or not item or live.id~=selected or live.waiting or commodityOrder or awaitingPurchase then return end
   local qty=chainBuy and item.qty or math.min(item.qty,offer.qty)
-  preflightText:SetText(item.name.."\nBuy quantity: "..qty.." / Needed: "..item.qty)
+  preflightText:SetText(item.name.."\nBuy Quantity: "..qty.." / Needed: "..item.qty)
   preflight:Show()
  end)
 
@@ -985,7 +985,7 @@ local function attach(parent)
     GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
     GameTooltip:AddLine(self.item.name,1,.82,.2)
     GameTooltip:AddLine("Required: "..self.item.required.."   Owned: "..(self.item.owned or "Unknown").."   To buy: "..self.item.qty,1,1,1)
-    GameTooltip:AddLine("Cached unit price: "..gold(AH.Price(self.item.id)),1,1,1)
+    GameTooltip:AddLine("Cached Unit Price: "..gold(AH.Price(self.item.id)),1,1,1)
     GameTooltip:Show()
    end
   end)
@@ -1015,7 +1015,7 @@ local function attach(parent)
    selected=nil
    selectedOffer=nil
    live.id=nil;live.offers={};live.waiting=false
-   live.message="Item removed from shopping list."
+   live.message="Item Removed from Shopping List."
    update()
    if refreshOffers then refreshOffers() end
   end
@@ -1034,7 +1034,7 @@ local function attach(parent)
   hideNative(parent)
   setNativeTitle(parent)
   panel:Show()
-  live.message="Select a shopping-list item."
+  live.message="Select a Shopping-List Item."
   if not awaitingPurchase then commodityOrder=nil end
   if resetPurchaseDialogs then resetPurchaseDialogs() end
   live.offers={};live.waiting=false;live.elapsed=0;live.id=nil
@@ -1099,7 +1099,7 @@ watcher:SetScript("OnUpdate",function(_,dt)
   live.elapsed=live.elapsed+.5
   if live.elapsed>=15 then
    live.waiting=false;live.offers={};selectedOffer=nil
-   live.message="Auction search timed out. Select the item again to retry."
+   live.message="Auction Search Timed Out. Select the Item Again to Retry."
    if refreshOffers then refreshOffers() end
   end
  end

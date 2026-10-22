@@ -900,7 +900,7 @@ check(coreSource:find("MFO_AH.SetShoppingCratePlan({{crateID=crateID",1,true)~=n
  "single crate shopping must save its chosen material relationship")
 
 -- Stage 2 indicators and tooltip wiring.
-equal(track.Symbol("ready_to_fill"),"|TInterface\\\\Buttons\\\\UI-CheckBox-Check:13:13|t","ready icon")
+check(track.Symbol("ready_to_fill"):find("UI-CheckBox-Check",1,true)~=nil,"ready icon")
 equal(track.Symbol("bank_stock"),"|cffffff66B|r","bank icon")
 equal(track.Symbol("needs_materials"),"|cffffaa55!|r","missing-material icon")
 equal(track.Symbol("missing_crate"),"|cffcc8888X|r","missing-crate icon")

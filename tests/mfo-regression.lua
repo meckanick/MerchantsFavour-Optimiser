@@ -418,8 +418,8 @@ check(skinConfirm<skinPreflight and skinPreflight<panelHide,"Both dialogs must b
 check(ahTab:find('end)  skinPurchaseDialog',1,true)==nil,"Never append local skin calls to an event callback")
 check(ahTab:find('ART.."WTP_ProfessionRow"',1,true)~=nil,"Dialog headers must use existing MFO row texture")
 check(ahTab:find('ART.."MFO_WoodBackground"',1,true)~=nil,"Dialog backgrounds must use existing MFO wood texture")
-check(ahTab:find('\\\\nBuy quantity:',1,true)==nil,"Purchase text must not display literal backslash-n")
-check(ahTab:find('\\nBuy quantity:',1,true)~=nil,"Purchase text must contain a Lua newline escape")
+check(ahTab:find('\\\\nBuy Quantity:',1,true)==nil,"Purchase text must not display literal backslash-n")
+check(ahTab:find('\\nBuy Quantity:',1,true)~=nil,"Purchase text must contain a Lua newline escape")
 check(ahTab:find('api.StartCommoditiesPurchase(selected,qty)',1,true)~=nil,"Keep commodity start in direct click handler")
 check(ahTab:find('C_AuctionHouse.ConfirmCommoditiesPurchase(order.id,order.qty)',1,true)~=nil,"Keep commodity confirm in direct click handler")
 
@@ -427,7 +427,7 @@ check(ahTab:find('C_AuctionHouse.ConfirmCommoditiesPurchase(order.id,order.qty)'
 check(ahTab:find('if event=="AUCTION_HOUSE_THROTTLED_SYSTEM_READY" then',1,true)~=nil,"Throttle ready event must be handled separately")
 check(ahTab:find('return -- Throttle notifications are not auction result payloads.',1,true)~=nil,"Throttle event must not clear live search")
 check(ahTab:find('if live.elapsed>=15 then',1,true)~=nil,"Stalled live searches must expire")
-check(ahTab:find('Auction search timed out. Select the item again to retry.',1,true)~=nil,"Search timeout must show recovery instruction")
+check(ahTab:find('Auction Search Timed Out. Select the Item Again to Retry.',1,true)~=nil,"Search timeout must show recovery instruction")
 check(ahTab:find('live.offers={};live.waiting=false;selectedOffer=nil',1,true)~=nil,"Purchase completion must invalidate stale offers")
 
 -- Closing and reopening AH Shopping must not reuse stale listing selections.
@@ -742,7 +742,7 @@ check(ahTab:find('if type(GetMoney)=="function" and estimated>GetMoney() then',1
   "insufficient funds must stop a purchase before starting the AH transaction")
 check(ahTab:find('if type(GetMoney)=="function" and order.total and order.total>GetMoney() then',1,true)~=nil,
   "confirmed AH price must be checked against available gold before buying")
-check(ahTab:find('live.waiting=false\n live.message=message or "Purchase failed. Select Buy again to retry."',1,true)~=nil,
+check(ahTab:find('live.waiting=false\n live.message=message or "Purchase Failed. Select Buy Again to Retry."',1,true)~=nil,
   "failed purchase must retain selected shopping item and offer")
 check(ahTab:find('not commodityOrder and not awaitingPurchase and shoppingItem~=nil',1,true)~=nil,
   "Buy Selected must be disabled during a pending purchase and enabled after recovery")

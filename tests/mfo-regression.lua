@@ -910,7 +910,7 @@ track.AddTooltip(tooltip,track.Evaluate(sample,{[9001]=2,[101]=5},{[101]=15},123
 check(#tooltipLines>=5,"readiness tooltip must explain allocated materials")
 local shopUI=assert(io.open("MerchantsFavourOptimiser/AHShopping.lua","r")):read("*a")
 check(shopUI:find("AH.CrateReadiness(plan)",1,true)~=nil,"shop must evaluate whole plan once")
-check(shopUI:find("Planned crates ready:",1,true)~=nil,"shop tooltip must display aggregate ready count")
+check(shopUI:find("Crate readiness:",1,true)~=nil,"shop tooltip must display aggregate ready count")
 check(shopUI:find("MFO_CrateTracking.Symbol(state)",1,true)~=nil,"shop must render compact status")
 check(coreSource:find("Crate Readiness - Individual Estimate",1,true)~=nil,
  "main UI must distinguish individual estimate from plan allocation")
@@ -938,3 +938,11 @@ check(shopUI:find("Bank stock last checked",1,true)~=nil,
  "shopping tooltip must identify cached bank data")
 check(shopUI:find("item.materialReadiness",1,true)==nil,
  "material rows must remain without readiness icons")
+
+-- v0.1.172: crate stock belongs above the materials section in the hover tooltip.
+local crateTitle=assert(shopUI:find('GameTooltip:AddLine(self.item.name,1,.82,.2)',1,true))
+local crateStock=assert(shopUI:find('GameTooltip:AddLine("In bags: "',crateTitle,true))
+local crateReadiness=assert(shopUI:find('GameTooltip:AddLine("Crate readiness: "',crateTitle,true))
+local materialTooltip=assert(shopUI:find("MFO_CrateTracking.AddTooltip(GameTooltip,record",crateTitle,true))
+check(crateTitle<crateStock and crateStock<crateReadiness and crateReadiness<materialTooltip,
+ "crate name, shopping stock and materials must appear in that order")

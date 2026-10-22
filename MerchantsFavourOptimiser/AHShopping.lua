@@ -332,6 +332,19 @@ update=function()
  end
  local favourLabel=unknownFavour>0 and (favour.." + Unknown Favour") or tostring(favour)
  panel.total:SetText(#items.." Items | Favour: "..favourLabel.." | Est. Cost: "..gold(total)..(unpriced>0 and (" | "..unpriced.." Unpriced") or ""))
+ if panel.budget then
+  local funds=type(GetMoney)=="function" and GetMoney() or nil
+  local costLabel=unpriced>0 and ("Known Cost: "..gold(total)) or ("Remaining Cost: "..gold(total))
+  local status
+  if funds==nil then status="Gold Unavailable"
+  elseif unpriced>0 then status=unpriced.." Missing AH "..(unpriced==1 and "Price" or "Prices").." - Total Unknown"
+  elseif total<=funds then status="Affordable | Surplus: "..gold(funds-total)
+  else status="Short: "..gold(total-funds) end
+  panel.budget:SetText("Gold: "..(funds and gold(funds) or "Unknown").." | "..costLabel.." | "..status)
+  if funds==nil or unpriced>0 then panel.budget:SetTextColor(1,.76,.32)
+  elseif total<=funds then panel.budget:SetTextColor(.43,.91,.49)
+  else panel.budget:SetTextColor(1,.45,.37) end
+ end
  local current=selected and shopping[selected]
  if panel.detail then
   local selectedPrice=current and prices[selected]
@@ -562,6 +575,11 @@ local function attach(parent)
  market:SetText(AH.Market())
  panel.total=panel:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
  panel.total:SetPoint("TOPLEFT",panel,"TOPLEFT",30,-65)
+ panel.budget=panel:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+ panel.budget:SetPoint("TOPLEFT",panel,"TOPLEFT",30,-83)
+ panel.budget:SetPoint("TOPRIGHT",panel,"TOPRIGHT",-24,-83)
+ panel.budget:SetJustifyH("LEFT")
+ panel.budget:SetWordWrap(false)
  panel.detail=right:CreateFontString(nil,"OVERLAY","GameFontHighlight")
  panel.detail:SetPoint("TOPLEFT",right,"TOPLEFT",64,-54)
  panel.detail:SetPoint("RIGHT",right,"RIGHT",-16,0)
@@ -899,7 +917,9 @@ local function attach(parent)
   local item=AH.Shopping()[order.id]
    local itemName=(item and item.name) or (type(GetItemInfo)=="function" and GetItemInfo(order.id)) or ("Item "..order.id)
    local unitPrice=order.qty>0 and math.floor(total/order.qty+.5) or 0
-   confirmText:SetText(itemName.."\nQuantity: "..order.qty.."\nQuoted Unit Price: "..gold(unitPrice).."\nFinal AH Total: "..gold(total))
+   local funds=type(GetMoney)=="function" and GetMoney() or nil
+   local affordability=funds and (total>funds and ("\\nInsufficient Gold: "..gold(total-funds).." Short") or ("\\nGold After Purchase: "..gold(funds-total))) or "\\nGold Balance Unavailable"
+   confirmText:SetText(itemName.."\nQuantity: "..order.qty.."\nQuoted Unit Price: "..gold(unitPrice).."\nFinal AH Total: "..gold(total)..affordability)
   accept:SetText("Confirm Buy")
   confirm:Show()
  end
@@ -940,10 +960,12 @@ local function attach(parent)
   local available=math.max(0,math.floor(tonumber(offer.qty) or 0))
   local qty=validPurchaseQuantity(needed,available)
   local total=qty and math.floor((tonumber(offer.price) or 0)*qty+.5) or 0
+  local funds=type(GetMoney)=="function" and GetMoney() or nil
+  local affordability=qty and funds and (total>funds and ("\\nInsufficient Gold: "..gold(total-funds).." Short") or ("\\nGold After Purchase: "..gold(funds-total))) or ""
   preflightText:SetText(item.name.."\nBuy Quantity: "..(qty or "Invalid").." / Needed: "..needed..
    "\nSelected Unit Price: "..gold(offer.price)..
    "\nEstimated Total: "..(qty and gold(total) or "Unknown")..
-   "\nRemaining After Purchase: "..(qty and math.max(0,needed-qty) or "Unknown"))
+   "\nRemaining After Purchase: "..(qty and math.max(0,needed-qty) or "Unknown")..affordability)
   if proceed then proceed:SetEnabled(qty~=nil) end
  end
  local chainToggle=CreateFrame("CheckButton",nil,preflight,"UICheckButtonTemplate")

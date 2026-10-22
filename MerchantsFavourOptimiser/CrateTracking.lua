@@ -61,28 +61,30 @@ end
 -- Filled crate detection remains unverified until a Forever-specific signal is validated.
 function T.FilledStatus() return "unverified" end
 
--- Plain WoW font glyphs, no additional texture assets.
+-- Compact crate-only indicators. These are never added to material shopping rows.
+-- Use a Blizzard check texture for ready, with distinct compact state symbols.
 function T.Symbol(status)
- if status=="ready_to_fill" then return "|cff55dd55+|r" end
+ if status=="ready_to_fill" then return "|TInterface\\Buttons\\UI-CheckBox-Check:13:13|t" end
  if status=="bank_stock" then return "|cffffff66B|r" end
  if status=="needs_materials" then return "|cffffaa55!|r" end
- if status=="missing_crate" then return "|cffff7777X|r" end
+ if status=="missing_crate" then return "|cffcc8888X|r" end
  return "|cffaaaaaa?|r"
 end
-function T.AddTooltip(tooltip,record)
+function T.AddTooltip(tooltip,record,materialName)
  if not tooltip or not record then return end
- local labels={ready_to_fill="Ready to fill (bags)",bank_stock="Bank stock needed",
-  needs_materials="Materials missing",missing_crate="Crate missing"}
- tooltip:AddLine(labels[record.status] or "Readiness unknown",1,1,1)
- tooltip:AddLine("Crate in bags: "..record.crateInBags.." | Bank: "..record.crateInBank,1,1,1)
- tooltip:AddLine("Material item ID: "..record.materialID,1,1,1)
- tooltip:AddLine("Required: "..record.materialsRequired.." | Bags: "..record.materialsInBags..
-  " | Bank: "..record.materialsInBank.." | Missing: "..record.materialsMissing,1,1,1)
+ local labels={ready_to_fill="Ready to fill - items in bags",bank_stock="Bank withdrawal needed",
+  needs_materials="More materials needed",missing_crate="Crate not owned"}
+ tooltip:AddLine(labels[record.status] or "Readiness unknown",1,.82,.2)
+ tooltip:AddLine(record.crateInBags>0 and "Crate: In bags" or
+  (record.crateInBank>0 and "Crate: In bank" or "Crate: Not owned"),1,1,1)
+ tooltip:AddLine(materialName or "Required materials",1,.82,.2)
+ tooltip:AddLine("Required: "..record.materialsRequired,1,1,1)
+ tooltip:AddLine("In bags: "..record.materialsInBags.." | Bank: "..record.materialsInBank,1,1,1)
+ tooltip:AddLine("Still needed: "..record.materialsMissing,1,1,1)
  if record.crateInBank>0 or record.materialsInBank>0 then
   if record.bankSnapshot and type(time)=="function" then
    local age=math.max(0,math.floor((time()-record.bankSnapshot)/60))
-   tooltip:AddLine("Bank snapshot: "..age.." minutes ago (may be stale)",1,.72,.3,true)
-  else tooltip:AddLine("Bank contents are a cached estimate.",1,.72,.3,true) end
+   tooltip:AddLine("Bank last checked "..age.." minutes ago (may be outdated).",1,.72,.3,true)
+  else tooltip:AddLine("Bank stock is cached and may be outdated.",1,.72,.3,true) end
  end
- tooltip:AddLine("Filled/turn-in status not verified.",.7,.7,.7,true)
 end

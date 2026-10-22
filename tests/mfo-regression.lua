@@ -946,3 +946,11 @@ local crateReadiness=assert(shopUI:find('GameTooltip:AddLine("Crate readiness: "
 local materialTooltip=assert(shopUI:find("MFO_CrateTracking.AddTooltip(GameTooltip,record",crateTitle,true))
 check(crateTitle<crateStock and crateStock<crateReadiness and crateReadiness<materialTooltip,
  "crate name, shopping stock and materials must appear in that order")
+
+-- v0.1.173: visual shopping progress must separate stock and purchased quantities.
+check(shopUI:find("Shopping Progress:",1,true)~=nil,"shopping progress label missing")
+check(shopUI:find("pendingPurchaseQty",1,true)~=nil,"pending purchases must be counted separately")
+check(shopUI:find("availableTotal",1,true)~=nil and shopUI:find("purchasedTotal",1,true)~=nil,
+ "shopping progress must distinguish stock from purchased items")
+check(shopUI:find("panel.progressAvailable",1,true)~=nil and shopUI:find("panel.progressPurchased",1,true)~=nil,
+ "shopping progress must have separate green and gold segments")

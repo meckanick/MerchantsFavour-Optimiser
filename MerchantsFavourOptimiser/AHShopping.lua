@@ -307,6 +307,20 @@ update=function()
   if a.name~=b.name then return a.name<b.name end
   return a.id<b.id
  end)
+ -- Stage 2: evaluate all planned crates together so materials are allocated once.
+ local readinessByCrate={}
+ local plan=AH.ShoppingCratePlan and AH.ShoppingCratePlan()
+ if plan and AH.CrateReadiness then
+  local allocations=AH.CrateReadiness(plan)
+  for _,allocation in ipairs(allocations) do
+   local bucket=readinessByCrate[allocation.crateID]
+   if not bucket then bucket={records={},ready=0,total=0};readinessByCrate[allocation.crateID]=bucket end
+   bucket.total=bucket.total+1
+   if allocation.status=="ready_to_fill" then bucket.ready=bucket.ready+1 end
+   bucket.records[#bucket.records+1]=allocation
+  end
+ end
+ for _,item in ipairs(items) do item.readiness=readinessByCrate[item.id] end
  panel.items=items
  panel.offset=math.min(panel.offset,math.max(0,#items-#rows))
  local total,unpriced=0,0
@@ -356,7 +370,13 @@ update=function()
   local item=items[i+panel.offset]
   row.item=item
   if item then
-   row.label:SetText((selected==item.id and "|cffffd45a> |r" or "")..item.name)
+   local marker=""
+    if item.readiness then
+     local bucket=item.readiness
+     local state=bucket.ready==bucket.total and "ready_to_fill" or bucket.records[1].status
+     marker=MFO_CrateTracking.Symbol(state).." "
+    end
+    row.label:SetText((selected==item.id and "|cffffd45a> |r" or "")..marker..item.name)
    row.need:SetText(tostring(item.required))
    row.owned:SetText(item.owned and tostring(item.owned) or "?")
    row.buy:SetText(tostring(item.qty))
@@ -1099,6 +1119,14 @@ local function attach(parent)
     self.highlight:Show()
     GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
     GameTooltip:AddLine(self.item.name,1,.82,.2)
+     if self.item.readiness then
+      local bucket=self.item.readiness
+      GameTooltip:AddLine("Planned crates ready: "..bucket.ready.."/"..bucket.total,1,.82,.2)
+      GameTooltip:AddLine("Shared materials are allocated once across the plan.",.75,.75,.75,true)
+      for _,record in ipairs(bucket.records) do
+       MFO_CrateTracking.AddTooltip(GameTooltip,record)
+      end
+     end
     GameTooltip:AddLine("Required: "..self.item.required.."   Owned: "..(self.item.owned or "Unknown").."   To buy: "..self.item.qty,1,1,1)
     GameTooltip:AddLine("Cached Unit Price: "..gold(AH.Price(self.item.id)),1,1,1)
     GameTooltip:Show()

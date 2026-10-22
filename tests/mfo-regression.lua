@@ -372,6 +372,15 @@ check(ahTab:find('pcall(api.StartCommoditiesPurchase',1,true)==nil,"Protected pu
 check(ahTab:find('api.PlaceBid(order.auctionID,order.buyout)',1,true)==nil,"No protected bid call")
 
 check(ahTab:find('panel.buyOffer=button(right,"Buy Selected",115)',1,true)~=nil,"Primary button commodity diagnostic present")
+check(ahTab:find('Selected Unit Price: ',1,true)~=nil and
+      ahTab:find('Estimated Total: ',1,true)~=nil and
+      ahTab:find('Remaining After Purchase: ',1,true)~=nil,
+  "pre-purchase confirmation must show selected price, estimated total and remaining quantity")
+check(ahTab:find('Quoted Unit Price: ',1,true)~=nil and
+      ahTab:find('Final AH Total: ',1,true)~=nil,
+  "final commodity confirmation must show quoted auction cost")
+check(ahTab:find('chainBuy=self:GetChecked() and true or false\n  updatePreflightSummary()',1,true)~=nil,
+  "changing chain buy must refresh the visible purchase estimate")
 check(ahTab:find('api.StartCommoditiesPurchase(selected,qty)',1,true)~=nil,"Commodity test uses primary button")
 check(ahTab:find('api.PlaceBid(order.auctionID,order.buyout)',1,true)==nil,"Regular buyouts remain disabled")
 

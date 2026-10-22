@@ -321,6 +321,34 @@ update=function()
   end
  end
  for _,item in ipairs(items) do item.readiness=readinessByCrate[item.id] end
+ -- Separate physical inventory from confirmed purchases still awaiting collection.
+ local requiredTotal,availableTotal,purchasedTotal=0,0,0
+ for _,item in ipairs(items) do
+  if item.required>0 then
+   local entry=shopping[item.id]
+   local bags,bank=0,0
+   if AH.ShoppingItemStock then bags,bank=AH.ShoppingItemStock(item.id) end
+   local available=math.min(item.required,math.max(0,bags+bank))
+   local pending=math.max(0,math.floor(tonumber(entry and entry.pendingPurchaseQty) or 0))
+   local baseline=math.max(0,math.floor(tonumber(entry and entry.purchaseBaseline) or 0))
+   if pending>0 and MFO_DB and MFO_DB.useOwned then
+    pending=math.max(0,pending-math.max(0,bags+bank-baseline))
+   end
+   requiredTotal=requiredTotal+item.required
+   availableTotal=availableTotal+available
+   purchasedTotal=purchasedTotal+math.min(item.required-available,pending)
+  end
+ end
+ if panel.progressBar then
+  local total=math.max(1,requiredTotal)
+  panel.progressLabel:SetText("Shopping Progress: "..math.floor(100*(availableTotal+purchasedTotal)/total+.5).."%")
+  panel.progressAvailable:SetWidth(math.max(.01,330*availableTotal/total))
+  panel.progressPurchased:SetWidth(math.max(.01,330*purchasedTotal/total))
+  panel.progressPurchased:ClearAllPoints()
+  panel.progressPurchased:SetPoint("LEFT",panel.progressAvailable,"RIGHT",0,0)
+  panel.progressSummary:SetText("Available: "..availableTotal.."  |  Purchased: "..purchasedTotal..
+   "  |  To buy: "..math.max(0,requiredTotal-availableTotal-purchasedTotal))
+ end
  panel.items=items
  panel.offset=math.min(panel.offset,math.max(0,#items-#rows))
  local total,unpriced=0,0
@@ -1154,6 +1182,28 @@ local function attach(parent)
   end)
   rows[i]=row
  end
+ -- Compact, noninteractive three-state shopping progress display.
+ panel.progressLabel=left:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+ panel.progressLabel:SetPoint("BOTTOMLEFT",left,"BOTTOMLEFT",14,109)
+ panel.progressLabel:SetText("Shopping Progress: 0%")
+ panel.progressBar=CreateFrame("Frame",nil,left,"BackdropTemplate")
+ panel.progressBar:SetPoint("BOTTOMLEFT",left,"BOTTOMLEFT",14,88)
+ panel.progressBar:SetSize(330,12)
+ panel.progressBar:SetBackdrop({bgFile="Interface\\\\Buttons\\\\WHITE8X8",edgeFile="Interface\\\\Tooltips\\\\UI-Tooltip-Border",edgeSize=9,insets={left=2,right=2,top=2,bottom=2}})
+ panel.progressBar:SetBackdropColor(.18,.12,.08,1)
+ panel.progressBar:SetBackdropBorderColor(.52,.39,.21,1)
+ panel.progressAvailable=panel.progressBar:CreateTexture(nil,"ARTWORK")
+ panel.progressAvailable:SetPoint("LEFT",panel.progressBar,"LEFT",0,0)
+ panel.progressAvailable:SetHeight(8)
+ panel.progressAvailable:SetColorTexture(.22,.57,.27,1)
+ panel.progressPurchased=panel.progressBar:CreateTexture(nil,"ARTWORK")
+ panel.progressPurchased:SetHeight(8)
+ panel.progressPurchased:SetColorTexture(.75,.56,.19,1)
+ panel.progressSummary=left:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+ panel.progressSummary:SetPoint("BOTTOMLEFT",left,"BOTTOMLEFT",14,71)
+ panel.progressSummary:SetWidth(360)
+ panel.progressSummary:SetJustifyH("LEFT")
+ panel.progressSummary:SetText("Available: 0  |  Purchased: 0  |  To buy: 0")
  -- Reserve a footer line within the shopping panel, above the action buttons.
  panel.remainingCost=left:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
  panel.remainingCost:SetPoint("BOTTOMLEFT",left,"BOTTOMLEFT",14,51)

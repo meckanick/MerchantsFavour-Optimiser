@@ -308,7 +308,7 @@ check(ahTab:find('header:SetText("")',1,true)~=nil,"Native title must not be dup
 
 check(ahTab:find('right:SetPoint("TOPLEFT",left,"TOPRIGHT",8,0)',1,true)~=nil,"Right panel must anchor to left without overlap")
 
-check(ahTab:find('local function startLiveSearch(id)',1,true)~=nil,"Live AH search must be triggered by item selection")
+check(ahTab:find('local function startLiveSearch(id,retry)',1,true)~=nil,"Live AH search must be triggered by item selection")
 check(ahTab:find('COMMODITY_SEARCH_RESULTS_UPDATED',1,true)~=nil,"Live AH must support commodity results")
 check(ahTab:find('ITEM_SEARCH_RESULTS_UPDATED',1,true)~=nil,"Live AH must support item results")
 

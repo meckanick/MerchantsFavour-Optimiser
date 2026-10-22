@@ -1008,12 +1008,15 @@ local function attach(parent)
  skinPurchaseDialog(preflight,"Purchase Item")
  panel:Hide()
  panel.offset=0
- local columnHeaders={{"Item",14},{"Need",142},{"Owned",183},{"Buy",224},{"Cost",266}}
+ local columnHeaders={{"Item",14},{"Need",151},{"Owned",199},{"Buy",247}}
  for _,col in ipairs(columnHeaders) do
   local heading=left:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
   heading:SetPoint("TOPLEFT",left,"TOPLEFT",col[2],-43)
   heading:SetText(col[1])
  end
+ local costHeading=left:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+ costHeading:SetPoint("TOPRIGHT",left,"TOPRIGHT",-18,-43)
+ costHeading:SetText("Total Cost")
  for i=1,8 do
   local row=CreateFrame("Button",nil,left)
   row:SetHeight(25)
@@ -1026,7 +1029,7 @@ local function attach(parent)
   row:SetPoint("TOPLEFT",left,"TOPLEFT",10,-62-(i-1)*26)
   row:SetPoint("RIGHT",left,"RIGHT",-10,0)
   row.label=row:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-  row.label:SetPoint("LEFT",4,0);row.label:SetWidth(124);row.label:SetJustifyH("LEFT");row.label:SetWordWrap(false)
+  row.label:SetPoint("LEFT",4,0);row.label:SetWidth(132);row.label:SetJustifyH("LEFT");row.label:SetWordWrap(false)
   local function numberColumn(offset,width)
    local label=row:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
    label:SetPoint("LEFT",row,"LEFT",offset,0)
@@ -1034,10 +1037,15 @@ local function attach(parent)
    label:SetJustifyH("RIGHT")
    return label
   end
-  row.need=numberColumn(130,35)
-  row.owned=numberColumn(171,35)
-  row.buy=numberColumn(212,35)
-  row.cost=numberColumn(253,66)
+  row.need=numberColumn(139,28)
+  row.owned=numberColumn(187,28)
+  row.buy=numberColumn(235,28)
+  -- Keep all three coin values and icons on one line, right aligned.
+  row.cost=row:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+  row.cost:SetPoint("RIGHT",row,"RIGHT",-5,0)
+  row.cost:SetWidth(126)
+  row.cost:SetJustifyH("RIGHT")
+  row.cost:SetWordWrap(false)
   row:SetScript("OnClick",function(self)if self.item then selected=self.item.id;startLiveSearch(selected);update();if refreshOffers then refreshOffers() end end end)
   row:SetScript("OnEnter",function(self)
    if self.item then

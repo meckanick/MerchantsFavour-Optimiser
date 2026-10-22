@@ -222,7 +222,14 @@ for _,name in ipairs({"ITEM_SEARCH_RESULTS_UPDATED","COMMODITY_SEARCH_RESULTS_UP
 end
 liveEvents:SetScript("OnEvent",function(_,event,arg,arg2)
  if event=="AUCTION_HOUSE_THROTTLED_SYSTEM_READY" then
-  return -- Throttle notifications are not auction result payloads.
+  if live.waiting and live.throttled and live.retries<1 and not commodityOrder and not awaitingPurchase then
+   live.retries=live.retries+1
+   startLiveSearch(live.id,true)
+   if refreshOffers then refreshOffers() end
+  end
+  return -- Never interpret throttle events as search results.
+ elseif event=="AUCTION_HOUSE_THROTTLED_MESSAGE_SENT" then
+  if live.waiting then live.throttled=true end
  elseif event=="COMMODITY_PRICE_UPDATED" then
   if commodityOrder and not awaitingPurchase and confirmCommodity then confirmCommodity() end
  elseif event=="UI_ERROR_MESSAGE" then
@@ -1321,6 +1328,19 @@ watcher:SetScript("OnUpdate",function(_,dt)
  end
  if live.waiting then
   live.elapsed=live.elapsed+.5
+  -- Bounded search-only retry if the first request was silently ignored.
+  if live.elapsed>=2 and live.retries<1 and not commodityOrder and not awaitingPurchase then
+   local ready=true
+   if type(CanSendAuctionQuery)=="function" then
+    local ok,can=pcall(CanSendAuctionQuery)
+    ready=ok and can
+   end
+   if ready then
+    live.retries=live.retries+1
+    startLiveSearch(live.id,true)
+    if refreshOffers then refreshOffers() end
+   end
+  end
   if live.elapsed>=15 then
    live.waiting=false;live.offers={};selectedOffer=nil
    live.message="Auction Search Timed Out. Select the Item Again to Retry."

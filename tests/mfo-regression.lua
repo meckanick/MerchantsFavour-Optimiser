@@ -898,3 +898,21 @@ check(coreSource:find("MFO_AH.SetShoppingCratePlan(cratePlan)",1,true)~=nil,
  "planner must save its chosen bundle relationships")
 check(coreSource:find("MFO_AH.SetShoppingCratePlan({{crateID=crateID",1,true)~=nil,
  "single crate shopping must save its chosen material relationship")
+
+-- Stage 2 indicators and tooltip wiring.
+equal(track.Symbol("ready_to_fill"),"|cff55dd55+|r","ready icon")
+equal(track.Symbol("bank_stock"),"|cffffff66B|r","bank icon")
+equal(track.Symbol("needs_materials"),"|cffffaa55!|r","missing-material icon")
+equal(track.Symbol("missing_crate"),"|cffff7777X|r","missing-crate icon")
+local tooltipLines={}
+local tooltip={AddLine=function(_,line)tooltipLines[#tooltipLines+1]=line end}
+track.AddTooltip(tooltip,track.Evaluate(sample,{[9001]=2,[101]=5},{[101]=15},12345)[1])
+check(#tooltipLines>=5,"readiness tooltip must explain allocated materials")
+local shopUI=assert(io.open("MerchantsFavourOptimiser/AHShopping.lua","r")):read("*a")
+check(shopUI:find("AH.CrateReadiness(plan)",1,true)~=nil,"shop must evaluate whole plan once")
+check(shopUI:find("Planned crates ready:",1,true)~=nil,"shop tooltip must display aggregate ready count")
+check(shopUI:find("MFO_CrateTracking.Symbol(state)",1,true)~=nil,"shop must render compact status")
+check(coreSource:find("Crate Readiness - Individual Estimate",1,true)~=nil,
+ "main UI must distinguish individual estimate from plan allocation")
+check(coreSource:find("MFO_CrateTracking.AddTooltip(GameTooltip,record)",1,true)~=nil,
+ "main UI must display crate status tooltip")

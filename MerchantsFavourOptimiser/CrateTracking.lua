@@ -69,20 +69,31 @@ function T.Symbol(status)
  if status=="missing_crate" then return "|cffff7777X|r" end
  return "|cffaaaaaa?|r"
 end
-function T.AddTooltip(tooltip,record)
+-- Separate material readiness from crate ownership.
+function T.MaterialStatus(required,bagQty,bankQty)
+ local need=quantity(required)
+ local bags=quantity(bagQty)
+ local bank=quantity(bankQty)
+ if need<=0 then return "unknown" end
+ if bags>=need then return "ready_to_fill" end
+ if bags+bank>=need then return "bank_stock" end
+ return "needs_materials"
+end
+function T.AddTooltip(tooltip,record,materialName)
  if not tooltip or not record then return end
- local labels={ready_to_fill="Ready to fill (bags)",bank_stock="Bank stock needed",
-  needs_materials="Materials missing",missing_crate="Crate missing"}
- tooltip:AddLine(labels[record.status] or "Readiness unknown",1,1,1)
- tooltip:AddLine("Crate in bags: "..record.crateInBags.." | Bank: "..record.crateInBank,1,1,1)
- tooltip:AddLine("Material item ID: "..record.materialID,1,1,1)
- tooltip:AddLine("Required: "..record.materialsRequired.." | Bags: "..record.materialsInBags..
-  " | Bank: "..record.materialsInBank.." | Missing: "..record.materialsMissing,1,1,1)
+ local labels={ready_to_fill="Ready to fill",bank_stock="Bank stock needed",
+  needs_materials="Materials still needed",missing_crate="Crate not owned"}
+ tooltip:AddLine(labels[record.status] or "Readiness unknown",1,.82,.2)
+ tooltip:AddLine((record.crateInBags+record.crateInBank>0 and "Crate owned" or "Crate not owned"),1,1,1)
+ tooltip:AddLine(materialName or "Required materials",1,.82,.2)
+ tooltip:AddLine("Required: "..record.materialsRequired,1,1,1)
+ tooltip:AddLine("In bags: "..record.materialsInBags.." | Bank: "..record.materialsInBank,1,1,1)
+ tooltip:AddLine("Still needed: "..record.materialsMissing,1,1,1)
  if record.crateInBank>0 or record.materialsInBank>0 then
   if record.bankSnapshot and type(time)=="function" then
    local age=math.max(0,math.floor((time()-record.bankSnapshot)/60))
-   tooltip:AddLine("Bank snapshot: "..age.." minutes ago (may be stale)",1,.72,.3,true)
-  else tooltip:AddLine("Bank contents are a cached estimate.",1,.72,.3,true) end
+   tooltip:AddLine("Bank last checked "..age.." minutes ago; stock may have changed.",1,.72,.3,true)
+  else tooltip:AddLine("Bank quantities are cached and may be outdated.",1,.72,.3,true) end
  end
- tooltip:AddLine("Filled/turn-in status not verified.",.7,.7,.7,true)
+ tooltip:AddLine("Filled crate status not verified.",.7,.7,.7,true)
 end

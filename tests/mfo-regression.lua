@@ -914,7 +914,7 @@ check(shopUI:find("Planned crates ready:",1,true)~=nil,"shop tooltip must displa
 check(shopUI:find("MFO_CrateTracking.Symbol(state)",1,true)~=nil,"shop must render compact status")
 check(coreSource:find("Crate Readiness - Individual Estimate",1,true)~=nil,
  "main UI must distinguish individual estimate from plan allocation")
-check(coreSource:find("MFO_CrateTracking.AddTooltip(GameTooltip,record)",1,true)~=nil,
+check(coreSource:find("MFO_CrateTracking.AddTooltip(GameTooltip,record,",1,true)~=nil,
  "main UI must display crate status tooltip")
 
 -- v0.1.170 material readiness and readable tooltip regression checks.

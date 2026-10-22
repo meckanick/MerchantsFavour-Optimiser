@@ -10,10 +10,13 @@ end
 local note -- forward declaration
 local knownIDs
 local price
+local MFO_COIN_GOLD="|TInterface\\MoneyFrame\\UI-GoldIcon:12:12:0:0|t"
+local MFO_COIN_SILVER="|TInterface\\MoneyFrame\\UI-SilverIcon:12:12:0:0|t"
+local MFO_COIN_COPPER="|TInterface\\MoneyFrame\\UI-CopperIcon:12:12:0:0|t"
 local function money(v)
   if not v then return "?" end
   v = math.floor(v + 0.5)
-  return string.format("%dg %ds %dc", math.floor(v/10000), math.floor(v/100)%100, v%100)
+  return string.format("%d%s %d%s %d%s", math.floor(v/10000), MFO_COIN_GOLD, math.floor(v/100)%100, MFO_COIN_SILVER, v%100, MFO_COIN_COPPER)
 end
 local scanAgeFooter
 local lastScanAgeText,lastScanAgeColor

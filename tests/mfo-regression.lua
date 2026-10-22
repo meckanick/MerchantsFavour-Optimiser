@@ -718,6 +718,14 @@ check(ahTab:find('crateFavour[crate.id]=crate.favour',1,true)~=nil and
       ahTab:find('unknownFavour=unknownFavour+item.required',1,true)~=nil,
   "shopping Favour total must use verified rewards and full crate demand")
 
+-- Coin icons are presentation-only: amounts remain copper-based and uncoloured.
+for _,source in ipairs({coreSource,ahTab}) do
+  check(source:find('UI-GoldIcon:12:12',1,true)~=nil and
+        source:find('UI-SilverIcon:12:12',1,true)~=nil and
+        source:find('UI-CopperIcon:12:12',1,true)~=nil,
+    "main and shopping currency strings must use native WoW coin textures")
+end
+
 -- Purchase status feedback must remain visual-only, with distinct success,
 -- failure and in-progress colours and a neutral default.
 check(ahTab:find('liveStatus:SetTextColor(.36,.90,.42)',1,true)~=nil and

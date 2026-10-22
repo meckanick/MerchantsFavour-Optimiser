@@ -742,10 +742,11 @@ local function attach(parent)
   liveRows[i]=row
  end
  local liveStatus=right:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
- -- Keep long purchase messages above the footer button, not behind it.
- liveStatus:SetPoint("BOTTOMLEFT",right,"BOTTOMLEFT",16,43)
- liveStatus:SetPoint("BOTTOMRIGHT",right,"BOTTOMRIGHT",-16,43)
- liveStatus:SetHeight(34)
+ -- Status shares the footer row with Buy Selected, never the auction-list viewport.
+ -- Reserve the button width plus a gap; long messages must not cover listings.
+ liveStatus:SetPoint("BOTTOMLEFT",right,"BOTTOMLEFT",16,15)
+ liveStatus:SetPoint("BOTTOMRIGHT",right,"BOTTOMRIGHT",-145,15)
+ liveStatus:SetHeight(32)
  liveStatus:SetJustifyH("LEFT")
  liveStatus:SetJustifyV("BOTTOM")
  liveStatus:SetWordWrap(true)

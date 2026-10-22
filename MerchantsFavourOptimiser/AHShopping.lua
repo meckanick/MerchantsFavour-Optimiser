@@ -264,8 +264,14 @@ liveEvents:SetScript("OnEvent",function(_,event,arg,arg2)
 end)
 -- Crate membership is static; avoid rebuilding it on each UI refresh.
 local crateIDs={}
+local crateFavour={}
 for _,crate in ipairs(MFO_DATA or {}) do
- if type(crate.id)=="number" then crateIDs[crate.id]=true end
+ if type(crate.id)=="number" then
+  crateIDs[crate.id]=true
+  if type(crate.favour)=="number" and crate.favour>0 then
+   crateFavour[crate.id]=crate.favour
+  end
+ end
 end
 update=function()
  if not panel or not panel:IsShown() then return end
@@ -302,7 +308,20 @@ update=function()
    if price then total=total+price*v.qty else unpriced=unpriced+1 end
   end
  end
- panel.total:SetText(#items.." Items | Estimated Cost: "..gold(total)..(unpriced>0 and (" | "..unpriced.." Unpriced (Total Incomplete)") or ""))
+ -- Favour comes from the full planned crate quantities, not the remaining
+ -- quantity to buy; owned crates still count towards the planned turn-ins.
+ local favour,unknownFavour=0,0
+ for _,item in ipairs(items) do
+  if crateIDs[item.id] and item.required>0 then
+   if crateFavour[item.id] then
+    favour=favour+crateFavour[item.id]*item.required
+   else
+    unknownFavour=unknownFavour+item.required
+   end
+  end
+ end
+ local favourLabel=unknownFavour>0 and (favour.." + Unknown Favour") or tostring(favour)
+ panel.total:SetText(#items.." Items | Favour: "..favourLabel.." | Est. Cost: "..gold(total)..(unpriced>0 and (" | "..unpriced.." Unpriced") or ""))
  local current=selected and shopping[selected]
  if panel.detail then
   local selectedPrice=current and prices[selected]

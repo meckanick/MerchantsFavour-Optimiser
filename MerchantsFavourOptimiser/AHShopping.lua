@@ -905,7 +905,6 @@ local function attach(parent)
  end
  -- Pre-purchase dialog: Chain Buy is selected here, before the
  -- player's explicit purchase click. Keep the working API call first.
- local chainBuy=false
  local preflight=CreateFrame("Frame",nil,panel,"BackdropTemplate")
  preflight:SetSize(420,265)
  preflight:SetPoint("CENTER",panel,"CENTER")
@@ -923,6 +922,7 @@ local function attach(parent)
  preflightText:SetPoint("TOP",preflight,"TOP",0,-61)
  preflightText:SetWidth(382)
  preflightText:SetJustifyH("CENTER")
+ local chainBuy=false
  local function updatePreflightSummary()
   local offer=selectedOffer and live.offers[selectedOffer]
   local item=selected and AH.Shopping()[selected]

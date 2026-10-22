@@ -404,7 +404,7 @@ check(ahTab:find("math.min(count,100)",1,true)==nil,"Legacy AH results are not c
 check(ahTab:find("math.min(api.GetNumCommoditySearchResults",1,true)==nil,"Commodity results are not capped at 100")
 check(ahTab:find("math.min(api.GetNumItemSearchResults",1,true)==nil,"Item results are not capped at 100")
 check(ahTab:find("showing 6 lowest",1,true)==nil,"No misleading six-listing status")
-check(ahTab:find("scroll to see all",1,true)~=nil,"All-listings status is shown")
+check(ahTab:find("Scroll to See All",1,true)~=nil,"All-listings status is shown")
 
 -- Purchase-dialog regressions: both skins must be applied while their local frames exist.
 local skinDefinition=assert(ahTab:find('local function skinPurchaseDialog(frame,title)',1,true),"Dialog skin helper missing")

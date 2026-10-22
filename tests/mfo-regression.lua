@@ -954,3 +954,11 @@ check(shopUI:find("availableTotal",1,true)~=nil and shopUI:find("purchasedTotal"
  "shopping progress must distinguish stock from purchased items")
 check(shopUI:find("panel.progressAvailable",1,true)~=nil and shopUI:find("panel.progressPurchased",1,true)~=nil,
  "shopping progress must have separate green and gold segments")
+
+-- v0.1.174: progress moves to the top header, restoring shopping list capacity.
+check(shopUI:find('panel.progressLabel:SetPoint("TOPLEFT",panel,"TOPLEFT",265,-57)',1,true)~=nil,
+ "progress label should be anchored in the header")
+check(shopUI:find('panel.progressBar:SetPoint("TOPLEFT",panel,"TOPLEFT",265,-78)',1,true)~=nil,
+ "progress bar should be anchored in the header")
+check(shopUI:find('for i=1,8 do\n  local row=CreateFrame("Button",nil,left)',1,true)~=nil,
+ "eight shopping rows should be restored")

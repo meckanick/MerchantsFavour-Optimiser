@@ -1185,7 +1185,7 @@ local function attach(parent)
  end
  -- Compact progress centered between the Favour summary and faction label.
  panel.progressBar=CreateFrame("Frame",nil,panel,"BackdropTemplate")
- panel.progressBar:SetPoint("TOPLEFT",panel,"TOPLEFT",290,-54)
+ panel.progressBar:SetPoint("TOP",panel,"TOP",0,-54)
  panel.progressBar:SetSize(280,22)
  panel.progressBar:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8",edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",edgeSize=9,insets={left=2,right=2,top=2,bottom=2}})
  panel.progressBar:SetBackdropColor(.18,.12,.08,1)

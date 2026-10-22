@@ -756,6 +756,15 @@ check(ahTab:find('row:SetHeight(39)',1,true)~=nil and
       ahTab:find('row:SetPoint("TOPLEFT",left,"TOPLEFT",10,-62-(i-1)*40)',1,true)~=nil,
   "two-line shopping rows must have enough vertical spacing")
 
+-- Shopping navigation must open, not toggle, the main MFO window.
+check(coreSource:find('MFO_OpenMainWindow=function()',1,true)~=nil and
+      coreSource:find('refresh()\n  frame:Show()',1,true)~=nil,
+  "main window must expose an open-only navigation action")
+check(ahTab:find('local openMain=button(panel,"Open MFO",124)',1,true)~=nil and
+      ahTab:find('openMain:SetPoint("BOTTOM",panel,"BOTTOM",0,4)',1,true)~=nil and
+      ahTab:find('MFO_OpenMainWindow()',1,true)~=nil,
+  "shopping footer must offer a matching button to open the main optimiser")
+
 -- Purchase status feedback must remain visual-only, with distinct success,
 -- failure and in-progress colours and a neutral default.
 check(ahTab:find('liveStatus:SetTextColor(.36,.90,.42)',1,true)~=nil and

@@ -840,3 +840,20 @@ check(ahTab:find('qtyInput:SetEnabled(not chainBuy)',1,true)~=nil,
 check(ahTab:find('api.StartCommoditiesPurchase(selected,qty)',1,true)~=nil and
       ahTab:find('purchaseReceipt={id=order.id,qty=order.qty}',1,true)~=nil,
   "manual quantity must reach the AH purchase API and success receipt")
+
+-- v0.1.166 shopping budget uses MFO's own market-scoped AH prices.
+check(ahTab:find('local price=AH.Price(v.id)',1,true)~=nil and
+      ahTab:find('local funds=type(GetMoney)=="function" and GetMoney() or nil',1,true)~=nil,
+  "budget must use cached MFO AH prices and the player's gold")
+check(ahTab:find('if funds==nil then status="Gold Unavailable"',1,true)~=nil and
+      ahTab:find('status=unpriced.." Missing AH "',1,true)~=nil,
+  "unknown gold and missing prices must not be reported as affordable")
+check(ahTab:find('status="Affordable | Surplus: "..gold(funds-total)',1,true)~=nil and
+      ahTab:find('status="Short: "..gold(total-funds)',1,true)~=nil,
+  "budget must distinguish affordable and insufficient gold")
+check(ahTab:find('panel.budget=panel:CreateFontString',1,true)~=nil and
+      ahTab:find('panel.budget:SetText("Gold: "',1,true)~=nil,
+  "budget must appear in existing shopping interface")
+check(ahTab:find('confirmText:SetText(itemName..',1,true)~=nil and
+      ahTab:find('..affordability)',1,true)~=nil,
+  "purchase confirmation must show gold affordability")

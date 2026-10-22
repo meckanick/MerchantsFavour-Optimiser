@@ -298,7 +298,9 @@ check(ahTab:find('restoreNativeTitle()',1,true)~=nil,"MFO must restore native Au
 check(ahTab:find('region:SetText("MFO - Shopping")',1,true)~=nil,"MFO must set native header title")
 
 check(ahTab:find('left:SetWidth(340)',1,true)~=nil,"Shopping list must use Auctionator-style pane proportions")
-check(ahTab:find('row.cost:SetWidth(72)',1,true)~=nil,"Shopping prices must have dedicated width")
+check(ahTab:find('row.cost=row:CreateFontString',1,true)~=nil and
+      ahTab:find('row.cost:SetWidth(215)',1,true)~=nil,
+  "Shopping prices must retain a dedicated, wider cost column")
 check(ahTab:find('header:SetText("")',1,true)~=nil,"Duplicate shopping title must be hidden")
 
 check(ahTab:find('searchLabel:SetText("Search Term:")',1,true)==nil,"Unused search toolbar must be removed")
@@ -356,7 +358,11 @@ check(ahTab:find('panel.page=',1,true)==nil,"Shopping panel must not show page c
 check(ahTab:find('button(left,"<"',1,true)==nil and ahTab:find('button(left,">"',1,true)==nil,"Shopping panel must not show pagination arrows")
 check(ahTab:find('left:EnableMouseWheel(true)',1,true)~=nil,"Long shopping lists must remain scrollable")
 check(ahTab:find('local coin=left:CreateTexture',1,true)==nil,"Shopping list pane must not have extra coin overlay")
-check(ahTab:find('liveStatus:SetPoint("BOTTOMLEFT",right,"BOTTOMLEFT",16,16)',1,true)~=nil,"Listing status must be at bottom of selected item pane")
+check(ahTab:find('liveStatus:SetPoint("BOTTOMLEFT",right,"BOTTOMLEFT",16,15)',1,true)~=nil and
+      ahTab:find('liveStatus:SetPoint("BOTTOMRIGHT",right,"BOTTOMRIGHT",-145,15)',1,true)~=nil and
+      ahTab:find('liveStatus:SetWordWrap(true)',1,true)~=nil and
+      ahTab:find('liveStatus:SetHeight(32)',1,true)~=nil,
+  "Listing status must wrap in the footer beside Buy Selected, clear of auction rows")
 
 check(ahTab:find('panel.itemIcon=CreateFrame("Button",nil,right)',1,true)~=nil,"Selected item must show a hoverable icon")
 check(ahTab:find('GameTooltip:SetHyperlink("item:"..selected)',1,true)~=nil,"Selected item must expose native item tooltip")
@@ -368,6 +374,17 @@ check(ahTab:find('pcall(api.StartCommoditiesPurchase',1,true)==nil,"Protected pu
 check(ahTab:find('api.PlaceBid(order.auctionID,order.buyout)',1,true)==nil,"No protected bid call")
 
 check(ahTab:find('panel.buyOffer=button(right,"Buy Selected",115)',1,true)~=nil,"Primary button commodity diagnostic present")
+check(ahTab:find('Selected Unit Price: ',1,true)~=nil and
+      ahTab:find('Estimated Total: ',1,true)~=nil and
+      ahTab:find('Remaining After Purchase: ',1,true)~=nil,
+  "pre-purchase confirmation must show selected price, estimated total and remaining quantity")
+check(ahTab:find('Quoted Unit Price: ',1,true)~=nil and
+      ahTab:find('Final AH Total: ',1,true)~=nil,
+  "final commodity confirmation must show quoted auction cost")
+check(ahTab:find('chainBuy=self:GetChecked() and true or false',1,true)~=nil and
+      ahTab:find('qtyInput:SetEnabled(not chainBuy)',1,true)~=nil and
+      ahTab:find('  updatePreflightSummary()\n end)\n proceed=button',1,true)~=nil,
+  "changing chain buy must refresh the visible purchase estimate")
 check(ahTab:find('api.StartCommoditiesPurchase(selected,qty)',1,true)~=nil,"Commodity test uses primary button")
 check(ahTab:find('api.PlaceBid(order.auctionID,order.buyout)',1,true)==nil,"Regular buyouts remain disabled")
 
@@ -404,7 +421,7 @@ check(ahTab:find("math.min(count,100)",1,true)==nil,"Legacy AH results are not c
 check(ahTab:find("math.min(api.GetNumCommoditySearchResults",1,true)==nil,"Commodity results are not capped at 100")
 check(ahTab:find("math.min(api.GetNumItemSearchResults",1,true)==nil,"Item results are not capped at 100")
 check(ahTab:find("showing 6 lowest",1,true)==nil,"No misleading six-listing status")
-check(ahTab:find("scroll to see all",1,true)~=nil,"All-listings status is shown")
+check(ahTab:find("Scroll to See All",1,true)~=nil,"All-listings status is shown")
 
 -- Purchase-dialog regressions: both skins must be applied while their local frames exist.
 local skinDefinition=assert(ahTab:find('local function skinPurchaseDialog(frame,title)',1,true),"Dialog skin helper missing")
@@ -418,8 +435,8 @@ check(skinConfirm<skinPreflight and skinPreflight<panelHide,"Both dialogs must b
 check(ahTab:find('end)  skinPurchaseDialog',1,true)==nil,"Never append local skin calls to an event callback")
 check(ahTab:find('ART.."WTP_ProfessionRow"',1,true)~=nil,"Dialog headers must use existing MFO row texture")
 check(ahTab:find('ART.."MFO_WoodBackground"',1,true)~=nil,"Dialog backgrounds must use existing MFO wood texture")
-check(ahTab:find('\\\\nBuy quantity:',1,true)==nil,"Purchase text must not display literal backslash-n")
-check(ahTab:find('\\nBuy quantity:',1,true)~=nil,"Purchase text must contain a Lua newline escape")
+check(ahTab:find('\\\\nBuy Quantity:',1,true)==nil,"Purchase text must not display literal backslash-n")
+check(ahTab:find('\\nBuy Quantity:',1,true)~=nil,"Purchase text must contain a Lua newline escape")
 check(ahTab:find('api.StartCommoditiesPurchase(selected,qty)',1,true)~=nil,"Keep commodity start in direct click handler")
 check(ahTab:find('C_AuctionHouse.ConfirmCommoditiesPurchase(order.id,order.qty)',1,true)~=nil,"Keep commodity confirm in direct click handler")
 
@@ -427,7 +444,7 @@ check(ahTab:find('C_AuctionHouse.ConfirmCommoditiesPurchase(order.id,order.qty)'
 check(ahTab:find('if event=="AUCTION_HOUSE_THROTTLED_SYSTEM_READY" then',1,true)~=nil,"Throttle ready event must be handled separately")
 check(ahTab:find('return -- Throttle notifications are not auction result payloads.',1,true)~=nil,"Throttle event must not clear live search")
 check(ahTab:find('if live.elapsed>=15 then',1,true)~=nil,"Stalled live searches must expire")
-check(ahTab:find('Auction search timed out. Select the item again to retry.',1,true)~=nil,"Search timeout must show recovery instruction")
+check(ahTab:find('Auction Search Timed Out. Select the Item Again to Retry.',1,true)~=nil,"Search timeout must show recovery instruction")
 check(ahTab:find('live.offers={};live.waiting=false;selectedOffer=nil',1,true)~=nil,"Purchase completion must invalidate stale offers")
 
 -- Closing and reopening AH Shopping must not reuse stale listing selections.
@@ -447,19 +464,19 @@ check(ahTab:find('awaitingPurchase=true;purchaseElapsed=0;purchaseWarningShown=f
 check(ahTab:find('if commodityOrder or awaitingPurchase then',1,true)~=nil,"Search and purchase must guard active commodity transactions")
 check(ahTab:find('or commodityOrder or awaitingPurchase then return end',1,true)~=nil,"Buy Selected must reject duplicate in-flight purchases")
 check(ahTab:find('purchaseElapsed>=20',1,true)~=nil,"Delayed purchase must be reported")
-check(ahTab:find('Check your inventory or AH before trying again.',1,true)~=nil,"Delayed purchase warning must discourage blind retries")
+check(ahTab:find('Check your gold and inventory before retrying.',1,true)~=nil,"Delayed purchase warning must discourage blind retries")
 check(ahTab:find('if not awaitingPurchase then commodityOrder=nil end',1,true)~=nil,"Reactivating shopping must preserve an in-flight confirmation")
 
 -- Performance: avoid reconstructing static crate metadata and duplicate detail price reads.
 check(ahTab:find('local crateIDs={}',1,true)~=nil,"Crate membership must be cached")
 check(ahTab:find('local selectedPrice=current and prices[selected]',1,true)~=nil,"Selected price must be fetched once per detail update")
-check(ahTab:find('gold((selectedPrice or 0)*current.qty)',1,true)~=nil,"Selected total must reuse cached selected price")
+check(ahTab:find('selectedPrice and gold(selectedPrice*current.qty) or "Unknown"',1,true)~=nil,"Selected remaining cost must reuse cached price and show unknown when missing")
 
 -- First-search race: arm waiting state before dispatching an AH query.
-local armed=assert(ahTab:find('live.waiting=true;live.message="Searching live auctions..."',1,true))
+local armed=assert(ahTab:find('live.waiting=true;live.message="Searching Live Auctions..."',1,true))
 local dispatched=assert(ahTab:find('pcall(C_AuctionHouse.SendSearchQuery,key,{},false)',1,true))
 check(armed<dispatched,"AH listener must be armed before search dispatch")
-check(ahTab:find('live.waiting=false\n live.message="Live search unavailable in this client."',1,true)~=nil,"Failed search dispatch must clear waiting state")
+check(ahTab:find('live.waiting=false\n live.message="Live Search Unavailable in This Client."',1,true)~=nil,"Failed search dispatch must clear waiting state")
 
 -- Per-refresh prices are shared by totals, detail, and visible rows.
 check(ahTab:find('local shopping=AH.Shopping()',1,true)~=nil,"Shopping data should be fetched once per refresh")
@@ -623,3 +640,340 @@ check(coreSource:find('plannerInfo:SetText("Some Required AH Scan Prices Are Mis
 -- Legacy GetAuctionItemInfo returns buyoutAmount in field 10, not field 9.
 check(ahTab:find('local name,_,qty,_,_,_,_,_,_,buyout=GetAuctionItemInfo("list",i)',1,true)~=nil,
   "legacy shopping live offers must use the actual buyout return value")
+
+-- Smart shopping stage 1: exercise the real SavedVariables shopping API with
+-- a minimal WoW frame stub (no client or external Lua test library required).
+do
+  local previousCreateFrame=CreateFrame
+  local previousRealm=GetRealmName
+  local previousFaction=UnitFactionGroup
+  local previousDB=MFO_DB
+  CreateFrame=function()
+    return {RegisterEvent=function() end,SetScript=function() end}
+  end
+  GetRealmName=function() return "ShoppingTestRealm" end
+  UnitFactionGroup=function() return "Alliance" end
+  MFO_DB={useOwned=true}
+  dofile("MerchantsFavourOptimiser/StandaloneAH.lua")
+  local ah=MFO_AH
+  local owned={[1001]=4,[1002]=3}
+  ah.SetOwnedReader(function(id) return owned[id] or 0 end)
+  local ok=ah.ReplaceShopping({
+    [1001]={name="Copper Bar",qty=6,requiredQty=10},
+    [1002]={name="Linen Cloth",qty=2,requiredQty=5}
+  })
+  check(ok,"full-requirement shopping list should be accepted")
+  equal(ah.Shopping()[1001].requiredQty,10,"full requirement must be saved")
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1001].qty,6,"initial owned subtraction must match demand")
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1001].qty,6,"repeated refresh must not subtract owned twice")
+  owned[1001]=8
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1001].qty,2,"acquired materials must reduce outstanding purchases")
+  check(ah.RecordShoppingPurchase(1001,2),"confirmed purchase must be credited")
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1001].qty,0,"confirmed purchase must immediately reduce outstanding qty")
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1001].qty,0,"repeat refresh must not double deduct provisional purchases")
+  owned[1001]=10
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1001].qty,0,"bag delivery must replace provisional purchase credit")
+  owned[1001]=8
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1001].qty,2,"once delivered, stock removal must restore outstanding need")
+  owned[1001]=0
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1001].qty,10,"removed materials must restore full requirement")
+  MFO_DB.useOwned=false
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1002].qty,5,"turning off owned stock restores full requirement")
+  check(ah.RecordShoppingPurchase(1002,2),"purchases must be recorded when owned tracking is off")
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1002].qty,3,"confirmed purchases must reduce quantity with owned tracking off")
+  MFO_DB.useOwned=true
+  ah.ReplaceShopping({[1004]={name="Fully Owned",qty=0,requiredQty=5}})
+  equal(ah.Shopping()[1004].qty,0,"fully owned requirements must be retained")
+  owned[1004]=1
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1004].qty,4,"fully owned item must reappear when stock falls")
+  ah.ReplaceShopping({[1003]={name="Old List",qty=7}})
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1003].qty,7,"legacy net quantities must not be deducted again")
+  local failed=ah.ReplaceShopping({})
+  check(not failed,"empty replacement must not clear existing list")
+  equal(ah.Shopping()[1003].qty,7,"failed replacement preserves previous list")
+  check(ah.RemoveShoppingItem(1003),"existing item must be removable")
+  check(ah.Shopping()[1003]==nil,"removed item must disappear")
+  check(not ah.RemoveShoppingItem(1003),"removing an absent item must be safe")
+  CreateFrame=previousCreateFrame
+  GetRealmName=previousRealm
+  UnitFactionGroup=previousFaction
+  MFO_DB=previousDB
+end
+
+check(coreSource:find("requiredQty=r.b.qty",1,true)~=nil and
+      coreSource:find("for id,required in pairs(plannerShopping.required) do",1,true)~=nil and
+      coreSource:find("qty=plannerShopping.items[id] or 0,requiredQty=required",1,true)~=nil,
+  "crate and planner shopping must preserve full material requirements")
+check(coreSource:find("plannerShopping={items=bestShopping,details=bestDetails,required=fullDemand}",1,true)~=nil,
+  "planner must consolidate original requirements before owned deductions")
+check(ahTab:find("if AH.RecalculateShopping then AH.RecalculateShopping() end",1,true)~=nil and
+      ahTab:find('Favour: "..favourLabel',1,true)~=nil and
+      ahTab:find('panel.remainingCost:SetText(',1,true)~=nil and
+      ahTab:find('Incomplete - ',1,true)~=nil,
+  "shopping tab must refresh quantities and flag incomplete cost totals")
+
+-- Favour is derived from full planned crate quantities, including owned crates.
+-- Unknown rewards must never be silently counted as zero.
+check(ahTab:find('crateFavour[crate.id]=crate.favour',1,true)~=nil and
+      ahTab:find('favour=favour+crateFavour[item.id]*item.required',1,true)~=nil and
+      ahTab:find('unknownFavour=unknownFavour+item.required',1,true)~=nil,
+  "shopping Favour total must use verified rewards and full crate demand")
+
+-- Coin icons are presentation-only: amounts remain copper-based and uncoloured.
+for _,source in ipairs({coreSource,ahTab}) do
+  check(source:find('UI-GoldIcon:12:12',1,true)~=nil and
+        source:find('UI-SilverIcon:12:12',1,true)~=nil and
+        source:find('UI-CopperIcon:12:12',1,true)~=nil,
+    "main and shopping currency strings must use native WoW coin textures")
+end
+
+-- Gold is hidden at zero, but both silver and copper always display.
+for _,source in ipairs({coreSource,ahTab}) do
+  check(source:find("if goldAmount",1,true)~=nil and
+        source:find("silverCopper",1,true)~=nil and
+        source:find("return silverCopper",1,true)~=nil,
+    "currency display must omit zero gold and retain zero silver/copper")
+end
+
+-- Shopping cost column must fit a full gold/silver/copper string on one line.
+check(ahTab:find('costLabel:SetText("Total Cost:")',1,true)~=nil and
+      ahTab:find('row.cost:SetWidth(215)',1,true)~=nil and
+      ahTab:find('row.cost:SetWordWrap(false)',1,true)~=nil and
+      ahTab:find('row.cost:SetPoint("BOTTOMRIGHT",row,"BOTTOMRIGHT",-5,4)',1,true)~=nil,
+  "shopping cost column must right-align full currency without wrapping")
+
+check(ahTab:find('row:SetHeight(39)',1,true)~=nil and
+      ahTab:find('row:SetPoint("TOPLEFT",left,"TOPLEFT",10,-62-(i-1)*40)',1,true)~=nil,
+  "two-line shopping rows must have enough vertical spacing")
+
+-- Shopping navigation must open, not toggle, the main MFO window.
+check(coreSource:find('MFO_OpenMainWindow=function()',1,true)~=nil and
+      coreSource:find('refresh()\n  frame:Show()',1,true)~=nil,
+  "main window must expose an open-only navigation action")
+check(ahTab:find('local openMain=button(panel,"Open MFO",124)',1,true)~=nil and
+      ahTab:find('openMain:SetPoint("BOTTOM",panel,"BOTTOM",0,4)',1,true)~=nil and
+      ahTab:find('MFO_OpenMainWindow()',1,true)~=nil,
+  "shopping footer must offer a matching button to open the main optimiser")
+
+-- Purchase status feedback must remain visual-only, with distinct success,
+-- failure and in-progress colours and a neutral default.
+check(ahTab:find('liveStatus:SetTextColor(.36,.90,.42)',1,true)~=nil and
+      ahTab:find('liveStatus:SetTextColor(1,.38,.34)',1,true)~=nil and
+      ahTab:find('liveStatus:SetTextColor(1,.76,.20)',1,true)~=nil and
+      ahTab:find('liveStatus:SetTextColor(1,.90,.70)',1,true)~=nil,
+  "shopping purchase feedback must distinguish success, failure, pending and neutral states")
+
+-- Stage 2 must preserve shopping, pricing and purchase flow while adding controls.
+check(ahTab:find('local columnHeaders={{"Item",14},{"Need",194},{"Owned",240},{"Buy",290}}',1,true)~=nil and
+      ahTab:find('costLabel:SetText("Total Cost:")',1,true)~=nil,
+  "MFO Shop must show aligned item, required, owned, to-buy and total-cost headers")
+check(ahTab:find("row.need:SetText(tostring(item.required))",1,true)~=nil and
+      ahTab:find('row.owned:SetText(item.owned and tostring(item.owned) or "?")',1,true)~=nil and
+      ahTab:find("row.buy:SetText(tostring(item.qty))",1,true)~=nil,
+  "shopping rows must display full demand, stock and remaining quantities")
+check(ahTab:find('local refreshShopping=button(left,"Refresh List",128)',1,true)~=nil and
+      ahTab:find('local removeShopping=button(left,"Remove Selected",146)',1,true)~=nil,
+  "shopping list must expose refresh and per-item removal controls")
+check(ahTab:find("if AH.RemoveShoppingItem(selected) then",1,true)~=nil and
+      ahTab:find("if AH.RefreshShoppingInventory then AH.RefreshShoppingInventory() end",1,true)~=nil,
+  "shopping controls must invoke inventory refresh and item removal APIs")
+check(ahTab:find("if v.qty>0 then",1,true)~=nil and
+      ahTab:find("if price then total=total+price*v.qty else unpriced=unpriced+1 end",1,true)~=nil,
+  "fully-owned rows must not inflate missing AH price counts")
+
+-- Purchase failures must release both commodity confirmation and search locks.
+check(ahTab:find('"COMMODITY_PURCHASE_FAILED","UI_ERROR_MESSAGE"',1,true)~=nil,
+  "MFO Shop must subscribe to WoW purchase UI failures")
+check(ahTab:find('local function resetFailedPurchase(message)',1,true)~=nil and
+      ahTab:find('commodityOrder=nil;purchaseReceipt=nil;awaitingPurchase=false;purchaseElapsed=0',1,true)~=nil,
+  "purchase failure must clear the pending transaction state")
+check(ahTab:find('type(arg2)=="string" and arg2',1,true)~=nil and
+      ahTab:find('lower:find("not enough money"',1,true)~=nil,
+  "insufficient-funds error must support modern UI error event arguments")
+check(ahTab:find('if awaitingPurchase or commodityOrder then',1,true)~=nil and
+      ahTab:find('resetFailedPurchase("No purchase result received.',1,true)~=nil,
+  "unanswered commodity purchase must release the UI lock without auto buying")
+
+-- Failed purchases must not lose the shopping selection or require a 20s wait
+-- for a purchase the player could not afford in the first place.
+check(ahTab:find('if type(GetMoney)=="function" and estimated>GetMoney() then',1,true)~=nil,
+  "insufficient funds must stop a purchase before starting the AH transaction")
+check(ahTab:find('if type(GetMoney)=="function" and order.total and order.total>GetMoney() then',1,true)~=nil,
+  "confirmed AH price must be checked against available gold before buying")
+check(ahTab:find('live.waiting=false\n live.message=message or "Purchase Failed. Select Buy Again to Retry."',1,true)~=nil,
+  "failed purchase must retain selected shopping item and offer")
+check(ahTab:find('not commodityOrder and not awaitingPurchase and shoppingItem~=nil',1,true)~=nil,
+  "Buy Selected must be disabled during a pending purchase and enabled after recovery")
+
+-- Confirmed purchases update shopping, but pending/failed purchases never do.
+check(ahTab:find('if receipt and AH.RecordShoppingPurchase then',1,true)~=nil and
+      ahTab:find('AH.RecordShoppingPurchase(receipt.id,receipt.qty)',1,true)~=nil,
+  "shopping credits must be applied only on confirmed AH success")
+check(ahTab:find('elseif event=="BAG_UPDATE_DELAYED" then',1,true)~=nil and
+      ahTab:find('if AH.RefreshShoppingInventory then AH.RefreshShoppingInventory() end',1,true)~=nil,
+  "bag delivery must automatically refresh remaining shopping quantities")
+check(ahTab:find('startLiveSearch(selected) -- Search only; buying still requires a click.',1,true)~=nil,
+  "successful purchase must preserve item selection and search remaining listings without buying")
+
+-- v0.1.165 manual purchase quantity must use the same validated amount for
+-- both preflight display and the actual protected purchase call.
+check(ahTab:find('qtyInput=CreateFrame("EditBox",nil,preflight,"InputBoxTemplate")',1,true)~=nil,
+  "purchase preflight must provide a manual quantity input")
+check(ahTab:find('value~=math.floor(value) or value<1 or value>limit',1,true)~=nil,
+  "manual purchase quantity must be a positive whole number within available limits")
+check(ahTab:find('local qty=validPurchaseQuantity(needed,available)',1,true)~=nil,
+  "purchase summary and submission must use validated quantity")
+check(ahTab:find('qtyInput:SetEnabled(not chainBuy)',1,true)~=nil,
+  "Chain Buy must retain its full-quantity mode")
+check(ahTab:find('api.StartCommoditiesPurchase(selected,qty)',1,true)~=nil and
+      ahTab:find('purchaseReceipt={id=order.id,qty=order.qty}',1,true)~=nil,
+  "manual quantity must reach the AH purchase API and success receipt")
+
+-- v0.1.167: retain price totals but move them to the shopping-list footer.
+check(ahTab:find('panel.total:SetText(#items.." Items | Favour: "..favourLabel)',1,true)~=nil,
+  "top summary should retain items and Favour without duplicate cost")
+check(ahTab:find('panel.remainingCost=left:CreateFontString',1,true)~=nil and
+      ahTab:find('panel.remainingCost:SetPoint("BOTTOMLEFT",left,"BOTTOMLEFT",14,51)',1,true)~=nil,
+  "remaining cost must be anchored above shopping action buttons")
+check(ahTab:find('Known Remaining Cost: ',1,true)~=nil and
+      ahTab:find('Incomplete - ',1,true)~=nil and
+      ahTab:find('Prices").." Missing"',1,true)~=nil,
+  "footer must warn when cached AH prices are incomplete")
+check(ahTab:find('panel.budget=',1,true)==nil and
+      ahTab:find('Gold After Purchase:',1,true)==nil,
+  "duplicate budget and affordability display must be removed")
+check(ahTab:find('local price=AH.Price(v.id)',1,true)~=nil and
+      ahTab:find('gold(total)',1,true)~=nil,
+  "footer must reuse existing AH price cache and coin formatting")
+
+
+-- Stage 1 crate readiness: pure inventory allocation with no UI dependency.
+dofile("MerchantsFavourOptimiser/CrateTracking.lua")
+local track=MFO_CrateTracking
+local sample={{crateID=9001,materialID=101,quantity=2,materialQty=10}}
+local results=track.Evaluate(sample,{[9001]=2,[101]=10},{})
+equal(#results,2,"two planned crates must yield two status records")
+equal(results[1].status,"ready_to_fill","first crate gets available bag materials")
+equal(results[2].status,"needs_materials","shared stock must not be allocated twice")
+equal(results[2].materialsMissing,10,"second crate must show unallocated shortfall")
+results=track.Evaluate(sample,{[9001]=2,[101]=5},{[101]=15},12345)
+equal(results[1].status,"bank_stock","bank-assisted readiness is not bag-ready")
+equal(results[1].materialsInBank,5,"first crate uses only missing bank stock")
+equal(results[2].status,"bank_stock","second crate may consume remaining bank stock")
+equal(results[2].bankSnapshot,12345,"bank snapshot timestamp must be retained")
+results=track.Evaluate(sample,{[101]=20},{[9001]=2},12345)
+equal(results[1].status,"bank_stock","crate held in bank cannot be bag-ready")
+results=track.Evaluate(sample,{[101]=20},{})
+equal(results[1].status,"missing_crate","materials alone do not imply crate ownership")
+equal(track.FilledStatus(),"unverified","ordinary item IDs must never imply a filled crate")
+results=track.Evaluate({
+ {crateID=9002,materialID=101,quantity=1,materialQty=5},
+ {crateID=9001,materialID=101,quantity=1,materialQty=5},
+},{[9001]=1,[9002]=1,[101]=5},{})
+equal(results[1].crateID,9001,"allocation order must be deterministic by crate ID")
+equal(results[2].status,"needs_materials","different crate types cannot reuse material stock")
+results=track.Evaluate({{crateID=9001,materialID=101,quantity=1,materialQty=3}},
+ {[9001]=1,[101]=3},{[101]=99})
+equal(results[1].status,"ready_to_fill","bag-only ready state should not depend on bank stock")
+local ahSource=assert(io.open("MerchantsFavourOptimiser/StandaloneAH.lua","r")):read("*a")
+check(ahSource:find("function AH.SetShoppingCratePlan",1,true)~=nil,
+ "shopping metadata must preserve explicit crate-to-material mappings")
+check(ahSource:find("db().shoppingCratePlan=nil",1,true)~=nil,
+ "shopping edits must invalidate stale crate plan metadata")
+check(coreSource:find("MFO_AH.CrateReadiness=function",1,true)~=nil,
+ "readiness must use the real bag and bank snapshot independently of Use Owned")
+check(coreSource:find("MFO_AH.SetShoppingCratePlan(cratePlan)",1,true)~=nil,
+ "planner must save its chosen bundle relationships")
+check(coreSource:find("MFO_AH.SetShoppingCratePlan({{crateID=crateID",1,true)~=nil,
+ "single crate shopping must save its chosen material relationship")
+
+-- Stage 2 indicators and tooltip wiring.
+check(track.Symbol("ready_to_fill"):find("UI-CheckBox-Check",1,true)~=nil,"ready icon")
+equal(track.Symbol("bank_stock"),"|cffffff66B|r","bank icon")
+equal(track.Symbol("needs_materials"),"|cffffaa55!|r","missing-material icon")
+equal(track.Symbol("missing_crate"),"|cffcc8888X|r","missing-crate icon")
+local tooltipLines={}
+local tooltip={AddLine=function(_,line)tooltipLines[#tooltipLines+1]=line end}
+track.AddTooltip(tooltip,track.Evaluate(sample,{[9001]=2,[101]=5},{[101]=15},12345)[1])
+check(#tooltipLines>=5,"readiness tooltip must explain allocated materials")
+local shopUI=assert(io.open("MerchantsFavourOptimiser/AHShopping.lua","r")):read("*a")
+check(shopUI:find("AH.CrateReadiness(plan)",1,true)~=nil,"shop must evaluate whole plan once")
+check(shopUI:find("Crate readiness:",1,true)~=nil,"shop tooltip must display aggregate ready count")
+check(shopUI:find("MFO_CrateTracking.Symbol(state)",1,true)~=nil,"shop must render compact status")
+check(coreSource:find("Crate Readiness - Individual Estimate",1,true)~=nil,
+ "main UI must distinguish individual estimate from plan allocation")
+check(coreSource:find("MFO_CrateTracking.AddTooltip(GameTooltip,record,",1,true)~=nil,
+ "main UI must display crate status tooltip")
+
+-- v0.1.170: crate-only indicators, friendly material-named tooltip.
+local readableLines={}
+track.AddTooltip({AddLine=function(_,line) readableLines[#readableLines+1]=line end},
+ track.Evaluate(sample,{[9001]=2,[101]=5},{[101]=15},12345)[1],"Cured Medium Hide")
+local readableText=table.concat(readableLines," | ")
+check(readableText:find("Cured Medium Hide",1,true)~=nil,"crate tooltip must name material")
+check(readableText:find("Still needed:",1,true)~=nil,"crate tooltip must show shortage")
+check(readableText:find("Material item ID:",1,true)==nil,"crate tooltip must hide raw IDs")
+check(shopUI:find("item.materialReadiness",1,true)==nil,"material rows must not receive status icons")
+
+-- v0.1.171: shopping hover tooltip shows separate bags and cached bank stock.
+check(coreSource:find("MFO_AH.ShoppingItemStock=function(id)",1,true)~=nil,
+ "shopping inventory must expose bag and bank quantities independently of Use Owned")
+check(shopUI:find("AH.ShoppingItemStock(self.item.id)",1,true)~=nil,
+ "shopping tooltip must read stock for hovered item")
+check(shopUI:find("In bags: ",1,true)~=nil and shopUI:find("In bank: ",1,true)~=nil,
+ "shopping tooltip must label bag and bank counts")
+check(shopUI:find("Bank stock last checked",1,true)~=nil,
+ "shopping tooltip must identify cached bank data")
+check(shopUI:find("item.materialReadiness",1,true)==nil,
+ "material rows must remain without readiness icons")
+
+-- v0.1.172: crate stock belongs above the materials section in the hover tooltip.
+local crateTitle=assert(shopUI:find('GameTooltip:AddLine(self.item.name,1,.82,.2)',1,true))
+local crateStock=assert(shopUI:find('GameTooltip:AddLine("In bags: "',crateTitle,true))
+local crateReadiness=assert(shopUI:find('GameTooltip:AddLine("Crate readiness: "',crateTitle,true))
+local materialTooltip=assert(shopUI:find("MFO_CrateTracking.AddTooltip(GameTooltip,record",crateTitle,true))
+check(crateTitle<crateStock and crateStock<crateReadiness and crateReadiness<materialTooltip,
+ "crate name, shopping stock and materials must appear in that order")
+
+-- v0.1.173: visual shopping progress must separate stock and purchased quantities.
+check(shopUI:find("Shopping Progress:",1,true)~=nil,"shopping progress label missing")
+check(shopUI:find("pendingPurchaseQty",1,true)~=nil,"pending purchases must be counted separately")
+check(shopUI:find("availableTotal",1,true)~=nil and shopUI:find("purchasedTotal",1,true)~=nil,
+ "shopping progress must distinguish stock from purchased items")
+check(shopUI:find("panel.progressAvailable",1,true)~=nil and shopUI:find("panel.progressPurchased",1,true)~=nil,
+ "shopping progress must have separate green and gold segments")
+
+-- v0.1.174: progress moves to the top header, restoring shopping list capacity.
+check(shopUI:find('panel.progressLabel:SetPoint("CENTER",panel.progressBar,"CENTER",0,0)',1,true)~=nil,
+ "progress label should be anchored in the header")
+check(shopUI:find('panel.progressBar:SetPoint("TOP",panel,"TOP",0,-54)',1,true)~=nil,
+ "progress bar should be anchored in the header")
+check(shopUI:find('for i=1,8 do\n  local row=CreateFrame("Button",nil,left)',1,true)~=nil,
+ "eight shopping rows should be restored")
+
+-- v0.1.175: percentage is inside a taller bar, with status below.
+check(shopUI:find('panel.progressBar:SetSize(280,22)',1,true)~=nil,
+ "header progress bar must be taller")
+check(shopUI:find('panel.progressSummary:SetPoint("TOP",panel.progressBar,"BOTTOM",0,-6)',1,true)~=nil,
+ "progress status must be beneath the bar")
+
+-- v0.1.176: percentage text is created after the bar, parented to it, and white.
+local barCreate=assert(shopUI:find('panel.progressBar=CreateFrame(',1,true))
+local labelCreate=assert(shopUI:find('panel.progressLabel=panel.progressBar:CreateFontString(',1,true))
+check(barCreate<labelCreate,"progress label must be created after its parent bar")
+check(shopUI:find('panel.progressLabel:SetTextColor(1,1,1,1)',1,true)~=nil,
+ "progress label should be white")
+check(shopUI:find('panel.progressSummary:SetWidth(330)',1,true)~=nil,
+ "progress status should fit beneath centered header bar")

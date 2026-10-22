@@ -10,10 +10,20 @@ end
 local note -- forward declaration
 local knownIDs
 local price
+local MFO_COIN_GOLD="|TInterface\\MoneyFrame\\UI-GoldIcon:12:12:0:0|t"
+local MFO_COIN_SILVER="|TInterface\\MoneyFrame\\UI-SilverIcon:12:12:0:0|t"
+local MFO_COIN_COPPER="|TInterface\\MoneyFrame\\UI-CopperIcon:12:12:0:0|t"
 local function money(v)
   if not v then return "?" end
   v = math.floor(v + 0.5)
-  return string.format("%dg %ds %dc", math.floor(v/10000), math.floor(v/100)%100, v%100)
+  local goldAmount = math.floor(v/10000)
+  local silverAmount = math.floor(v/100)%100
+  local copperAmount = v%100
+  local silverCopper = string.format("%d%s %d%s", silverAmount, MFO_COIN_SILVER, copperAmount, MFO_COIN_COPPER)
+  if goldAmount > 0 then
+    return string.format("%d%s %s", goldAmount, MFO_COIN_GOLD, silverCopper)
+  end
+  return silverCopper
 end
 local scanAgeFooter
 local lastScanAgeText,lastScanAgeColor
@@ -184,9 +194,27 @@ local function scanBank()
   MFO_DB.bankCounts=counts
   MFO_DB.bankScanTime=time()
 end
+-- Independent of Use Owned: completion readiness always reflects actual inventory.
+MFO_AH.CrateReadiness=function(entries)
+  return MFO_CrateTracking.Evaluate(entries,bagCounts,
+    MFO_DB and MFO_DB.bankCounts, MFO_DB and MFO_DB.bankScanTime)
+end
+MFO_AH.RefreshCrateReadiness=function()
+  learnBagItems();scanBags()
+  return MFO_AH.CrateReadiness(MFO_AH.ShoppingCratePlan and MFO_AH.ShoppingCratePlan() or {})
+end
 local function ownedCount(id)
   if not MFO_DB or not MFO_DB.useOwned then return 0 end
   return (bagCounts[id] or 0)+(MFO_DB.bankCounts and MFO_DB.bankCounts[id] or 0)
+end
+if MFO_AH.SetOwnedReader then MFO_AH.SetOwnedReader(function(id) return ownedCount(id) end) end
+MFO_AH.RefreshShoppingInventory=function() learnBagItems();scanBags() end
+-- Read-only stock details for MFO Shop tooltips, independent of Use Owned.
+MFO_AH.ShoppingItemStock=function(id)
+ if type(id)~="number" then return 0,0,nil end
+ return bagCounts[id] or 0,
+  (MFO_DB and MFO_DB.bankCounts and MFO_DB.bankCounts[id]) or 0,
+  MFO_DB and MFO_DB.bankScanTime
 end
 local function calc(crate)
   return MFO_Calculations.calculate(crate, price, ownedCount, resolve)
@@ -430,6 +458,7 @@ local rowWidths={341,76,76,76,48,76}
 local entries={}
 local shopButtons={}
 local displayedResults={}
+local readinessButtons={}
 for i=1,#rows do
   local y=-(i-1)*19
   entries[i]={}
@@ -452,16 +481,36 @@ for i=1,#rows do
     local items={}
     local crateID=r.crate.id or resolve(r.crate.name)
     local materialID=resolve(r.b.name)
-    if not (MFO_DB.useOwned and r.crateOwned) and crateID then
-      items[crateID]={name=r.crate.name,qty=1}
+    if crateID then
+      items[crateID]={name=r.crate.name,qty=(MFO_DB.useOwned and r.crateOwned) and 0 or 1,requiredQty=1}
     end
-    if not (MFO_DB.useOwned and r.missing==0) and materialID then
-      items[materialID]={name=r.b.name,qty=r.missing or r.b.qty}
+    if materialID then
+      items[materialID]={name=r.b.name,qty=r.missing or r.b.qty,requiredQty=r.b.qty}
     end
     local ok,reason=MFO_AH.ReplaceShopping(items)
+    if ok and crateID and materialID and MFO_AH.SetShoppingCratePlan then
+      MFO_AH.SetShoppingCratePlan({{crateID=crateID,materialID=materialID,quantity=1,materialQty=r.b.qty}})
+    end
     status:SetText(ok and "Shopping List Replaced. Open MFO Shop at the Auction House." or (reason or "Unable to create shopping list."))
   end)
   shopButtons[i]=shop
+  local readiness=CreateFrame("Frame",nil,scrollChild)
+  readiness:SetPoint("TOPLEFT",scrollChild,"TOPLEFT",xpos[1]+1,y+2)
+  readiness:SetSize(14,16)
+  readiness:EnableMouse(true)
+  readiness.icon=readiness:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+  readiness.icon:SetAllPoints(readiness)
+  readiness:SetScript("OnEnter",function(self)
+    local record=displayedResults[i] and displayedResults[i].readiness
+    if not record then return end
+    GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
+    GameTooltip:AddLine("Crate Readiness - Individual Estimate",1,.82,.2)
+    GameTooltip:AddLine("This crate is assessed independently; other crates may share these materials.",.75,.75,.75,true)
+    MFO_CrateTracking.AddTooltip(GameTooltip,record,displayedResults[i].b and displayedResults[i].b.name)
+    GameTooltip:Show()
+  end)
+  readiness:SetScript("OnLeave",function()GameTooltip:Hide()end)
+  readinessButtons[i]=readiness
   -- Net C/F has its own hover target; the crate-name column stays tooltip-free.
   local netHover=CreateFrame("Frame",nil,scrollChild)
   netHover:SetPoint("TOPLEFT",scrollChild,"TOPLEFT",xpos[6]-5,y+2)
@@ -496,7 +545,7 @@ for i=1,#rows do
     local t=scrollChild:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
     -- Align numeric values under their existing header labels without moving the headers.
     -- Move only the crate-name text and Shop buttons to match their header labels.
-    t:SetPoint("TOPLEFT",xpos[j]+(j==1 and 8 or -5),y);t:SetWidth(rowWidths[j]);t:SetJustifyH("LEFT");t:SetWordWrap(false)
+    t:SetPoint("TOPLEFT",xpos[j]+(j==1 and 22 or -5),y);t:SetWidth(rowWidths[j]);t:SetJustifyH("LEFT");t:SetWordWrap(false)
     entries[i][j]=t
   end
 end
@@ -515,7 +564,16 @@ local function refresh(inventoryFresh)
      if not resolve(crate.name) then missingIDs=missingIDs+1 elseif cp==nil then missingPrices=missingPrices+1 end
    elseif cp==nil then missingPrices=missingPrices+1 end
     if rate then complete=complete+1 end
-    results[#results+1]={crate=crate,rate=rate,cp=cp,b=b,bc=bc,missing=missing,owned=owned,crateOwned=crateOwned}
+    local readiness
+    if b then
+      local crateID=crate.id or resolve(crate.name)
+      local materialID=resolve(b.name)
+      if crateID and materialID then
+        readiness=MFO_AH.CrateReadiness({{crateID=crateID,materialID=materialID,
+          quantity=1,materialQty=b.qty}})[1]
+      end
+    end
+    results[#results+1]={crate=crate,rate=rate,cp=cp,b=b,bc=bc,missing=missing,owned=owned,crateOwned=crateOwned,readiness=readiness}
   end
   table.sort(results,function(a,b)
     if a.rate and b.rate then return a.rate<b.rate end
@@ -526,6 +584,11 @@ local function refresh(inventoryFresh)
   displayedResults=results
   for i,r in ipairs(results) do
     local t=entries[i]
+    local indicator=readinessButtons[i]
+    if r.readiness then
+      indicator.icon:SetText(MFO_CrateTracking.Symbol(r.readiness.status))
+      indicator:Show()
+    else indicator:Hide() end
     t[1]:SetText(r.crate.name:gsub("Waylaid Crate: ","")..(r.b and (" ("..(MFO_DB.useOwned and ((r.missing or r.b.qty).." to Buy / "..(r.owned or 0).." Owned") or (r.b.qty.."x")).." "..r.b.name..")") or ""))
     t[2]:SetText(money(r.cp));t[3]:SetText(money(r.bc));t[4]:SetText(money(r.cp and r.bc and (r.cp+r.bc) or nil));t[5]:SetText(r.crate.favour or "?");t[6]:SetText(money(r.rate))
     t[6]:SetTextColor(r.rate and .95 or .6,r.rate and .8 or .6,r.rate and .35 or .6)
@@ -708,7 +771,13 @@ planFavour=function(inventoryFresh)
       line:SetText("Additional Crate Types Not Shown")
     else line:SetText("") end
   end
-  plannerShopping={items=bestShopping,details=bestDetails}
+  local fullDemand={}
+  for _,entry in ipairs(bestDetails) do
+    local o=entry.option
+    fullDemand[o.id]=(fullDemand[o.id] or 0)+entry.qty
+    fullDemand[o.materialID]=(fullDemand[o.materialID] or 0)+entry.qty*o.bundle.qty
+  end
+  plannerShopping={items=bestShopping,details=bestDetails,required=fullDemand}
   plannerWarning:SetText(MFO_DB.useOwned and
     "Owned Items Counted Once; Mixed-Stock Optimisation Is an Estimate. Coin Rewards Are Beta-Reported." or
     "Minimum Net Cost at Current Prices; Turn-In Coin Rewards Are Beta-Reported.")
@@ -743,10 +812,19 @@ plannerShop:SetScript("OnClick",function()
     names[o.id]=o.name
     names[o.materialID]=o.bundle.name
   end
-  for id,qty in pairs(plannerShopping.items) do
-    items[id]={name=names[id] or tostring(id),qty=qty}
+  for id,required in pairs(plannerShopping.required) do
+    items[id]={name=names[id] or tostring(id),qty=plannerShopping.items[id] or 0,requiredQty=required}
   end
   local ok,reason=MFO_AH.ReplaceShopping(items)
+  if ok and MFO_AH.SetShoppingCratePlan then
+    local cratePlan={}
+    for _,entry in ipairs(plannerShopping.details) do
+      local o=entry.option
+      cratePlan[#cratePlan+1]={crateID=o.id,materialID=o.materialID,
+        quantity=entry.qty,materialQty=o.bundle.qty}
+    end
+    MFO_AH.SetShoppingCratePlan(cratePlan)
+  end
   plannerInfo:SetText(ok and "Shopping List Replaced. Open MFO Shop at the Auction House." or (reason or "Unable to create shopping list."))
 end)
 local ownedCheck=CreateFrame("CheckButton",nil,subheader,"UICheckButtonTemplate")
@@ -1013,6 +1091,11 @@ MFO_AH.onUpdate=function()
   local running=updateScanProgress()
   if not running then status:SetText(MFO_AH.Status()) end
   if frame:IsShown() then refresh() end
+end
+-- Explicit open action for other MFO views (never toggle an already-open window).
+MFO_OpenMainWindow=function()
+  refresh()
+  frame:Show()
 end
 SLASH_MFO1="/mfo"
 SlashCmdList.MFO=function(msg)

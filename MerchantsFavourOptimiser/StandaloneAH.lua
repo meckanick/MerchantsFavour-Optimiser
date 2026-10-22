@@ -91,40 +91,127 @@ end
 function AH.LastScan()
   return db().lastAHScan
 end
+-- Full requirements are retained separately from the quantity left to purchase.
+-- This prevents deducting the same owned stock twice on subsequent refreshes.
+local ownedReader
+function AH.SetOwnedReader(reader)
+  ownedReader=type(reader)=="function" and reader or nil
+end
+local function shoppingEntry(id,entry)
+  if type(id)~="number" or type(entry)~="table" then return nil end
+  local qty=tonumber(entry.qty)
+  if not qty or qty<0 then return nil end
+  qty=math.floor(qty)
+  local required=tonumber(entry.requiredQty)
+  required=required and math.floor(required) or qty
+  if required<qty then required=qty end
+  -- Keep fully-owned items only when their original demand is known.
+  if required<1 then return nil end
+  return {name=entry.name or tostring(id),qty=qty,requiredQty=required}
+end
 function AH.Shop(items)
+  if type(items)~="table" then return false,"Invalid shopping items" end
   local shopping=db().shopping
   for id,entry in pairs(items) do
-    if type(id)=="number" and type(entry)=="table" and (entry.qty or 0)>0 then
-      shopping[id]={name=entry.name or tostring(id),qty=math.floor(entry.qty)}
-    end
+    local item=shoppingEntry(id,entry)
+    if item then shopping[id]=item; db().shoppingCratePlan=nil end
   end
   return true
 end
--- Replace the current market's shopping list in one operation. Build the
--- replacement first so invalid or empty input never erases a valid list.
+-- Replace atomically; an invalid or empty request must not erase a valid list.
 function AH.ReplaceShopping(items)
   if type(items)~="table" then return false,"Invalid shopping items" end
   local replacement={}
   for id,entry in pairs(items) do
-    if type(id)=="number" and type(entry)=="table" then
-      local qty=tonumber(entry.qty)
-      if qty and qty>=1 then
-        qty=math.floor(qty)
-        if qty>0 then
-          replacement[id]={name=entry.name or tostring(id),qty=qty}
-        end
-      end
-    end
+    local item=shoppingEntry(id,entry)
+    if item then replacement[id]=item end
   end
   if not next(replacement) then return false,"No valid items to shop for" end
   db().shopping=replacement
+  db().shoppingCratePlan=nil
   return true
+end
+-- Confirmed purchases are credited immediately, even before the bag update.
+-- Once inventory reflects delivery, remove only the temporary stock credit.
+function AH.RecordShoppingPurchase(id,qty)
+  local item=db().shopping[id]
+  qty=math.floor(tonumber(qty) or 0)
+  if not item or not item.requiredQty or qty<1 then return false end
+  item.purchasedQty=(item.purchasedQty or 0)+qty
+  if ownedReader then
+    local observed=math.max(0,math.floor(tonumber(ownedReader(id)) or 0))
+    if not item.pendingPurchaseQty or item.pendingPurchaseQty==0 then
+      item.purchaseBaseline=observed
+    end
+    item.pendingPurchaseQty=(item.pendingPurchaseQty or 0)+qty
+  end
+  return true
+end
+-- Recompute from original demand, never from an already reduced purchase qty.
+-- Old lists without requiredQty retain their current quantities as baseline.
+function AH.RecalculateShopping()
+  local shopping=db().shopping
+  if not ownedReader then return false end
+  for id,item in pairs(shopping) do
+    -- Legacy lists may already contain net quantities; their original
+    -- requirements are unknown, so never subtract inventory again.
+    if item.requiredQty then
+      local required=math.max(0,math.floor(tonumber(item.requiredQty) or 0))
+      local useOwned=MFO_DB and MFO_DB.useOwned
+      local owned=useOwned and tonumber(ownedReader(id)) or 0
+      owned=math.max(0,math.floor(owned or 0))
+      if useOwned then
+        local pending=item.pendingPurchaseQty or 0
+        if pending>0 then
+          local baseline=item.purchaseBaseline or 0
+          local delivered=math.max(0,owned-baseline)
+          if delivered>=pending then
+            item.pendingPurchaseQty=0
+            item.purchaseBaseline=nil
+          else
+            owned=owned+(pending-delivered)
+          end
+        end
+        item.qty=math.max(0,required-owned)
+      else
+        -- Owned stock is intentionally ignored, but purchases made from
+        -- this list must still reduce the outstanding shopping quantity.
+        item.qty=math.max(0,required-(item.purchasedQty or 0))
+      end
+    end
+  end
+  return true
+end
+function AH.SetShoppingCratePlan(entries)
+  local copy={}
+  for _,entry in ipairs(entries or {}) do
+    if type(entry)=="table" then
+      local id,material=tonumber(entry.crateID),tonumber(entry.materialID)
+      local qty,per=tonumber(entry.quantity),tonumber(entry.materialQty)
+      if id and id>0 and material and material>0 and qty and qty>=1 and
+         qty==math.floor(qty) and per and per>=1 and per==math.floor(per) then
+        copy[#copy+1]={crateID=id,materialID=material,quantity=qty,materialQty=per}
+      end
+    end
+  end
+  db().shoppingCratePlan=#copy>0 and copy or nil
+  return #copy>0
+end
+function AH.ShoppingCratePlan()
+  return db().shoppingCratePlan
 end
 function AH.Shopping()
   return db().shopping
 end
+function AH.RemoveShoppingItem(id)
+  if type(id)~="number" or not db().shopping[id] then return false end
+  db().shopping[id]=nil
+  db().shoppingCratePlan=nil
+  return true
+end
 function AH.ClearShopping()
   db().shopping={}
+  db().shoppingCratePlan=nil
 end
 function AH.Progress()
   return math.floor(math.min(100,(position-1)/math.max(1,scanTotal)*100)),busy,priced,scanTotal

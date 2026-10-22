@@ -98,9 +98,19 @@ local function restoreNativeTitle()
  end
  wipe(originalTitles)
 end
+local MFO_COIN_GOLD="|TInterface\\MoneyFrame\\UI-GoldIcon:12:12:0:0|t"
+local MFO_COIN_SILVER="|TInterface\\MoneyFrame\\UI-SilverIcon:12:12:0:0|t"
+local MFO_COIN_COPPER="|TInterface\\MoneyFrame\\UI-CopperIcon:12:12:0:0|t"
 local function gold(c)
- if not c then return "No price" end
- return string.format("%dg %ds %dc",math.floor(c/10000),math.floor(c/100)%100,c%100)
+ if not c then return "No Price" end
+ local goldAmount=math.floor(c/10000)
+ local silverAmount=math.floor(c/100)%100
+ local copperAmount=c%100
+ local silverCopper=string.format("%d%s %d%s",silverAmount,MFO_COIN_SILVER,copperAmount,MFO_COIN_COPPER)
+ if goldAmount>0 then
+  return string.format("%d%s %s",goldAmount,MFO_COIN_GOLD,silverCopper)
+ end
+ return silverCopper
 end
 local function button(parent,label,width)
  local b=CreateFrame("Button",nil,parent,"UIPanelButtonTemplate")
@@ -117,31 +127,42 @@ local function activeAH()
  if AuctionFrame and AuctionFrame:IsShown() then return AuctionFrame end
 end
 -- Live auction search; purchases require a separate explicit hardware click.
-local live={id=nil,waiting=false,offers={},message="Select an item to search.",elapsed=0}
+local live={id=nil,waiting=false,offers={},message="Select an Item to Search.",elapsed=0}
 local refreshOffers
+local update
 local selectedOffer
 local commodityOrder
+local purchaseReceipt
 local confirmCommodity
 local resetPurchaseDialogs
 local awaitingPurchase=false
 local purchaseElapsed=0
 local purchaseWarningShown=false
+local function resetFailedPurchase(message)
+ commodityOrder=nil;purchaseReceipt=nil;awaitingPurchase=false;purchaseElapsed=0;purchaseWarningShown=false
+ if resetPurchaseDialogs then resetPurchaseDialogs() end
+ -- Retain the selected item and highlighted offer for an immediate manual retry.
+ -- A retry always starts a fresh commodity price check, never an automatic buy.
+ live.waiting=false
+ live.message=message or "Purchase Failed. Select Buy Again to Retry."
+ if refreshOffers then refreshOffers() end
+end
 local function startLiveSearch(id)
  if commodityOrder or awaitingPurchase then
-  live.message="Purchase pending. Wait for the Auction House result before searching again."
+  live.message="Purchase Pending. Wait for the Auction House Result Before Searching Again."
   if refreshOffers then refreshOffers() end
   return
  end
  if resetPurchaseDialogs then resetPurchaseDialogs() end
  if panel and panel.offerScroll then panel.offerScroll:SetValue(select(2,panel.offerScroll:GetMinMaxValues()) or 0) end
  live.id=id;live.offers={};live.waiting=false;live.elapsed=0;selectedOffer=nil
- if not id then live.message="Select an item to search.";return end
- if select(2,AH.Progress()) then live.message="Wait for the MFO price scan to finish.";return end
+ if not id then live.message="Select an Item to Search.";return end
+ if select(2,AH.Progress()) then live.message="Wait for the MFO Price Scan to Finish.";return end
  local item=AH.Shopping()[id]
- if not item then live.message="Item no longer in shopping list.";return end
+ if not item then live.message="Item No Longer in Shopping List.";return end
  -- Mark the request as waiting BEFORE dispatch: some AH clients deliver
  -- results during SendSearchQuery, before the call returns.
- live.waiting=true;live.message="Searching live auctions..."
+ live.waiting=true;live.message="Searching Live Auctions..."
  if C_AuctionHouse and type(C_AuctionHouse.SendSearchQuery)=="function" then
   local key=C_AuctionHouse.MakeItemKey and C_AuctionHouse.MakeItemKey(id) or {itemID=id}
   local ok=pcall(C_AuctionHouse.SendSearchQuery,key,{},false)
@@ -152,7 +173,7 @@ local function startLiveSearch(id)
   if ok then return end
  end
  live.waiting=false
- live.message="Live search unavailable in this client."
+ live.message="Live Search Unavailable in This Client."
 end
 local function collectLive(event,arg)
  if not live.waiting or not live.id or not panel or not panel:IsShown() then return end
@@ -190,46 +211,88 @@ local function collectLive(event,arg)
  end
  table.sort(offers,function(a,b)return a.price<b.price end)
  live.offers=offers;live.waiting=false;live.elapsed=0;selectedOffer=nil
- live.message=#offers>0 and (#offers.." listings found - scroll to see all") or "No live buyout listings found."
+ live.message=#offers>0 and (#offers.." Listings Found - Scroll to See All") or "No Live Buyout Listings Found."
  if refreshOffers then refreshOffers() end
 end
 local liveEvents=CreateFrame("Frame")
-for _,name in ipairs({"ITEM_SEARCH_RESULTS_UPDATED","COMMODITY_SEARCH_RESULTS_UPDATED","AUCTION_ITEM_LIST_UPDATE","COMMODITY_PRICE_UPDATED","COMMODITY_PRICE_UNAVAILABLE","COMMODITY_PURCHASE_SUCCEEDED","COMMODITY_PURCHASE_FAILED","AUCTION_HOUSE_THROTTLED_SYSTEM_READY"}) do
+for _,name in ipairs({"ITEM_SEARCH_RESULTS_UPDATED","COMMODITY_SEARCH_RESULTS_UPDATED","AUCTION_ITEM_LIST_UPDATE","COMMODITY_PRICE_UPDATED","COMMODITY_PRICE_UNAVAILABLE","COMMODITY_PURCHASE_SUCCEEDED","COMMODITY_PURCHASE_FAILED","UI_ERROR_MESSAGE","BAG_UPDATE_DELAYED","AUCTION_HOUSE_THROTTLED_SYSTEM_READY"}) do
  pcall(liveEvents.RegisterEvent,liveEvents,name)
 end
-liveEvents:SetScript("OnEvent",function(_,event,arg)
+liveEvents:SetScript("OnEvent",function(_,event,arg,arg2)
  if event=="AUCTION_HOUSE_THROTTLED_SYSTEM_READY" then
   return -- Throttle notifications are not auction result payloads.
  elseif event=="COMMODITY_PRICE_UPDATED" then
   if commodityOrder and not awaitingPurchase and confirmCommodity then confirmCommodity() end
+ elseif event=="UI_ERROR_MESSAGE" then
+  if not commodityOrder and not awaitingPurchase then return end
+  -- WoW Forever may report insufficient funds as a generic UI error rather
+  -- than COMMODITY_PURCHASE_FAILED. Only clear a pending purchase for
+  -- recognisable purchase failures, never for unrelated UI notifications.
+  local message=type(arg2)=="string" and arg2 or (type(arg)=="string" and arg or nil)
+  if not message then return end
+  local lower=message:lower()
+  if lower:find("not enough money",1,true) or lower:find("insufficient funds",1,true)
+   or lower:find("not enough gold",1,true) or lower:find("cannot afford",1,true)
+   or lower:find("can't afford",1,true) then
+   resetFailedPurchase("Purchase failed: insufficient funds. You can try again.")
+  end
  elseif event=="COMMODITY_PRICE_UNAVAILABLE" or event=="COMMODITY_PURCHASE_FAILED" then
   if not commodityOrder and not awaitingPurchase then return end
-  commodityOrder=nil;awaitingPurchase=false;purchaseElapsed=0;purchaseWarningShown=false
-  if resetPurchaseDialogs then resetPurchaseDialogs() end
-  live.offers={};live.waiting=false;selectedOffer=nil
-  live.message="Commodity price changed or purchase failed. Search again before buying."
-  if refreshOffers then refreshOffers() end
+  resetFailedPurchase("Commodity price changed or purchase failed. Search again before buying.")
  elseif event=="COMMODITY_PURCHASE_SUCCEEDED" then
   if not awaitingPurchase then return end
-  commodityOrder=nil;awaitingPurchase=false;purchaseElapsed=0;purchaseWarningShown=false
+  local receipt=purchaseReceipt
+  commodityOrder=nil;purchaseReceipt=nil;awaitingPurchase=false;purchaseElapsed=0;purchaseWarningShown=false
+  if receipt and AH.RecordShoppingPurchase then
+   AH.RecordShoppingPurchase(receipt.id,receipt.qty)
+  end
   if resetPurchaseDialogs then resetPurchaseDialogs() end
+  -- Reuse the inventory-based shopping calculation: never deduct the
+  -- purchased quantity independently, which would double-count bag updates.
+  if AH.RefreshShoppingInventory then AH.RefreshShoppingInventory() end
+  if AH.RecalculateShopping then AH.RecalculateShopping() end
+  if update then update() end
   live.offers={};live.waiting=false;selectedOffer=nil
-  live.message="Commodity purchase succeeded. Refresh your shopping list quantities."
+  local item=selected and AH.Shopping()[selected]
+  if item and (item.qty or 0)>0 and panel and panel:IsShown() then
+   live.message="Purchase Succeeded. Refreshing Remaining Listings..."
+   startLiveSearch(selected) -- Search only; buying still requires a click.
+  else
+   live.id=nil
+   live.message="Purchase Succeeded. Shopping Quantities Refreshed."
+  end
   if refreshOffers then refreshOffers() end
+ elseif event=="BAG_UPDATE_DELAYED" then
+  -- Auction delivery can reach bags after the purchase-success event.
+  if panel and panel:IsShown() and not awaitingPurchase and not commodityOrder then
+   if AH.RefreshShoppingInventory then AH.RefreshShoppingInventory() end
+   if AH.RecalculateShopping then AH.RecalculateShopping() end
+   if update then update() end
+   if refreshOffers then refreshOffers() end
+  end
  else collectLive(event,arg) end
 end)
 -- Crate membership is static; avoid rebuilding it on each UI refresh.
 local crateIDs={}
+local crateFavour={}
 for _,crate in ipairs(MFO_DATA or {}) do
- if type(crate.id)=="number" then crateIDs[crate.id]=true end
+ if type(crate.id)=="number" then
+  crateIDs[crate.id]=true
+  if type(crate.favour)=="number" and crate.favour>0 then
+   crateFavour[crate.id]=crate.favour
+  end
+ end
 end
-local function update()
+update=function()
  if not panel or not panel:IsShown() then return end
  local shopping=AH.Shopping()
  local items={}
  for id,v in pairs(shopping) do
-  if type(id)=="number" and type(v)=="table" and (v.qty or 0)>0 then
-   items[#items+1]={id=id,name=v.name or tostring(id),qty=v.qty}
+  if type(id)=="number" and type(v)=="table" and ((v.qty or 0)>0 or (v.requiredQty or 0)>0) then
+   local required=math.max(0,math.floor(tonumber(v.requiredQty) or tonumber(v.qty) or 0))
+   local toBuy=math.max(0,math.floor(tonumber(v.qty) or 0))
+   local owned=v.requiredQty and math.max(0,required-toBuy) or nil
+   items[#items+1]={id=id,name=v.name or tostring(id),qty=toBuy,required=required,owned=owned}
   end
  end
  -- Always list Waylaid Crates before their required materials.
@@ -244,20 +307,84 @@ local function update()
   if a.name~=b.name then return a.name<b.name end
   return a.id<b.id
  end)
+ -- Stage 2: evaluate all planned crates together so materials are allocated once.
+ local readinessByCrate={}
+ local plan=AH.ShoppingCratePlan and AH.ShoppingCratePlan()
+ if plan and AH.CrateReadiness then
+  local allocations=AH.CrateReadiness(plan)
+  for _,allocation in ipairs(allocations) do
+   local bucket=readinessByCrate[allocation.crateID]
+   if not bucket then bucket={records={},ready=0,total=0};readinessByCrate[allocation.crateID]=bucket end
+   bucket.total=bucket.total+1
+   if allocation.status=="ready_to_fill" then bucket.ready=bucket.ready+1 end
+   bucket.records[#bucket.records+1]=allocation
+  end
+ end
+ for _,item in ipairs(items) do item.readiness=readinessByCrate[item.id] end
+ -- Separate physical inventory from confirmed purchases still awaiting collection.
+ local requiredTotal,availableTotal,purchasedTotal=0,0,0
+ for _,item in ipairs(items) do
+  if item.required>0 then
+   local entry=shopping[item.id]
+   local bags,bank=0,0
+   if AH.ShoppingItemStock then bags,bank=AH.ShoppingItemStock(item.id) end
+   local available=math.min(item.required,math.max(0,bags+bank))
+   local pending=math.max(0,math.floor(tonumber(entry and entry.pendingPurchaseQty) or 0))
+   local baseline=math.max(0,math.floor(tonumber(entry and entry.purchaseBaseline) or 0))
+   if pending>0 and MFO_DB and MFO_DB.useOwned then
+    pending=math.max(0,pending-math.max(0,bags+bank-baseline))
+   end
+   requiredTotal=requiredTotal+item.required
+   availableTotal=availableTotal+available
+   purchasedTotal=purchasedTotal+math.min(item.required-available,pending)
+  end
+ end
+ if panel.progressBar then
+  local total=math.max(1,requiredTotal)
+  panel.progressLabel:SetText("Shopping Progress: "..math.floor(100*(availableTotal+purchasedTotal)/total+.5).."%")
+  panel.progressAvailable:SetWidth(math.max(.01,280*availableTotal/total))
+  panel.progressPurchased:SetWidth(math.max(.01,280*purchasedTotal/total))
+  panel.progressPurchased:ClearAllPoints()
+  panel.progressPurchased:SetPoint("LEFT",panel.progressAvailable,"RIGHT",0,0)
+  panel.progressSummary:SetText("Available: "..availableTotal.."  |  Purchased: "..purchasedTotal..
+   "  |  To buy: "..math.max(0,requiredTotal-availableTotal-purchasedTotal))
+ end
  panel.items=items
  panel.offset=math.min(panel.offset,math.max(0,#items-#rows))
- local total=0
+ local total,unpriced=0,0
  local prices={}
  for _,v in ipairs(items) do
   local price=AH.Price(v.id)
   prices[v.id]=price
-  if price then total=total+price*v.qty end
+  if v.qty>0 then
+   if price then total=total+price*v.qty else unpriced=unpriced+1 end
+  end
  end
- panel.total:SetText(#items.." items  |  Estimated total: "..gold(total))
+ -- Favour comes from the full planned crate quantities, not the remaining
+ -- quantity to buy; owned crates still count towards the planned turn-ins.
+ local favour,unknownFavour=0,0
+ for _,item in ipairs(items) do
+  if crateIDs[item.id] and item.required>0 then
+   if crateFavour[item.id] then
+    favour=favour+crateFavour[item.id]*item.required
+   else
+    unknownFavour=unknownFavour+item.required
+   end
+  end
+ end
+ local favourLabel=unknownFavour>0 and (favour.." + Unknown Favour") or tostring(favour)
+ panel.total:SetText(#items.." Items | Favour: "..favourLabel)
+ if panel.remainingCost then
+  panel.remainingCost:SetText((unpriced>0 and "Known Remaining Cost: " or "Remaining Cost: ")..gold(total)..
+   (unpriced>0 and (" | Incomplete - "..unpriced.." "..(unpriced==1 and "Price" or "Prices").." Missing") or ""))
+  panel.remainingCost:SetTextColor(unpriced>0 and 1 or .98,unpriced>0 and .72 or .87,unpriced>0 and .35 or .64)
+ end
  local current=selected and shopping[selected]
  if panel.detail then
   local selectedPrice=current and prices[selected]
-  panel.detail:SetText(current and (current.name.."\nRequired quantity: "..current.qty.."\nCached unit price: "..gold(selectedPrice).."\nEstimated total: "..gold((selectedPrice or 0)*current.qty)) or "")
+  local required=current and (current.requiredQty or current.qty) or 0
+  local owned=current and current.requiredQty and math.max(0,required-current.qty) or nil
+  panel.detail:SetText(current and (current.name.."\nRequired: "..required.."   Owned: "..(owned or "?").."   To buy: "..current.qty.."\nCached Unit Price: "..(selectedPrice and gold(selectedPrice) or "No AH Price").."\nEstimated Remaining Cost: "..(selectedPrice and gold(selectedPrice*current.qty) or "Unknown")) or "")
  end
  if panel.itemIcon then
   if current then
@@ -271,10 +398,22 @@ local function update()
   local item=items[i+panel.offset]
   row.item=item
   if item then
-   row.label:SetText((selected==item.id and "|cffffd45a> |r" or "")..item.name.." x"..item.qty)
-   if selected==item.id then row.highlight:Show() else row.highlight:Hide() end
+   local marker=""
+    if item.readiness then
+     local bucket=item.readiness
+     local state=bucket.ready==bucket.total and "ready_to_fill" or bucket.records[1].status
+     marker=MFO_CrateTracking.Symbol(state).." "
+    end
+    row.label:SetText((selected==item.id and "|cffffd45a> |r" or "")..marker..item.name)
+   row.need:SetText(tostring(item.required))
+   row.owned:SetText(item.owned and tostring(item.owned) or "?")
+   row.buy:SetText(tostring(item.qty))
+   if row.hovered or selected==item.id then
+    row.highlight:SetVertexColor(.85,.76,.59,row.hovered and .52 or .38)
+    row.highlight:Show()
+   else row.highlight:Hide() end
    local price=prices[item.id]
-   row.cost:SetText(price and gold(price*item.qty) or "No price")
+   row.cost:SetText(item.qty==0 and "-" or (price and gold(price*item.qty) or "No Price"))
    row:Show()
   else row.highlight:Hide();row:Hide() end
  end
@@ -663,23 +802,56 @@ local function attach(parent)
   row.quantity=quantity
   local highlight=row:CreateTexture(nil,"BACKGROUND")
   highlight:SetAllPoints(row)
-  highlight:SetColorTexture(.63,.41,.08,.32)
+  highlight:SetTexture(ART.."WTP_ProfessionRow")
   row.highlight=highlight
+  row.hovered=false
   highlight:Hide()
+  row:SetScript("OnEnter",function(self)
+   self.hovered=true
+   self.highlight:SetVertexColor(.85,.76,.59,.52)
+   self.highlight:Show()
+  end)
+  row:SetScript("OnLeave",function(self)
+   self.hovered=false
+   if selectedOffer==offerOffset+i then
+    self.highlight:SetVertexColor(.85,.76,.59,.38)
+    self.highlight:Show()
+   else self.highlight:Hide() end
+  end)
   row:SetScript("OnClick",function()
    if live.offers[offerOffset+i] then selectedOffer=offerOffset+i;refreshOffers() end
   end)
   liveRows[i]=row
  end
  local liveStatus=right:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
- liveStatus:SetPoint("BOTTOMLEFT",right,"BOTTOMLEFT",16,16)
- liveStatus:SetWidth(285)
+ -- Status shares the footer row with Buy Selected, never the auction-list viewport.
+ -- Reserve the button width plus a gap; long messages must not cover listings.
+ liveStatus:SetPoint("BOTTOMLEFT",right,"BOTTOMLEFT",16,15)
+ liveStatus:SetPoint("BOTTOMRIGHT",right,"BOTTOMRIGHT",-145,15)
+ liveStatus:SetHeight(32)
  liveStatus:SetJustifyH("LEFT")
- liveStatus:SetWordWrap(false)
+ liveStatus:SetJustifyV("BOTTOM")
+ liveStatus:SetWordWrap(true)
  refreshOffers=function()
   if not panel or not panel:IsShown() then return end
   local msg=live.message or ""
-  if msg:find("Checking Auction House price",1,true) then msg="Checking AH price..." end
+  if msg:find("Checking Auction House Price",1,true) then msg="Checking AH Price..." end
+  -- Colour only the status text; never change purchase state or button styling.
+  local lower=msg:lower()
+  if lower:find("succeeded",1,true) then
+   liveStatus:SetTextColor(.36,.90,.42) -- successful purchase
+  elseif lower:find("failed",1,true) or lower:find("not enough",1,true)
+   or lower:find("insufficient",1,true) or lower:find("unavailable",1,true)
+   or lower:find("timed out",1,true) or lower:find("no purchase result",1,true)
+   or lower:find("no live buyout",1,true) then
+   liveStatus:SetTextColor(1,.38,.34) -- failed purchase or search
+  elseif live.waiting or commodityOrder or awaitingPurchase
+   or lower:find("pending",1,true) or lower:find("checking",1,true)
+   or lower:find("wait for",1,true) or lower:find("searching",1,true) then
+   liveStatus:SetTextColor(1,.76,.20) -- in-progress operation
+  else
+   liveStatus:SetTextColor(1,.90,.70) -- neutral information
+  end
   liveStatus:SetText(msg)
   offerScroll:SetMinMaxValues(0,math.max(0,#live.offers-visibleOffers))
   offerScroll:SetValue(math.max(0,#live.offers-visibleOffers)-offerOffset)
@@ -689,10 +861,14 @@ local function attach(parent)
    row.price:SetText(offer and gold(offer.price) or "")
    row.quantity:SetText(offer and ("x"..offer.qty) or "")
    if offer then row:Show() else row:Hide() end
-   if selectedOffer==offerOffset+i then row.highlight:Show() else row.highlight:Hide() end
+   if offer and (row.hovered or selectedOffer==offerOffset+i) then
+    row.highlight:SetVertexColor(.85,.76,.59,row.hovered and .52 or .38)
+    row.highlight:Show()
+   else row.highlight:Hide() end
   end
   if panel.buyOffer then
-   panel.buyOffer:SetEnabled(selectedOffer~=nil and live.offers[selectedOffer]~=nil and not live.waiting)
+   local shoppingItem=selected and AH.Shopping()[selected]
+   panel.buyOffer:SetEnabled(selectedOffer~=nil and live.offers[selectedOffer]~=nil and not live.waiting and not commodityOrder and not awaitingPurchase and shoppingItem~=nil and (shoppingItem.qty or 0)>0)
   end
  end
  -- Original MFO transaction UI: protected calls are made directly from
@@ -715,7 +891,7 @@ local function attach(parent)
   label:SetTextColor(1,.78,.24)
  end
  local confirm=CreateFrame("Frame",nil,panel,"BackdropTemplate")
- confirm:SetSize(390,190)
+ confirm:SetSize(390,215)
  confirm:SetPoint("CENTER",panel,"CENTER")
  confirm:SetFrameStrata("DIALOG")
  confirm:SetFrameLevel(panel:GetFrameLevel()+30)
@@ -725,6 +901,7 @@ local function attach(parent)
  local confirmText=confirm:CreateFontString(nil,"OVERLAY","GameFontHighlight")
  confirmText:SetPoint("TOP",confirm,"TOP",0,-60)
  confirmText:SetWidth(350)
+ confirmText:SetJustifyH("CENTER")
  local accept=button(confirm,"Buy",105)
  accept:SetPoint("BOTTOMLEFT",confirm,"BOTTOMLEFT",42,22)
  local cancel=button(confirm,"Cancel",90)
@@ -744,14 +921,19 @@ local function attach(parent)
    local order=pending
   if not order or order.stage~="commodity-confirm" or not commodityOrder then return end
   if selected~=order.id or commodityOrder.id~=order.id then dismiss();return end
+  if type(GetMoney)=="function" and order.total and order.total>GetMoney() then
+   resetFailedPurchase("Not enough gold at the confirmed AH price. Choose a cheaper offer.")
+   return
+  end
   dismiss()
   commodityOrder=nil
   if C_AuctionHouse and type(C_AuctionHouse.ConfirmCommoditiesPurchase)=="function" then
+   purchaseReceipt={id=order.id,qty=order.qty}
    awaitingPurchase=true;purchaseElapsed=0;purchaseWarningShown=false
    C_AuctionHouse.ConfirmCommoditiesPurchase(order.id,order.qty)
-   live.message="Commodity confirmation submitted. Check Auction House result."
+   live.message="Commodity Confirmation Submitted. Check Auction House Result."
   else
-   live.message="Commodity confirmation API unavailable."
+   live.message="Commodity Confirmation API Unavailable."
   end
   refreshOffers()
  end)
@@ -767,15 +949,17 @@ local function attach(parent)
    elseif type(info)=="number" then total=info end
   end
   pending={id=order.id,qty=order.qty,total=total,stage="commodity-confirm"}
-  confirmText:SetText("Confirm commodity purchase\nQuantity: "..order.qty.."\nAuction House total: "..gold(total))
+  local item=AH.Shopping()[order.id]
+   local itemName=(item and item.name) or (type(GetItemInfo)=="function" and GetItemInfo(order.id)) or ("Item "..order.id)
+   local unitPrice=order.qty>0 and math.floor(total/order.qty+.5) or 0
+   confirmText:SetText(itemName.."\nQuantity: "..order.qty.."\nQuoted Unit Price: "..gold(unitPrice).."\nFinal AH Total: "..gold(total))
   accept:SetText("Confirm Buy")
   confirm:Show()
  end
  -- Pre-purchase dialog: Chain Buy is selected here, before the
  -- player's explicit purchase click. Keep the working API call first.
- local chainBuy=false
  local preflight=CreateFrame("Frame",nil,panel,"BackdropTemplate")
- preflight:SetSize(390,215)
+ preflight:SetSize(420,265)
  preflight:SetPoint("CENTER",panel,"CENTER")
  preflight:SetFrameStrata("DIALOG")
  preflight:SetFrameLevel(panel:GetFrameLevel()+31)
@@ -789,24 +973,66 @@ local function attach(parent)
  dialogFill:SetColorTexture(.065,.042,.02,1)
  local preflightText=preflight:CreateFontString(nil,"OVERLAY","GameFontHighlight")
  preflightText:SetPoint("TOP",preflight,"TOP",0,-61)
- preflightText:SetWidth(350)
+ preflightText:SetWidth(382)
+ preflightText:SetJustifyH("CENTER")
+ local chainBuy=false
+ local manualQty=false
+ local qtyInput
+ local proceed
+ local function validPurchaseQuantity(needed,available)
+  local limit=chainBuy and needed or math.min(needed,available)
+  local value=tonumber(qtyInput and qtyInput:GetText() or "")
+  if not value or value~=math.floor(value) or value<1 or value>limit then return nil end
+  return value
+ end
+ local function updatePreflightSummary()
+  local offer=selectedOffer and live.offers[selectedOffer]
+  local item=selected and AH.Shopping()[selected]
+  if not offer or not item then return end
+  local needed=math.max(0,math.floor(tonumber(item.qty) or 0))
+  local available=math.max(0,math.floor(tonumber(offer.qty) or 0))
+  local qty=validPurchaseQuantity(needed,available)
+  local total=qty and math.floor((tonumber(offer.price) or 0)*qty+.5) or 0
+  preflightText:SetText(item.name.."\nBuy Quantity: "..(qty or "Invalid").." / Needed: "..needed..
+   "\nSelected Unit Price: "..gold(offer.price)..
+   "\nEstimated Total: "..(qty and gold(total) or "Unknown")..
+   "\nRemaining After Purchase: "..(qty and math.max(0,needed-qty) or "Unknown"))
+  if proceed then proceed:SetEnabled(qty~=nil) end
+ end
  local chainToggle=CreateFrame("CheckButton",nil,preflight,"UICheckButtonTemplate")
  chainToggle:SetSize(24,24)
- chainToggle:SetPoint("TOPLEFT",preflight,"TOPLEFT",38,-130)
+ chainToggle:SetPoint("TOPLEFT",preflight,"TOPLEFT",38,-194)
  chainToggle:SetChecked(false)
  local chainLabel=preflight:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
  chainLabel:SetPoint("LEFT",chainToggle,"RIGHT",4,0)
- chainLabel:SetText("Chain Buy - full required quantity")
+ chainLabel:SetText("Chain Buy - Full Required Quantity")
+ local qtyLabel=preflight:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+ qtyLabel:SetPoint("TOPLEFT",preflight,"TOPLEFT",42,-162)
+ qtyLabel:SetText("Buy Quantity:")
+ qtyInput=CreateFrame("EditBox",nil,preflight,"InputBoxTemplate")
+ qtyInput:SetSize(75,22)
+ qtyInput:SetPoint("LEFT",qtyLabel,"RIGHT",12,0)
+ qtyInput:SetAutoFocus(false)
+ qtyInput:SetNumeric(true)
+ qtyInput:SetMaxLetters(7)
+ qtyInput:SetScript("OnTextChanged",function()
+  if not chainBuy then manualQty=true end
+  updatePreflightSummary()
+ end)
  chainToggle:SetScript("OnClick",function(self)
   chainBuy=self:GetChecked() and true or false
-  local offer=selectedOffer and live.offers[selectedOffer]
-  local item=selected and AH.Shopping()[selected]
-  if offer and item then
-   local qty=chainBuy and item.qty or math.min(item.qty,offer.qty)
-   preflightText:SetText(item.name.."\nBuy quantity: "..qty.."    Needed: "..item.qty)
+  qtyInput:SetEnabled(not chainBuy)
+  if chainBuy then
+   local item=selected and AH.Shopping()[selected]
+   qtyInput:SetText(tostring(item and item.qty or 0))
+  else
+   local offer=selectedOffer and live.offers[selectedOffer]
+   local item=selected and AH.Shopping()[selected]
+   qtyInput:SetText(tostring(math.min(item and item.qty or 0,offer and offer.qty or 0)))
   end
+  updatePreflightSummary()
  end)
- local proceed=button(preflight,"Buy",100)
+ proceed=button(preflight,"Buy",100)
  proceed:SetPoint("BOTTOMLEFT",preflight,"BOTTOMLEFT",35,22)
  local back=button(preflight,"Cancel",100)
  back:SetPoint("BOTTOMRIGHT",preflight,"BOTTOMRIGHT",-35,22)
@@ -816,26 +1042,37 @@ local function attach(parent)
   local item=selected and AH.Shopping()[selected]
   if not offer or not item or live.id~=selected or live.waiting then return end
   if commodityOrder or awaitingPurchase then
-   live.message="Purchase already pending. Wait for the Auction House result."
+   live.message="Purchase Already Pending. Wait for the Auction House Result."
    preflight:Hide();refreshOffers();return
   end
   if not offer.commodity then
-   live.message="Regular auction buyouts remain disabled."
+   live.message="Regular Auction Buyouts Remain Disabled."
    preflight:Hide();refreshOffers();return
   end
   local needed=math.floor(tonumber(item.qty) or 0)
   local available=math.floor(tonumber(offer.qty) or 0)
-  local qty=chainBuy and needed or math.min(needed,available)
-  if qty<1 then return end
+  local qty=validPurchaseQuantity(needed,available)
+  if not qty then
+   live.message="Invalid Buy Quantity. Enter a Whole Number Within the Available Limit."
+   refreshOffers()
+   return
+  end
   local api=C_AuctionHouse
   if not api or type(api.StartCommoditiesPurchase)~="function" then
-   live.message="Commodity purchase API unavailable."
+   live.message="Commodity Purchase API Unavailable."
    preflight:Hide();refreshOffers();return
   end
-  commodityOrder={id=selected,qty=qty,estimated=offer.price*qty}
+  local estimated=offer.price*qty
+  if type(GetMoney)=="function" and estimated>GetMoney() then
+   preflight:Hide()
+   resetFailedPurchase("Not Enough Gold for This Purchase. Add Gold or Choose a Cheaper Offer.")
+   return
+  end
+  commodityOrder={id=selected,qty=qty,estimated=estimated}
+  purchaseElapsed=0
   api.StartCommoditiesPurchase(selected,qty)
   preflight:Hide()
-  live.message="Checking AH price..."
+  live.message="Checking AH Price..."
   refreshOffers()
  end)
  preflight:Hide()
@@ -846,8 +1083,11 @@ local function attach(parent)
   local offer=selectedOffer and live.offers[selectedOffer]
   local item=selected and AH.Shopping()[selected]
   if not offer or not item or live.id~=selected or live.waiting or commodityOrder or awaitingPurchase then return end
-  local qty=chainBuy and item.qty or math.min(item.qty,offer.qty)
-  preflightText:SetText(item.name.."\nBuy quantity: "..qty.." / Needed: "..item.qty)
+  local needed=math.max(0,math.floor(tonumber(item.qty) or 0))
+  local available=math.max(0,math.floor(tonumber(offer.qty) or 0))
+  qtyInput:SetEnabled(not chainBuy)
+  qtyInput:SetText(tostring(chainBuy and needed or math.min(needed,available)))
+  updatePreflightSummary()
   preflight:Show()
  end)
 
@@ -860,33 +1100,148 @@ local function attach(parent)
  skinPurchaseDialog(preflight,"Purchase Item")
  panel:Hide()
  panel.offset=0
- for i=1,9 do
+ local columnHeaders={{"Item",14},{"Need",194},{"Owned",240},{"Buy",290}}
+ for _,col in ipairs(columnHeaders) do
+  local heading=left:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+  heading:SetPoint("TOPLEFT",left,"TOPLEFT",col[2],-43)
+  heading:SetText(col[1])
+ end
+ -- Keep the progress footer clear of shopping rows; mousewheel scroll remains available.
+ for i=1,8 do
   local row=CreateFrame("Button",nil,left)
-  row:SetHeight(25)
+  row:SetHeight(39)
   local highlight=row:CreateTexture(nil,"BACKGROUND")
   highlight:SetAllPoints(row)
-  highlight:SetColorTexture(.60,.39,.08,.32)
+  highlight:SetTexture(ART.."WTP_ProfessionRow")
   row.highlight=highlight
+  row.hovered=false
   highlight:Hide()
-  row:SetPoint("TOPLEFT",left,"TOPLEFT",10,-52-(i-1)*26)
+  row:SetPoint("TOPLEFT",left,"TOPLEFT",10,-62-(i-1)*40)
   row:SetPoint("RIGHT",left,"RIGHT",-10,0)
   row.label=row:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-  row.label:SetPoint("LEFT",4,0);row.label:SetPoint("RIGHT",row,"RIGHT",-78,0);row.label:SetJustifyH("LEFT");row.label:SetWordWrap(false)
+  row.label:SetPoint("TOPLEFT",row,"TOPLEFT",4,-5);row.label:SetWidth(170);row.label:SetJustifyH("LEFT");row.label:SetWordWrap(false)
+  local function numberColumn(offset,width)
+   local label=row:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+   label:SetPoint("TOPLEFT",row,"TOPLEFT",offset,-5)
+   label:SetWidth(width)
+   label:SetJustifyH("RIGHT")
+   return label
+  end
+  row.need=numberColumn(181,30)
+  row.owned=numberColumn(229,30)
+  row.buy=numberColumn(279,30)
+  -- A dedicated second line gives coin textures their full width without
+  -- colliding with Buy, even when gold, silver and copper are all present.
+  local costLabel=row:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+  costLabel:SetPoint("BOTTOMLEFT",row,"BOTTOMLEFT",4,4)
+  costLabel:SetText("Total Cost:")
   row.cost=row:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-  row.cost:SetPoint("RIGHT",-4,0);row.cost:SetWidth(72);row.cost:SetJustifyH("RIGHT")
+  row.cost:SetPoint("BOTTOMRIGHT",row,"BOTTOMRIGHT",-5,4)
+  row.cost:SetWidth(215)
+  row.cost:SetJustifyH("RIGHT")
+  row.cost:SetWordWrap(false)
   row:SetScript("OnClick",function(self)if self.item then selected=self.item.id;startLiveSearch(selected);update();if refreshOffers then refreshOffers() end end end)
   row:SetScript("OnEnter",function(self)
    if self.item then
+    self.hovered=true
+    self.highlight:SetVertexColor(.85,.76,.59,.52)
+    self.highlight:Show()
     GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
     GameTooltip:AddLine(self.item.name,1,.82,.2)
-    GameTooltip:AddLine("Required: "..self.item.qty,1,1,1)
-    GameTooltip:AddLine("Cached unit price: "..gold(AH.Price(self.item.id)),1,1,1)
+    -- Shopping quantities and inventory belong to the crate, not its materials.
+    GameTooltip:AddLine("Required: "..self.item.required.."   Owned: "..(self.item.owned or "Unknown").."   To buy: "..self.item.qty,1,1,1)
+    if AH.ShoppingItemStock then
+     local bags,bank,bankScan=AH.ShoppingItemStock(self.item.id)
+     GameTooltip:AddLine("In bags: "..bags.."   In bank: "..bank,1,1,1)
+     if bank>0 then
+      if bankScan and type(time)=="function" then
+       GameTooltip:AddLine("Bank stock last checked "..math.max(0,math.floor((time()-bankScan)/60)).." minutes ago (cached).",.85,.7,.4,true)
+      else
+       GameTooltip:AddLine("Bank stock is cached and may be outdated.",.85,.7,.4,true)
+      end
+     end
+    end
+    GameTooltip:AddLine("Cached Unit Price: "..gold(AH.Price(self.item.id)),1,1,1)
+    if self.item.readiness then
+     local bucket=self.item.readiness
+     GameTooltip:AddLine(" ",1,1,1)
+     GameTooltip:AddLine("Crate readiness: "..bucket.ready.."/"..bucket.total.." ready",1,.82,.2)
+     for _,record in ipairs(bucket.records) do
+      MFO_CrateTracking.AddTooltip(GameTooltip,record,(AH.Shopping()[record.materialID] or {}).name)
+     end
+    end
     GameTooltip:Show()
    end
   end)
-  row:SetScript("OnLeave",function()GameTooltip:Hide()end)
+  row:SetScript("OnLeave",function(self)
+   self.hovered=false
+   if self.item and selected==self.item.id then
+    self.highlight:SetVertexColor(.85,.76,.59,.38)
+    self.highlight:Show()
+   else self.highlight:Hide() end
+   GameTooltip:Hide()
+  end)
   rows[i]=row
  end
+ -- Compact progress centered between the Favour summary and faction label.
+ panel.progressBar=CreateFrame("Frame",nil,panel,"BackdropTemplate")
+ panel.progressBar:SetPoint("TOP",panel,"TOP",0,-54)
+ panel.progressBar:SetSize(280,22)
+ panel.progressBar:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8",edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",edgeSize=9,insets={left=2,right=2,top=2,bottom=2}})
+ panel.progressBar:SetBackdropColor(.18,.12,.08,1)
+ panel.progressBar:SetBackdropBorderColor(.52,.39,.21,1)
+ panel.progressAvailable=panel.progressBar:CreateTexture(nil,"ARTWORK")
+ panel.progressAvailable:SetPoint("LEFT",panel.progressBar,"LEFT",0,0)
+ panel.progressAvailable:SetHeight(18)
+ panel.progressAvailable:SetColorTexture(.22,.57,.27,1)
+ panel.progressPurchased=panel.progressBar:CreateTexture(nil,"ARTWORK")
+ panel.progressPurchased:SetHeight(18)
+ panel.progressPurchased:SetColorTexture(.75,.56,.19,1)
+ -- Create text AFTER the bar and as its child so it renders above the fill.
+ panel.progressLabel=panel.progressBar:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+ panel.progressLabel:SetPoint("CENTER",panel.progressBar,"CENTER",0,0)
+ panel.progressLabel:SetTextColor(1,1,1,1)
+ panel.progressLabel:SetDrawLayer("OVERLAY",7)
+ panel.progressLabel:SetText("Shopping Progress: 0%")
+ panel.progressSummary=panel:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+ panel.progressSummary:SetPoint("TOP",panel.progressBar,"BOTTOM",0,-6)
+ panel.progressSummary:SetWidth(330)
+ panel.progressSummary:SetJustifyH("CENTER")
+ panel.progressSummary:SetText("Available: 0  |  Purchased: 0  |  To buy: 0")
+ -- Reserve a footer line within the shopping panel, above the action buttons.
+ panel.remainingCost=left:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+ panel.remainingCost:SetPoint("BOTTOMLEFT",left,"BOTTOMLEFT",14,51)
+ panel.remainingCost:SetPoint("BOTTOMRIGHT",left,"BOTTOMRIGHT",-14,51)
+ panel.remainingCost:SetJustifyH("LEFT")
+ panel.remainingCost:SetWordWrap(false)
+ local refreshShopping=button(left,"Refresh List",128)
+ refreshShopping:SetPoint("BOTTOMLEFT",left,"BOTTOMLEFT",12,13)
+ refreshShopping:SetScript("OnClick",function()
+  if AH.RefreshShoppingInventory then AH.RefreshShoppingInventory() end
+  if AH.RecalculateShopping then AH.RecalculateShopping() end
+  update()
+  if refreshOffers then refreshOffers() end
+ end)
+ local removeShopping=button(left,"Remove Selected",146)
+ removeShopping:SetPoint("BOTTOMRIGHT",left,"BOTTOMRIGHT",-12,13)
+ removeShopping:SetScript("OnClick",function()
+  if not selected or not AH.RemoveShoppingItem then return end
+  if AH.RemoveShoppingItem(selected) then
+   selected=nil
+   selectedOffer=nil
+   live.id=nil;live.offers={};live.waiting=false
+   live.message="Item Removed from Shopping List."
+   update()
+   if refreshOffers then refreshOffers() end
+  end
+ end)
+ -- Keep navigation separate from shopping/purchase actions and inside the
+ -- footer strip below the two inset panels.
+ local openMain=button(panel,"Open MFO",124)
+ openMain:SetPoint("BOTTOM",panel,"BOTTOM",0,4)
+ openMain:SetScript("OnClick",function()
+  if type(MFO_OpenMainWindow)=="function" then MFO_OpenMainWindow() end
+ end)
  -- Mouse-wheel scrolling keeps larger shopping plans accessible without
  -- the redundant footer page counter and arrow controls.
  left:EnableMouseWheel(true)
@@ -896,10 +1251,12 @@ local function attach(parent)
   update()
  end)
  local function activate()
+  if AH.RefreshShoppingInventory then AH.RefreshShoppingInventory() end
+  if AH.RecalculateShopping then AH.RecalculateShopping() end
   hideNative(parent)
   setNativeTitle(parent)
   panel:Show()
-  live.message="Select a shopping-list item."
+  live.message="Select a Shopping-List Item."
   if not awaitingPurchase then commodityOrder=nil end
   if resetPurchaseDialogs then resetPurchaseDialogs() end
   live.offers={};live.waiting=false;live.elapsed=0;live.id=nil
@@ -952,19 +1309,19 @@ watcher:SetScript("OnUpdate",function(_,dt)
  timer=0
  local current=activeAH()
  if current and current~=host then attach(current) end
- if awaitingPurchase and not purchaseWarningShown then
+ if awaitingPurchase or commodityOrder then
   purchaseElapsed=purchaseElapsed+.5
   if purchaseElapsed>=20 then
-   purchaseWarningShown=true
-   live.message="Purchase result delayed. Check your inventory or AH before trying again."
-   if refreshOffers then refreshOffers() end
+   -- Some Forever AH failures never emit a commodity result event.
+   -- Release the stuck UI lock but never repeat or confirm the purchase.
+   resetFailedPurchase("No purchase result received. Check your gold and inventory before retrying.")
   end
  end
  if live.waiting then
   live.elapsed=live.elapsed+.5
   if live.elapsed>=15 then
    live.waiting=false;live.offers={};selectedOffer=nil
-   live.message="Auction search timed out. Select the item again to retry."
+   live.message="Auction Search Timed Out. Select the Item Again to Retry."
    if refreshOffers then refreshOffers() end
   end
  end

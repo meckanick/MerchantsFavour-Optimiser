@@ -1,35 +1,36 @@
-# Agent instructions — Merchant's Favour Optimiser
+# MFO repository guidance
 
-## Project scope
-- This is a World of Warcraft Forever addon, not retail WoW.
-- The canonical addon source is `MerchantsFavourOptimiser/`.
-- Do not edit or package version-named snapshot folders as the source of truth.
-- Keep changes on `development`; only merge into `main` after the user has tested the build and approved the merge.
+This repository contains **Merchant's Favour Optimiser**, a World of Warcraft Forever addon.
 
-## Preserve existing behaviour
-- Preserve all 21 crate definitions and their material bundle requirements.
-- Preserve Auctionator market-price lookup, total fill-cost and gold-per-favour calculations.
-- Preserve the Shop/Auctionator search interaction, minimap button, `/mfo` command, scrolling, item binding and optional bag/bank owned-material accounting.
-- Unknown prices must remain visibly unknown; do not silently treat missing prices as zero.
-- Do not reintroduce CSV crate prices as a price fallback.
-- Preserve the current wood-and-gold appearance and the copied What's Training? textures.
+## Development workflow
 
-## API and Lua compatibility
-- Target the API available in WoW Forever. Do not assume retail-only APIs exist.
-- Guard optional APIs and calls that can be absent; use `pcall` where external addon APIs may fail.
-- Keep code compatible with Lua 5.1. Avoid newer Lua syntax and standard-library assumptions.
-- Treat Auctionator as optional at load time. If absent, the addon should still load and explain that price features require Auctionator.
-- Do not let a visual enhancement prevent core.lua from loading. Prefer native WoW scroll behaviour and test all hooks against their actual frame/texture owner.
+- Work on `development` and validate before merging to `main`.
+- Keep the stable branch deployable; do not publish releases or upload to addon sites without explicit approval.
+- Run Lua 5.1 syntax, regression, addon-structure and ZIP packaging checks after changes.
+- Preserve the saved data format, crate definitions, planner, shopping list, purchase confirmation, minimap launcher and WoW Forever compatibility.
+- Avoid breaking older saved variables or changing price calculations while making visual changes.
 
-## Assets and packaging
-- Keep every referenced texture in `MerchantsFavourOptimiser/` alongside the manifest unless code explicitly uses a subfolder.
-- Update the `## Version:` field in the TOC for each release-ready build.
-- The CI workflow packages the canonical folder and names the ZIP from the TOC version.
-- Do not claim in-game verification based only on a successful Lua syntax check or ZIP integrity test.
+## Functionality to preserve
 
-## Workflow
-1. Inspect current code and preserve the user's working baseline.
-2. Make a focused change on `development`.
-3. Run Lua syntax, manifest, asset-reference and ZIP checks.
-4. Provide the generated artifact for user testing in WoW Forever.
-5. Merge to `main` only after the user confirms the change works.
+- Built-in Auction House scanning, saved prices, scan age and market separation.
+- Crate ranking by net cost per Favour, plus the Favour Planner and overfill optimisation.
+- MFO Shop shopping quantities, live listings, purchase confirmation and remaining cost.
+- Shopping progress distinguishing available stock, recorded purchases and remaining quantities.
+- Crate-only readiness indicators and material allocation across a saved plan.
+- Optional owned bag/bank price estimates, cached bank data and inventory refreshes.
+- The wood-and-gold WoW Forever visual style, custom controls and coin artwork.
+
+## API and quality
+
+- Target WoW Forever APIs; use Lua 5.1-compatible syntax.
+- Treat missing Auction House APIs, item information and cached bank data defensively.
+- Do not claim a crate is filled or handed in based solely on purchasing or ownership.
+- Keep progress and crate readiness distinct: Auction House purchases can remain in the mailbox.
+- Preserve user-facing names and item IDs from verified data; avoid synthetic crate completion claims.
+- Check `tests/mfo-regression.lua` and the GitHub Actions workflow for validation.
+
+## Release discipline
+
+- Provide a test ZIP from a successful Actions run for in-game testing.
+- Merge `development` to `main` only when approved.
+- Publishing a release or distributing it through a third-party service requires separate approval.

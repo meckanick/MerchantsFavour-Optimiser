@@ -1106,7 +1106,8 @@ local function attach(parent)
   heading:SetPoint("TOPLEFT",left,"TOPLEFT",col[2],-43)
   heading:SetText(col[1])
  end
- for i=1,8 do
+ -- Keep the progress footer clear of shopping rows; mousewheel scroll remains available.
+ for i=1,7 do
   local row=CreateFrame("Button",nil,left)
   row:SetHeight(39)
   local highlight=row:CreateTexture(nil,"BACKGROUND")

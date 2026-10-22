@@ -743,6 +743,13 @@ for _,source in ipairs({coreSource,ahTab}) do
     "currency display must omit zero gold and retain zero silver/copper")
 end
 
+-- Shopping cost column must fit a full gold/silver/copper string on one line.
+check(ahTab:find('costHeading:SetText("Total Cost")',1,true)~=nil and
+      ahTab:find('row.cost:SetWidth(126)',1,true)~=nil and
+      ahTab:find('row.cost:SetWordWrap(false)',1,true)~=nil and
+      ahTab:find('row.cost:SetPoint("RIGHT",row,"RIGHT",-5,0)',1,true)~=nil,
+  "shopping cost column must right-align full currency without wrapping")
+
 -- Purchase status feedback must remain visual-only, with distinct success,
 -- failure and in-progress colours and a neutral default.
 check(ahTab:find('liveStatus:SetTextColor(.36,.90,.42)',1,true)~=nil and

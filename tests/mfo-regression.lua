@@ -926,3 +926,15 @@ check(readableText:find("Cured Medium Hide",1,true)~=nil,"crate tooltip must nam
 check(readableText:find("Still needed:",1,true)~=nil,"crate tooltip must show shortage")
 check(readableText:find("Material item ID:",1,true)==nil,"crate tooltip must hide raw IDs")
 check(shopUI:find("item.materialReadiness",1,true)==nil,"material rows must not receive status icons")
+
+-- v0.1.171: shopping hover tooltip shows separate bags and cached bank stock.
+check(coreSource:find("MFO_AH.ShoppingItemStock=function(id)",1,true)~=nil,
+ "shopping inventory must expose bag and bank quantities independently of Use Owned")
+check(shopUI:find("AH.ShoppingItemStock(self.item.id)",1,true)~=nil,
+ "shopping tooltip must read stock for hovered item")
+check(shopUI:find("In bags: ",1,true)~=nil and shopUI:find("In bank: ",1,true)~=nil,
+ "shopping tooltip must label bag and bank counts")
+check(shopUI:find("Bank stock last checked",1,true)~=nil,
+ "shopping tooltip must identify cached bank data")
+check(shopUI:find("item.materialReadiness",1,true)==nil,
+ "material rows must remain without readiness icons")

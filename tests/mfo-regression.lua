@@ -824,3 +824,17 @@ check(ahTab:find('elseif event=="BAG_UPDATE_DELAYED" then',1,true)~=nil and
   "bag delivery must automatically refresh remaining shopping quantities")
 check(ahTab:find('startLiveSearch(selected) -- Search only; buying still requires a click.',1,true)~=nil,
   "successful purchase must preserve item selection and search remaining listings without buying")
+
+-- v0.1.165 manual purchase quantity must use the same validated amount for
+-- both preflight display and the actual protected purchase call.
+check(ahTab:find('qtyInput=CreateFrame("EditBox",nil,preflight,"InputBoxTemplate")',1,true)~=nil,
+  "purchase preflight must provide a manual quantity input")
+check(ahTab:find('value~=math.floor(value) or value<1 or value>limit',1,true)~=nil,
+  "manual purchase quantity must be a positive whole number within available limits")
+check(ahTab:find('local qty=validPurchaseQuantity(needed,available)',1,true)~=nil,
+  "purchase summary and submission must use validated quantity")
+check(ahTab:find('qtyInput:SetEnabled(not chainBuy)',1,true)~=nil,
+  "Chain Buy must retain its full-quantity mode")
+check(ahTab:find('api.StartCommoditiesPurchase(selected,qty)',1,true)~=nil and
+      ahTab:find('purchaseReceipt={id=order.id,qty=order.qty}',1,true)~=nil,
+  "manual quantity must reach the AH purchase API and success receipt")

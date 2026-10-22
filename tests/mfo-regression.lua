@@ -456,10 +456,10 @@ check(ahTab:find('local selectedPrice=current and prices[selected]',1,true)~=nil
 check(ahTab:find('selectedPrice and gold(selectedPrice*current.qty) or "Unknown"',1,true)~=nil,"Selected remaining cost must reuse cached price and show unknown when missing")
 
 -- First-search race: arm waiting state before dispatching an AH query.
-local armed=assert(ahTab:find('live.waiting=true;live.message="Searching live auctions..."',1,true))
+local armed=assert(ahTab:find('live.waiting=true;live.message="Searching Live Auctions..."',1,true))
 local dispatched=assert(ahTab:find('pcall(C_AuctionHouse.SendSearchQuery,key,{},false)',1,true))
 check(armed<dispatched,"AH listener must be armed before search dispatch")
-check(ahTab:find('live.waiting=false\n live.message="Live search unavailable in this client."',1,true)~=nil,"Failed search dispatch must clear waiting state")
+check(ahTab:find('live.waiting=false\n live.message="Live Search Unavailable in This Client."',1,true)~=nil,"Failed search dispatch must clear waiting state")
 
 -- Per-refresh prices are shared by totals, detail, and visible rows.
 check(ahTab:find('local shopping=AH.Shopping()',1,true)~=nil,"Shopping data should be fetched once per refresh")

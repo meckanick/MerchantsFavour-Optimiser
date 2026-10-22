@@ -194,6 +194,15 @@ local function scanBank()
   MFO_DB.bankCounts=counts
   MFO_DB.bankScanTime=time()
 end
+-- Independent of Use Owned: completion readiness always reflects actual inventory.
+MFO_AH.CrateReadiness=function(entries)
+  return MFO_CrateTracking.Evaluate(entries,bagCounts,
+    MFO_DB and MFO_DB.bankCounts, MFO_DB and MFO_DB.bankScanTime)
+end
+MFO_AH.RefreshCrateReadiness=function()
+  learnBagItems();scanBags()
+  return MFO_AH.CrateReadiness(MFO_AH.ShoppingCratePlan and MFO_AH.ShoppingCratePlan() or {})
+end
 local function ownedCount(id)
   if not MFO_DB or not MFO_DB.useOwned then return 0 end
   return (bagCounts[id] or 0)+(MFO_DB.bankCounts and MFO_DB.bankCounts[id] or 0)
@@ -471,6 +480,9 @@ for i=1,#rows do
       items[materialID]={name=r.b.name,qty=r.missing or r.b.qty,requiredQty=r.b.qty}
     end
     local ok,reason=MFO_AH.ReplaceShopping(items)
+    if ok and crateID and materialID and MFO_AH.SetShoppingCratePlan then
+      MFO_AH.SetShoppingCratePlan({{crateID=crateID,materialID=materialID,quantity=1,materialQty=r.b.qty}})
+    end
     status:SetText(ok and "Shopping List Replaced. Open MFO Shop at the Auction House." or (reason or "Unable to create shopping list."))
   end)
   shopButtons[i]=shop
@@ -765,6 +777,15 @@ plannerShop:SetScript("OnClick",function()
     items[id]={name=names[id] or tostring(id),qty=plannerShopping.items[id] or 0,requiredQty=required}
   end
   local ok,reason=MFO_AH.ReplaceShopping(items)
+  if ok and MFO_AH.SetShoppingCratePlan then
+    local cratePlan={}
+    for _,entry in ipairs(plannerShopping.details) do
+      local o=entry.option
+      cratePlan[#cratePlan+1]={crateID=o.id,materialID=o.materialID,
+        quantity=entry.qty,materialQty=o.bundle.qty}
+    end
+    MFO_AH.SetShoppingCratePlan(cratePlan)
+  end
   plannerInfo:SetText(ok and "Shopping List Replaced. Open MFO Shop at the Auction House." or (reason or "Unable to create shopping list."))
 end)
 local ownedCheck=CreateFrame("CheckButton",nil,subheader,"UICheckButtonTemplate")

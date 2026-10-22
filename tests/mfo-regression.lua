@@ -720,8 +720,8 @@ check(coreSource:find("plannerShopping={items=bestShopping,details=bestDetails,r
   "planner must consolidate original requirements before owned deductions")
 check(ahTab:find("if AH.RecalculateShopping then AH.RecalculateShopping() end",1,true)~=nil and
       ahTab:find('Favour: "..favourLabel',1,true)~=nil and
-      ahTab:find("Est. Cost: ",1,true)~=nil and
-      ahTab:find(" Unpriced",1,true)~=nil,
+      ahTab:find('panel.remainingCost:SetText(',1,true)~=nil and
+      ahTab:find('Incomplete - ',1,true)~=nil,
   "shopping tab must refresh quantities and flag incomplete cost totals")
 
 -- Favour is derived from full planned crate quantities, including owned crates.
@@ -841,19 +841,19 @@ check(ahTab:find('api.StartCommoditiesPurchase(selected,qty)',1,true)~=nil and
       ahTab:find('purchaseReceipt={id=order.id,qty=order.qty}',1,true)~=nil,
   "manual quantity must reach the AH purchase API and success receipt")
 
--- v0.1.166 shopping budget uses MFO's own market-scoped AH prices.
+-- v0.1.167: retain price totals but move them to the shopping-list footer.
+check(ahTab:find('panel.total:SetText(#items.." Items | Favour: "..favourLabel)',1,true)~=nil,
+  "top summary should retain items and Favour without duplicate cost")
+check(ahTab:find('panel.remainingCost=left:CreateFontString',1,true)~=nil and
+      ahTab:find('panel.remainingCost:SetPoint("BOTTOMLEFT",left,"BOTTOMLEFT",14,51)',1,true)~=nil,
+  "remaining cost must be anchored above shopping action buttons")
+check(ahTab:find('Known Remaining Cost: ',1,true)~=nil and
+      ahTab:find('Incomplete - ',1,true)~=nil and
+      ahTab:find('Prices").." Missing"',1,true)~=nil,
+  "footer must warn when cached AH prices are incomplete")
+check(ahTab:find('panel.budget=',1,true)==nil and
+      ahTab:find('Gold After Purchase:',1,true)==nil,
+  "duplicate budget and affordability display must be removed")
 check(ahTab:find('local price=AH.Price(v.id)',1,true)~=nil and
-      ahTab:find('local funds=type(GetMoney)=="function" and GetMoney() or nil',1,true)~=nil,
-  "budget must use cached MFO AH prices and the player's gold")
-check(ahTab:find('if funds==nil then status="Gold Unavailable"',1,true)~=nil and
-      ahTab:find('status=unpriced.." Missing AH "',1,true)~=nil,
-  "unknown gold and missing prices must not be reported as affordable")
-check(ahTab:find('status="Affordable | Surplus: "..gold(funds-total)',1,true)~=nil and
-      ahTab:find('status="Short: "..gold(total-funds)',1,true)~=nil,
-  "budget must distinguish affordable and insufficient gold")
-check(ahTab:find('panel.budget=panel:CreateFontString',1,true)~=nil and
-      ahTab:find('panel.budget:SetText("Gold: "',1,true)~=nil,
-  "budget must appear in existing shopping interface")
-check(ahTab:find('confirmText:SetText(itemName..',1,true)~=nil and
-      ahTab:find('..affordability)',1,true)~=nil,
-  "purchase confirmation must show gold affordability")
+      ahTab:find('gold(total)',1,true)~=nil,
+  "footer must reuse existing AH price cache and coin formatting")

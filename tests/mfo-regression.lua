@@ -900,10 +900,10 @@ check(coreSource:find("MFO_AH.SetShoppingCratePlan({{crateID=crateID",1,true)~=n
  "single crate shopping must save its chosen material relationship")
 
 -- Stage 2 indicators and tooltip wiring.
-equal(track.Symbol("ready_to_fill"),"|cff55dd55+|r","ready icon")
+equal(track.Symbol("ready_to_fill"),"|TInterface\\\\Buttons\\\\UI-CheckBox-Check:13:13|t","ready icon")
 equal(track.Symbol("bank_stock"),"|cffffff66B|r","bank icon")
 equal(track.Symbol("needs_materials"),"|cffffaa55!|r","missing-material icon")
-equal(track.Symbol("missing_crate"),"|cffff7777X|r","missing-crate icon")
+equal(track.Symbol("missing_crate"),"|cffcc8888X|r","missing-crate icon")
 local tooltipLines={}
 local tooltip={AddLine=function(_,line)tooltipLines[#tooltipLines+1]=line end}
 track.AddTooltip(tooltip,track.Evaluate(sample,{[9001]=2,[101]=5},{[101]=15},12345)[1])
@@ -914,5 +914,15 @@ check(shopUI:find("Planned crates ready:",1,true)~=nil,"shop tooltip must displa
 check(shopUI:find("MFO_CrateTracking.Symbol(state)",1,true)~=nil,"shop must render compact status")
 check(coreSource:find("Crate Readiness - Individual Estimate",1,true)~=nil,
  "main UI must distinguish individual estimate from plan allocation")
-check(coreSource:find("MFO_CrateTracking.AddTooltip(GameTooltip,record)",1,true)~=nil,
+check(coreSource:find("MFO_CrateTracking.AddTooltip(GameTooltip,record,",1,true)~=nil,
  "main UI must display crate status tooltip")
+
+-- v0.1.170: crate-only indicators, friendly material-named tooltip.
+local readableLines={}
+track.AddTooltip({AddLine=function(_,line) readableLines[#readableLines+1]=line end},
+ track.Evaluate(sample,{[9001]=2,[101]=5},{[101]=15},12345)[1],"Cured Medium Hide")
+local readableText=table.concat(readableLines," | ")
+check(readableText:find("Cured Medium Hide",1,true)~=nil,"crate tooltip must name material")
+check(readableText:find("Still needed:",1,true)~=nil,"crate tooltip must show shortage")
+check(readableText:find("Material item ID:",1,true)==nil,"crate tooltip must hide raw IDs")
+check(shopUI:find("item.materialReadiness",1,true)==nil,"material rows must not receive status icons")

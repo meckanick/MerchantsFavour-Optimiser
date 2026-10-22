@@ -356,10 +356,11 @@ check(ahTab:find('panel.page=',1,true)==nil,"Shopping panel must not show page c
 check(ahTab:find('button(left,"<"',1,true)==nil and ahTab:find('button(left,">"',1,true)==nil,"Shopping panel must not show pagination arrows")
 check(ahTab:find('left:EnableMouseWheel(true)',1,true)~=nil,"Long shopping lists must remain scrollable")
 check(ahTab:find('local coin=left:CreateTexture',1,true)==nil,"Shopping list pane must not have extra coin overlay")
-check(ahTab:find('liveStatus:SetPoint("BOTTOMLEFT",right,"BOTTOMLEFT",16,43)',1,true)~=nil and
+check(ahTab:find('liveStatus:SetPoint("BOTTOMLEFT",right,"BOTTOMLEFT",16,15)',1,true)~=nil and
+      ahTab:find('liveStatus:SetPoint("BOTTOMRIGHT",right,"BOTTOMRIGHT",-145,15)',1,true)~=nil and
       ahTab:find('liveStatus:SetWordWrap(true)',1,true)~=nil and
-      ahTab:find('liveStatus:SetHeight(34)',1,true)~=nil,
-  "Listing status must wrap above the Buy Selected button without clipping")
+      ahTab:find('liveStatus:SetHeight(32)',1,true)~=nil,
+  "Listing status must wrap in the footer beside Buy Selected, clear of auction rows")
 
 check(ahTab:find('panel.itemIcon=CreateFrame("Button",nil,right)',1,true)~=nil,"Selected item must show a hoverable icon")
 check(ahTab:find('GameTooltip:SetHyperlink("item:"..selected)',1,true)~=nil,"Selected item must expose native item tooltip")

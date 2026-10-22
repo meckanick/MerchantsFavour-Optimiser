@@ -16,7 +16,14 @@ local MFO_COIN_COPPER="|TInterface\\MoneyFrame\\UI-CopperIcon:12:12:0:0|t"
 local function money(v)
   if not v then return "?" end
   v = math.floor(v + 0.5)
-  return string.format("%d%s %d%s %d%s", math.floor(v/10000), MFO_COIN_GOLD, math.floor(v/100)%100, MFO_COIN_SILVER, v%100, MFO_COIN_COPPER)
+  local goldAmount = math.floor(v/10000)
+  local silverAmount = math.floor(v/100)%100
+  local copperAmount = v%100
+  local silverCopper = string.format("%d%s %d%s", silverAmount, MFO_COIN_SILVER, copperAmount, MFO_COIN_COPPER)
+  if goldAmount > 0 then
+    return string.format("%d%s %s", goldAmount, MFO_COIN_GOLD, silverCopper)
+  end
+  return silverCopper
 end
 local scanAgeFooter
 local lastScanAgeText,lastScanAgeColor

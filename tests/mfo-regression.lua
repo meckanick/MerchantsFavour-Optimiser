@@ -726,6 +726,14 @@ for _,source in ipairs({coreSource,ahTab}) do
     "main and shopping currency strings must use native WoW coin textures")
 end
 
+-- Gold is hidden at zero, but both silver and copper always display.
+for _,source in ipairs({coreSource,ahTab}) do
+  check(source:find("if goldAmount",1,true)~=nil and
+        source:find("silverCopper",1,true)~=nil and
+        source:find("return silverCopper",1,true)~=nil,
+    "currency display must omit zero gold and retain zero silver/copper")
+end
+
 -- Purchase status feedback must remain visual-only, with distinct success,
 -- failure and in-progress colours and a neutral default.
 check(ahTab:find('liveStatus:SetTextColor(.36,.90,.42)',1,true)~=nil and

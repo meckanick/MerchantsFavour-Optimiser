@@ -958,13 +958,22 @@ check(shopUI:find("panel.progressAvailable",1,true)~=nil and shopUI:find("panel.
 -- v0.1.174: progress moves to the top header, restoring shopping list capacity.
 check(shopUI:find('panel.progressLabel:SetPoint("CENTER",panel.progressBar,"CENTER",0,0)',1,true)~=nil,
  "progress label should be anchored in the header")
-check(shopUI:find('panel.progressBar:SetPoint("TOPLEFT",panel,"TOPLEFT",350,-54)',1,true)~=nil,
+check(shopUI:find('panel.progressBar:SetPoint("TOPLEFT",panel,"TOPLEFT",290,-54)',1,true)~=nil,
  "progress bar should be anchored in the header")
 check(shopUI:find('for i=1,8 do\n  local row=CreateFrame("Button",nil,left)',1,true)~=nil,
  "eight shopping rows should be restored")
 
 -- v0.1.175: percentage is inside a taller bar, with status below.
-check(shopUI:find('panel.progressBar:SetSize(340,22)',1,true)~=nil,
+check(shopUI:find('panel.progressBar:SetSize(280,22)',1,true)~=nil,
  "header progress bar must be taller")
 check(shopUI:find('panel.progressSummary:SetPoint("TOP",panel.progressBar,"BOTTOM",0,-6)',1,true)~=nil,
  "progress status must be beneath the bar")
+
+-- v0.1.176: percentage text is created after the bar, parented to it, and white.
+local barCreate=assert(shopUI:find('panel.progressBar=CreateFrame(',1,true))
+local labelCreate=assert(shopUI:find('panel.progressLabel=panel.progressBar:CreateFontString(',1,true))
+check(barCreate<labelCreate,"progress label must be created after its parent bar")
+check(shopUI:find('panel.progressLabel:SetTextColor(1,1,1,1)',1,true)~=nil,
+ "progress label should be white")
+check(shopUI:find('panel.progressSummary:SetWidth(330)',1,true)~=nil,
+ "progress status should fit beneath centered header bar")

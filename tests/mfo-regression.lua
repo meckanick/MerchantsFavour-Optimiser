@@ -702,8 +702,8 @@ check(coreSource:find("requiredQty=r.b.qty",1,true)~=nil and
 check(coreSource:find("plannerShopping={items=bestShopping,details=bestDetails,required=fullDemand}",1,true)~=nil,
   "planner must consolidate original requirements before owned deductions")
 check(ahTab:find("if AH.RecalculateShopping then AH.RecalculateShopping() end",1,true)~=nil and
-      ahTab:find("missing AH price",1,true)~=nil and
-      ahTab:find("total incomplete",1,true)~=nil,
+      ahTab:find("Missing AH Price",1,true)~=nil and
+      ahTab:find("Total Incomplete",1,true)~=nil,
   "shopping tab must refresh quantities and flag incomplete cost totals")
 
 -- Stage 2 must preserve shopping, pricing and purchase flow while adding controls.

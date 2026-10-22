@@ -302,7 +302,7 @@ update=function()
    if price then total=total+price*v.qty else unpriced=unpriced+1 end
   end
  end
- panel.total:SetText(#items.." Items  |  Priced Estimate: "..gold(total)..(unpriced>0 and ("  |  "..unpriced.." Missing AH Price"..(unpriced==1 and "" or "s").." (Total Incomplete)") or ""))
+ panel.total:SetText(#items.." Items | Estimated Cost: "..gold(total)..(unpriced>0 and (" | "..unpriced.." Unpriced (Total Incomplete)") or ""))
  local current=selected and shopping[selected]
  if panel.detail then
   local selectedPrice=current and prices[selected]
@@ -754,6 +754,22 @@ local function attach(parent)
   if not panel or not panel:IsShown() then return end
   local msg=live.message or ""
   if msg:find("Checking Auction House Price",1,true) then msg="Checking AH Price..." end
+  -- Colour only the status text; never change purchase state or button styling.
+  local lower=msg:lower()
+  if lower:find("succeeded",1,true) then
+   liveStatus:SetTextColor(.36,.90,.42) -- successful purchase
+  elseif lower:find("failed",1,true) or lower:find("not enough",1,true)
+   or lower:find("insufficient",1,true) or lower:find("unavailable",1,true)
+   or lower:find("timed out",1,true) or lower:find("no purchase result",1,true)
+   or lower:find("no live buyout",1,true) then
+   liveStatus:SetTextColor(1,.38,.34) -- failed purchase or search
+  elseif live.waiting or commodityOrder or awaitingPurchase
+   or lower:find("pending",1,true) or lower:find("checking",1,true)
+   or lower:find("wait for",1,true) or lower:find("searching",1,true) then
+   liveStatus:SetTextColor(1,.76,.20) -- in-progress operation
+  else
+   liveStatus:SetTextColor(1,.90,.70) -- neutral information
+  end
   liveStatus:SetText(msg)
   offerScroll:SetMinMaxValues(0,math.max(0,#live.offers-visibleOffers))
   offerScroll:SetValue(math.max(0,#live.offers-visibleOffers)-offerOffset)

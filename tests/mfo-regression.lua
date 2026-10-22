@@ -706,9 +706,17 @@ check(coreSource:find("requiredQty=r.b.qty",1,true)~=nil and
 check(coreSource:find("plannerShopping={items=bestShopping,details=bestDetails,required=fullDemand}",1,true)~=nil,
   "planner must consolidate original requirements before owned deductions")
 check(ahTab:find("if AH.RecalculateShopping then AH.RecalculateShopping() end",1,true)~=nil and
-      ahTab:find("Estimated Cost: ",1,true)~=nil and
-      ahTab:find(" Unpriced (Total Incomplete)",1,true)~=nil,
+      ahTab:find('Favour: "..favourLabel',1,true)~=nil and
+      ahTab:find("Est. Cost: ",1,true)~=nil and
+      ahTab:find(" Unpriced",1,true)~=nil,
   "shopping tab must refresh quantities and flag incomplete cost totals")
+
+-- Favour is derived from full planned crate quantities, including owned crates.
+-- Unknown rewards must never be silently counted as zero.
+check(ahTab:find('crateFavour[crate.id]=crate.favour',1,true)~=nil and
+      ahTab:find('favour=favour+crateFavour[item.id]*item.required',1,true)~=nil and
+      ahTab:find('unknownFavour=unknownFavour+item.required',1,true)~=nil,
+  "shopping Favour total must use verified rewards and full crate demand")
 
 -- Purchase status feedback must remain visual-only, with distinct success,
 -- failure and in-progress colours and a neutral default.

@@ -977,3 +977,9 @@ check(shopUI:find('panel.progressLabel:SetTextColor(1,1,1,1)',1,true)~=nil,
  "progress label should be white")
 check(shopUI:find('panel.progressSummary:SetWidth(330)',1,true)~=nil,
  "progress status should fit beneath centered header bar")
+
+-- v0.1.178: first-click AH search gets one bounded, search-only retry.
+check(shopUI:find("local function startLiveSearch(id,retry)",1,true)~=nil,"retryable search helper")
+check(shopUI:find("live.retries<1",1,true)~=nil,"search retries must be bounded")
+check(shopUI:find("AUCTION_HOUSE_THROTTLED_MESSAGE_SENT",1,true)~=nil,"throttle awareness")
+check(shopUI:find("startLiveSearch(live.id,true)",1,true)~=nil,"search retries selected item")

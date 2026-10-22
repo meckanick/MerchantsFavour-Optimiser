@@ -857,3 +857,44 @@ check(ahTab:find('panel.budget=',1,true)==nil and
 check(ahTab:find('local price=AH.Price(v.id)',1,true)~=nil and
       ahTab:find('gold(total)',1,true)~=nil,
   "footer must reuse existing AH price cache and coin formatting")
+
+
+-- Stage 1 crate readiness: pure inventory allocation with no UI dependency.
+dofile("MerchantsFavourOptimiser/CrateTracking.lua")
+local track=MFO_CrateTracking
+local sample={{crateID=9001,materialID=101,quantity=2,materialQty=10}}
+local results=track.Evaluate(sample,{[9001]=2,[101]=10},{})
+equal(#results,2,"two planned crates must yield two status records")
+equal(results[1].status,"ready_to_fill","first crate gets available bag materials")
+equal(results[2].status,"needs_materials","shared stock must not be allocated twice")
+equal(results[2].materialsMissing,10,"second crate must show unallocated shortfall")
+results=track.Evaluate(sample,{[9001]=2,[101]=5},{[101]=15},12345)
+equal(results[1].status,"bank_stock","bank-assisted readiness is not bag-ready")
+equal(results[1].materialsInBank,5,"first crate uses only missing bank stock")
+equal(results[2].status,"bank_stock","second crate may consume remaining bank stock")
+equal(results[2].bankSnapshot,12345,"bank snapshot timestamp must be retained")
+results=track.Evaluate(sample,{[101]=20},{[9001]=2},12345)
+equal(results[1].status,"bank_stock","crate held in bank cannot be bag-ready")
+results=track.Evaluate(sample,{[101]=20},{})
+equal(results[1].status,"missing_crate","materials alone do not imply crate ownership")
+equal(track.FilledStatus(),"unverified","ordinary item IDs must never imply a filled crate")
+results=track.Evaluate({
+ {crateID=9002,materialID=101,quantity=1,materialQty=5},
+ {crateID=9001,materialID=101,quantity=1,materialQty=5},
+},{[9001]=1,[9002]=1,[101]=5},{})
+equal(results[1].crateID,9001,"allocation order must be deterministic by crate ID")
+equal(results[2].status,"needs_materials","different crate types cannot reuse material stock")
+results=track.Evaluate({{crateID=9001,materialID=101,quantity=1,materialQty=3}},
+ {[9001]=1,[101]=3},{[101]=99})
+equal(results[1].status,"ready_to_fill","bag-only ready state should not depend on bank stock")
+local ahSource=assert(io.open("MerchantsFavourOptimiser/StandaloneAH.lua","r")):read("*a")
+check(ahSource:find("function AH.SetShoppingCratePlan",1,true)~=nil,
+ "shopping metadata must preserve explicit crate-to-material mappings")
+check(ahSource:find("db().shoppingCratePlan=nil",1,true)~=nil,
+ "shopping edits must invalidate stale crate plan metadata")
+check(coreSource:find("MFO_AH.CrateReadiness=function",1,true)~=nil,
+ "readiness must use the real bag and bank snapshot independently of Use Owned")
+check(coreSource:find("MFO_AH.SetShoppingCratePlan(cratePlan)",1,true)~=nil,
+ "planner must save its chosen bundle relationships")
+check(coreSource:find("MFO_AH.SetShoppingCratePlan({{crateID=crateID",1,true)~=nil,
+ "single crate shopping must save its chosen material relationship")

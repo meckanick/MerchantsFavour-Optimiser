@@ -1,27 +1,48 @@
-# Development notes
+# Merchant's Favour Optimiser — Development and Testing
 
-## Baseline
-Current working package: `MerchantsFavourOptimiser_v0.1.12_WoodReskin_Forever.zip`.
+## Scope
 
-## Behaviour to preserve
-- All 21 crate definitions and their material requirements
-- Auctionator pricing and scan integration
-- Gold-per-favour ranking and total cost calculations
-- Shop buttons that create Auctionator shopping lists
-- Minimap toggle
-- Optional bag/bank owned-material accounting
-- Compact scrollable list, column alignment, tooltips and item binding
+MFO is a standalone World of Warcraft Forever addon. Its core systems are:
 
-## Visual style
-The addon is designed to coordinate with What's Training? Professions: dark brown textured panel, gold border, wooden title/footer, merchant coin emblem and bronze-accented controls.
+- Supported Waylaid crate data and material bundle definitions
+- Auction House scanning, saved market prices and scan timestamps
+- Net cost per Favour comparison and the Favour Planner
+- MFO Shop shopping lists, live listings and purchase confirmation
+- Bag inventory, cached bank inventory and recorded purchase progress
+- Crate readiness indicators and shared-material allocation
+- Minimap launcher, commands and themed UI
 
-## Testing checklist
-1. Open/close via minimap button.
-2. Confirm 21 crates are accessible by scrolling.
-3. Confirm no column or Shop button overlap.
-4. Confirm scan prices and totals refresh after an Auctionator scan.
-5. Confirm owned-material option changes totals correctly.
-6. Confirm each Shop button produces the correct shopping list.
-7. Check for Lua errors in the WoW Forever client.
+## Implementation rules
 
-Do not claim in-game verification based solely on a valid ZIP archive.
+1. Use the `development` branch for work in progress and `main` for tested stable changes.
+2. Keep Lua syntax compatible with 5.1 and WoW Forever client APIs.
+3. Do not replace live game data with unverified fallback values.
+4. Preserve saved-variable compatibility, existing user settings and price calculations.
+5. Keep shopping progress separate from crate readiness; purchased items can await mailbox collection.
+6. Never report crates as filled or handed in without a verified in-game API.
+7. Retain the existing wood-and-gold design and coin-based currency formatting.
+
+## In-game regression checklist
+
+1. Open and close MFO from `/mfo` and the minimap launcher.
+2. Scan the Auction House; verify prices, scan age and missing-price messages.
+3. Verify crate ranking, costs and the Favour Planner for multiple targets.
+4. Create single-crate and planner shopping lists; confirm shared materials are counted once.
+5. Open MFO Shop; inspect the list, tooltips, progress bar, live listings and purchase confirmation.
+6. Verify purchased items do not falsely mark crates ready before mailbox collection.
+7. Collect purchased items, refresh inventory and check bag/bank counts and readiness.
+8. Test stale bank snapshots, missing item information and empty shopping lists.
+9. Verify window layout, tooltips, status indicators and coin icons at normal UI scale.
+10. Confirm no Lua errors and that GitHub Actions validation and ZIP packaging pass.
+
+## Source map
+
+- `Data.lua` — crate definitions and material requirements
+- `Calculations.lua` — cost and Favour calculations
+- `CrateTracking.lua` — readiness and shared allocation
+- `StandaloneAH.lua` — Auction House and shopping data
+- `Core.lua` — main UI, planner and inventory
+- `AHShopping.lua` — MFO Shop UI
+- `tests/mfo-regression.lua` — automated checks
+
+See [README.md](README.md) for installation and user instructions.

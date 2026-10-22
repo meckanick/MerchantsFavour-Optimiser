@@ -98,9 +98,12 @@ local function restoreNativeTitle()
  end
  wipe(originalTitles)
 end
+local MFO_COIN_GOLD="|TInterface\\MoneyFrame\\UI-GoldIcon:12:12:0:0|t"
+local MFO_COIN_SILVER="|TInterface\\MoneyFrame\\UI-SilverIcon:12:12:0:0|t"
+local MFO_COIN_COPPER="|TInterface\\MoneyFrame\\UI-CopperIcon:12:12:0:0|t"
 local function gold(c)
  if not c then return "No Price" end
- return string.format("%dg %ds %dc",math.floor(c/10000),math.floor(c/100)%100,c%100)
+ return string.format("%d%s %d%s %d%s",math.floor(c/10000),MFO_COIN_GOLD,math.floor(c/100)%100,MFO_COIN_SILVER,c%100,MFO_COIN_COPPER)
 end
 local function button(parent,label,width)
  local b=CreateFrame("Button",nil,parent,"UIPanelButtonTemplate")

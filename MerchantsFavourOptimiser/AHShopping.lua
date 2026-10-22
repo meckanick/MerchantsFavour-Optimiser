@@ -923,31 +923,63 @@ local function attach(parent)
  preflightText:SetWidth(382)
  preflightText:SetJustifyH("CENTER")
  local chainBuy=false
+ local manualQty=false
+ local qtyInput
+ local proceed
+ local function validPurchaseQuantity(needed,available)
+  local limit=chainBuy and needed or math.min(needed,available)
+  local value=tonumber(qtyInput and qtyInput:GetText() or "")
+  if not value or value~=math.floor(value) or value<1 or value>limit then return nil end
+  return value
+ end
  local function updatePreflightSummary()
   local offer=selectedOffer and live.offers[selectedOffer]
   local item=selected and AH.Shopping()[selected]
   if not offer or not item then return end
   local needed=math.max(0,math.floor(tonumber(item.qty) or 0))
   local available=math.max(0,math.floor(tonumber(offer.qty) or 0))
-  local qty=chainBuy and needed or math.min(needed,available)
-  local total=math.floor((tonumber(offer.price) or 0)*qty+.5)
-  preflightText:SetText(item.name.."\nBuy Quantity: "..qty.." / Needed: "..needed..
+  local qty=validPurchaseQuantity(needed,available)
+  local total=qty and math.floor((tonumber(offer.price) or 0)*qty+.5) or 0
+  preflightText:SetText(item.name.."\nBuy Quantity: "..(qty or "Invalid").." / Needed: "..needed..
    "\nSelected Unit Price: "..gold(offer.price)..
-   "\nEstimated Total: "..gold(total)..
-   "\nRemaining After Purchase: "..math.max(0,needed-qty))
+   "\nEstimated Total: "..(qty and gold(total) or "Unknown")..
+   "\nRemaining After Purchase: "..(qty and math.max(0,needed-qty) or "Unknown"))
+  if proceed then proceed:SetEnabled(qty~=nil) end
  end
  local chainToggle=CreateFrame("CheckButton",nil,preflight,"UICheckButtonTemplate")
  chainToggle:SetSize(24,24)
- chainToggle:SetPoint("TOPLEFT",preflight,"TOPLEFT",38,-174)
+ chainToggle:SetPoint("TOPLEFT",preflight,"TOPLEFT",38,-194)
  chainToggle:SetChecked(false)
  local chainLabel=preflight:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
  chainLabel:SetPoint("LEFT",chainToggle,"RIGHT",4,0)
  chainLabel:SetText("Chain Buy - Full Required Quantity")
- chainToggle:SetScript("OnClick",function(self)
-  chainBuy=self:GetChecked() and true or false
+ local qtyLabel=preflight:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+ qtyLabel:SetPoint("TOPLEFT",preflight,"TOPLEFT",42,-162)
+ qtyLabel:SetText("Buy Quantity:")
+ qtyInput=CreateFrame("EditBox",nil,preflight,"InputBoxTemplate")
+ qtyInput:SetSize(75,22)
+ qtyInput:SetPoint("LEFT",qtyLabel,"RIGHT",12,0)
+ qtyInput:SetAutoFocus(false)
+ qtyInput:SetNumeric(true)
+ qtyInput:SetMaxLetters(7)
+ qtyInput:SetScript("OnTextChanged",function()
+  if not chainBuy then manualQty=true end
   updatePreflightSummary()
  end)
- local proceed=button(preflight,"Buy",100)
+ chainToggle:SetScript("OnClick",function(self)
+  chainBuy=self:GetChecked() and true or false
+  qtyInput:SetEnabled(not chainBuy)
+  if chainBuy then
+   local item=selected and AH.Shopping()[selected]
+   qtyInput:SetText(tostring(item and item.qty or 0))
+  else
+   local offer=selectedOffer and live.offers[selectedOffer]
+   local item=selected and AH.Shopping()[selected]
+   qtyInput:SetText(tostring(math.min(item and item.qty or 0,offer and offer.qty or 0)))
+  end
+  updatePreflightSummary()
+ end)
+ proceed=button(preflight,"Buy",100)
  proceed:SetPoint("BOTTOMLEFT",preflight,"BOTTOMLEFT",35,22)
  local back=button(preflight,"Cancel",100)
  back:SetPoint("BOTTOMRIGHT",preflight,"BOTTOMRIGHT",-35,22)
@@ -966,8 +998,12 @@ local function attach(parent)
   end
   local needed=math.floor(tonumber(item.qty) or 0)
   local available=math.floor(tonumber(offer.qty) or 0)
-  local qty=chainBuy and needed or math.min(needed,available)
-  if qty<1 then return end
+  local qty=validPurchaseQuantity(needed,available)
+  if not qty then
+   live.message="Invalid Buy Quantity. Enter a Whole Number Within the Available Limit."
+   refreshOffers()
+   return
+  end
   local api=C_AuctionHouse
   if not api or type(api.StartCommoditiesPurchase)~="function" then
    live.message="Commodity Purchase API Unavailable."
@@ -994,7 +1030,10 @@ local function attach(parent)
   local offer=selectedOffer and live.offers[selectedOffer]
   local item=selected and AH.Shopping()[selected]
   if not offer or not item or live.id~=selected or live.waiting or commodityOrder or awaitingPurchase then return end
-  local qty=chainBuy and item.qty or math.min(item.qty,offer.qty)
+  local needed=math.max(0,math.floor(tonumber(item.qty) or 0))
+  local available=math.max(0,math.floor(tonumber(offer.qty) or 0))
+  qtyInput:SetEnabled(not chainBuy)
+  qtyInput:SetText(tostring(chainBuy and needed or math.min(needed,available)))
   updatePreflightSummary()
   preflight:Show()
  end)

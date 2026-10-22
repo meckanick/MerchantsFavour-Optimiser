@@ -298,7 +298,9 @@ check(ahTab:find('restoreNativeTitle()',1,true)~=nil,"MFO must restore native Au
 check(ahTab:find('region:SetText("MFO - Shopping")',1,true)~=nil,"MFO must set native header title")
 
 check(ahTab:find('left:SetWidth(340)',1,true)~=nil,"Shopping list must use Auctionator-style pane proportions")
-check(ahTab:find('row.cost=numberColumn(253,66)',1,true)~=nil,"Shopping prices must retain a dedicated cost column")
+check(ahTab:find('row.cost=row:CreateFontString',1,true)~=nil and
+      ahTab:find('row.cost:SetWidth(126)',1,true)~=nil,
+  "Shopping prices must retain a dedicated, wider cost column")
 check(ahTab:find('header:SetText("")',1,true)~=nil,"Duplicate shopping title must be hidden")
 
 check(ahTab:find('searchLabel:SetText("Search Term:")',1,true)==nil,"Unused search toolbar must be removed")
@@ -759,8 +761,9 @@ check(ahTab:find('liveStatus:SetTextColor(.36,.90,.42)',1,true)~=nil and
   "shopping purchase feedback must distinguish success, failure, pending and neutral states")
 
 -- Stage 2 must preserve shopping, pricing and purchase flow while adding controls.
-check(ahTab:find('local columnHeaders={{"Item",14},{"Need",142},{"Owned",183},{"Buy",224},{"Cost",266}}',1,true)~=nil,
-  "MFO Shop must show item, required, owned, to-buy and cost headers")
+check(ahTab:find('local columnHeaders={{"Item",14},{"Need",151},{"Owned",199},{"Buy",247}}',1,true)~=nil and
+      ahTab:find('costHeading:SetText("Total Cost")',1,true)~=nil,
+  "MFO Shop must show aligned item, required, owned, to-buy and total-cost headers")
 check(ahTab:find("row.need:SetText(tostring(item.required))",1,true)~=nil and
       ahTab:find('row.owned:SetText(item.owned and tostring(item.owned) or "?")',1,true)~=nil and
       ahTab:find("row.buy:SetText(tostring(item.qty))",1,true)~=nil,

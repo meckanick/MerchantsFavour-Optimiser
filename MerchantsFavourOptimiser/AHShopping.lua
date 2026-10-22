@@ -1119,14 +1119,7 @@ local function attach(parent)
     self.highlight:Show()
     GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
     GameTooltip:AddLine(self.item.name,1,.82,.2)
-     if self.item.readiness then
-      local bucket=self.item.readiness
-      GameTooltip:AddLine("Planned crates ready: "..bucket.ready.."/"..bucket.total,1,.82,.2)
-      GameTooltip:AddLine("Materials are allocated once across the plan.",.75,.75,.75,true)
-      for _,record in ipairs(bucket.records) do
-       MFO_CrateTracking.AddTooltip(GameTooltip,record,(AH.Shopping()[record.materialID] or {}).name)
-      end
-     end
+    -- Shopping quantities and inventory belong to the crate, not its materials.
     GameTooltip:AddLine("Required: "..self.item.required.."   Owned: "..(self.item.owned or "Unknown").."   To buy: "..self.item.qty,1,1,1)
     if AH.ShoppingItemStock then
      local bags,bank,bankScan=AH.ShoppingItemStock(self.item.id)
@@ -1140,6 +1133,14 @@ local function attach(parent)
      end
     end
     GameTooltip:AddLine("Cached Unit Price: "..gold(AH.Price(self.item.id)),1,1,1)
+    if self.item.readiness then
+     local bucket=self.item.readiness
+     GameTooltip:AddLine(" ",1,1,1)
+     GameTooltip:AddLine("Crate readiness: "..bucket.ready.."/"..bucket.total.." ready",1,.82,.2)
+     for _,record in ipairs(bucket.records) do
+      MFO_CrateTracking.AddTooltip(GameTooltip,record,(AH.Shopping()[record.materialID] or {}).name)
+     end
+    end
     GameTooltip:Show()
    end
   end)

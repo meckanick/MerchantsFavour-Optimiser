@@ -956,9 +956,15 @@ check(shopUI:find("panel.progressAvailable",1,true)~=nil and shopUI:find("panel.
  "shopping progress must have separate green and gold segments")
 
 -- v0.1.174: progress moves to the top header, restoring shopping list capacity.
-check(shopUI:find('panel.progressLabel:SetPoint("TOPLEFT",panel,"TOPLEFT",265,-57)',1,true)~=nil,
+check(shopUI:find('panel.progressLabel:SetPoint("CENTER",panel.progressBar,"CENTER",0,0)',1,true)~=nil,
  "progress label should be anchored in the header")
-check(shopUI:find('panel.progressBar:SetPoint("TOPLEFT",panel,"TOPLEFT",265,-78)',1,true)~=nil,
+check(shopUI:find('panel.progressBar:SetPoint("TOPLEFT",panel,"TOPLEFT",350,-54)',1,true)~=nil,
  "progress bar should be anchored in the header")
 check(shopUI:find('for i=1,8 do\n  local row=CreateFrame("Button",nil,left)',1,true)~=nil,
  "eight shopping rows should be restored")
+
+-- v0.1.175: percentage is inside a taller bar, with status below.
+check(shopUI:find('panel.progressBar:SetSize(340,22)',1,true)~=nil,
+ "header progress bar must be taller")
+check(shopUI:find('panel.progressSummary:SetPoint("TOP",panel.progressBar,"BOTTOM",0,-6)',1,true)~=nil,
+ "progress status must be beneath the bar")

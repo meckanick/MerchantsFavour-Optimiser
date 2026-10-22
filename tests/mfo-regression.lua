@@ -916,3 +916,21 @@ check(coreSource:find("Crate Readiness - Individual Estimate",1,true)~=nil,
  "main UI must distinguish individual estimate from plan allocation")
 check(coreSource:find("MFO_CrateTracking.AddTooltip(GameTooltip,record)",1,true)~=nil,
  "main UI must display crate status tooltip")
+
+-- v0.1.170 material readiness and readable tooltip regression checks.
+equal(track.MaterialStatus(2,2,0),"ready_to_fill","bag materials should show ready")
+equal(track.MaterialStatus(2,1,1),"bank_stock","bank-assisted materials should show bank status")
+equal(track.MaterialStatus(2,0,0),"needs_materials","missing materials should show warning")
+equal(track.MaterialStatus(0,0,0),"unknown","unknown material requirement must not show ready")
+local tooltipLines170={}
+track.AddTooltip({AddLine=function(_,line)tooltipLines170[#tooltipLines170+1]=line end},
+ track.Evaluate(sample,{[9001]=2,[101]=5},{[101]=15},12345)[1],"Test Material")
+local tooltipText170=table.concat(tooltipLines170," | ")
+check(tooltipText170:find("Test Material",1,true)~=nil,"tooltip must show material name")
+check(tooltipText170:find("Material item ID:",1,true)==nil,"tooltip must not show raw item IDs")
+check(tooltipText170:find("Still needed:",1,true)~=nil,"tooltip must explain remaining materials")
+local shop170=assert(io.open("MerchantsFavourOptimiser/AHShopping.lua","r")):read("*a")
+check(shop170:find("item.materialReadiness=readinessByMaterial[item.id]",1,true)~=nil,
+ "material shopping rows must receive shared allocation status")
+check(shop170:find("MFO_CrateTracking.MaterialStatus(",1,true)~=nil,
+ "material rows must render material-specific readiness")

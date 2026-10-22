@@ -1091,6 +1091,13 @@ local function attach(parent)
    if refreshOffers then refreshOffers() end
   end
  end)
+ -- Keep navigation separate from shopping/purchase actions and inside the
+ -- footer strip below the two inset panels.
+ local openMain=button(panel,"Open MFO",124)
+ openMain:SetPoint("BOTTOM",panel,"BOTTOM",0,4)
+ openMain:SetScript("OnClick",function()
+  if type(MFO_OpenMainWindow)=="function" then MFO_OpenMainWindow() end
+ end)
  -- Mouse-wheel scrolling keeps larger shopping plans accessible without
  -- the redundant footer page counter and arrow controls.
  left:EnableMouseWheel(true)

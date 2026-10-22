@@ -114,7 +114,7 @@ function AH.Shop(items)
   local shopping=db().shopping
   for id,entry in pairs(items) do
     local item=shoppingEntry(id,entry)
-    if item then shopping[id]=item end
+    if item then shopping[id]=item; db().shoppingCratePlan=nil end
   end
   return true
 end
@@ -128,6 +128,7 @@ function AH.ReplaceShopping(items)
   end
   if not next(replacement) then return false,"No valid items to shop for" end
   db().shopping=replacement
+  db().shoppingCratePlan=nil
   return true
 end
 -- Confirmed purchases are credited immediately, even before the bag update.
@@ -181,16 +182,36 @@ function AH.RecalculateShopping()
   end
   return true
 end
+function AH.SetShoppingCratePlan(entries)
+  local copy={}
+  for _,entry in ipairs(entries or {}) do
+    if type(entry)=="table" then
+      local id,material=tonumber(entry.crateID),tonumber(entry.materialID)
+      local qty,per=tonumber(entry.quantity),tonumber(entry.materialQty)
+      if id and id>0 and material and material>0 and qty and qty>=1 and
+         qty==math.floor(qty) and per and per>=1 and per==math.floor(per) then
+        copy[#copy+1]={crateID=id,materialID=material,quantity=qty,materialQty=per}
+      end
+    end
+  end
+  db().shoppingCratePlan=#copy>0 and copy or nil
+  return #copy>0
+end
+function AH.ShoppingCratePlan()
+  return db().shoppingCratePlan
+end
 function AH.Shopping()
   return db().shopping
 end
 function AH.RemoveShoppingItem(id)
   if type(id)~="number" or not db().shopping[id] then return false end
   db().shopping[id]=nil
+  db().shoppingCratePlan=nil
   return true
 end
 function AH.ClearShopping()
   db().shopping={}
+  db().shoppingCratePlan=nil
 end
 function AH.Progress()
   return math.floor(math.min(100,(position-1)/math.max(1,scanTotal)*100)),busy,priced,scanTotal

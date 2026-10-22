@@ -958,7 +958,7 @@ check(shopUI:find("panel.progressAvailable",1,true)~=nil and shopUI:find("panel.
 -- v0.1.174: progress moves to the top header, restoring shopping list capacity.
 check(shopUI:find('panel.progressLabel:SetPoint("CENTER",panel.progressBar,"CENTER",0,0)',1,true)~=nil,
  "progress label should be anchored in the header")
-check(shopUI:find('panel.progressBar:SetPoint("TOPLEFT",panel,"TOPLEFT",290,-54)',1,true)~=nil,
+check(shopUI:find('panel.progressBar:SetPoint("TOP",panel,"TOP",0,-54)',1,true)~=nil,
  "progress bar should be anchored in the header")
 check(shopUI:find('for i=1,8 do\n  local row=CreateFrame("Button",nil,left)',1,true)~=nil,
  "eight shopping rows should be restored")

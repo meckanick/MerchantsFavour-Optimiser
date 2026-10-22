@@ -918,7 +918,7 @@ local function attach(parent)
    local itemName=(item and item.name) or (type(GetItemInfo)=="function" and GetItemInfo(order.id)) or ("Item "..order.id)
    local unitPrice=order.qty>0 and math.floor(total/order.qty+.5) or 0
    local funds=type(GetMoney)=="function" and GetMoney() or nil
-   local affordability=funds and (total>funds and ("\\nInsufficient Gold: "..gold(total-funds).." Short") or ("\\nGold After Purchase: "..gold(funds-total))) or "\\nGold Balance Unavailable"
+   local affordability=funds and (total>funds and ("\nInsufficient Gold: "..gold(total-funds).." Short") or ("\nGold After Purchase: "..gold(funds-total))) or "\nGold Balance Unavailable"
    confirmText:SetText(itemName.."\nQuantity: "..order.qty.."\nQuoted Unit Price: "..gold(unitPrice).."\nFinal AH Total: "..gold(total)..affordability)
   accept:SetText("Confirm Buy")
   confirm:Show()
@@ -961,7 +961,7 @@ local function attach(parent)
   local qty=validPurchaseQuantity(needed,available)
   local total=qty and math.floor((tonumber(offer.price) or 0)*qty+.5) or 0
   local funds=type(GetMoney)=="function" and GetMoney() or nil
-  local affordability=qty and funds and (total>funds and ("\\nInsufficient Gold: "..gold(total-funds).." Short") or ("\\nGold After Purchase: "..gold(funds-total))) or ""
+  local affordability=qty and funds and (total>funds and ("\nInsufficient Gold: "..gold(total-funds).." Short") or ("\nGold After Purchase: "..gold(funds-total))) or ""
   preflightText:SetText(item.name.."\nBuy Quantity: "..(qty or "Invalid").." / Needed: "..needed..
    "\nSelected Unit Price: "..gold(offer.price)..
    "\nEstimated Total: "..(qty and gold(total) or "Unknown")..

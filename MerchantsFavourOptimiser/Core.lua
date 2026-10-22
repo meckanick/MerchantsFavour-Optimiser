@@ -209,6 +209,13 @@ local function ownedCount(id)
 end
 if MFO_AH.SetOwnedReader then MFO_AH.SetOwnedReader(function(id) return ownedCount(id) end) end
 MFO_AH.RefreshShoppingInventory=function() learnBagItems();scanBags() end
+-- Read-only stock details for MFO Shop tooltips, independent of Use Owned.
+MFO_AH.ShoppingItemStock=function(id)
+ if type(id)~="number" then return 0,0,nil end
+ return bagCounts[id] or 0,
+  (MFO_DB and MFO_DB.bankCounts and MFO_DB.bankCounts[id]) or 0,
+  MFO_DB and MFO_DB.bankScanTime
+end
 local function calc(crate)
   return MFO_Calculations.calculate(crate, price, ownedCount, resolve)
 end

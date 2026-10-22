@@ -706,9 +706,17 @@ check(coreSource:find("requiredQty=r.b.qty",1,true)~=nil and
 check(coreSource:find("plannerShopping={items=bestShopping,details=bestDetails,required=fullDemand}",1,true)~=nil,
   "planner must consolidate original requirements before owned deductions")
 check(ahTab:find("if AH.RecalculateShopping then AH.RecalculateShopping() end",1,true)~=nil and
-      ahTab:find("Missing AH Price",1,true)~=nil and
-      ahTab:find("Total Incomplete",1,true)~=nil,
+      ahTab:find("Estimated Cost: ",1,true)~=nil and
+      ahTab:find(" Unpriced (Total Incomplete)",1,true)~=nil,
   "shopping tab must refresh quantities and flag incomplete cost totals")
+
+-- Purchase status feedback must remain visual-only, with distinct success,
+-- failure and in-progress colours and a neutral default.
+check(ahTab:find('liveStatus:SetTextColor(.36,.90,.42)',1,true)~=nil and
+      ahTab:find('liveStatus:SetTextColor(1,.38,.34)',1,true)~=nil and
+      ahTab:find('liveStatus:SetTextColor(1,.76,.20)',1,true)~=nil and
+      ahTab:find('liveStatus:SetTextColor(1,.90,.70)',1,true)~=nil,
+  "shopping purchase feedback must distinguish success, failure, pending and neutral states")
 
 -- Stage 2 must preserve shopping, pricing and purchase flow while adding controls.
 check(ahTab:find('local columnHeaders={{"Item",14},{"Need",142},{"Owned",183},{"Buy",224},{"Cost",266}}',1,true)~=nil,

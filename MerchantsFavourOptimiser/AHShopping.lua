@@ -127,7 +127,7 @@ local function activeAH()
  if AuctionFrame and AuctionFrame:IsShown() then return AuctionFrame end
 end
 -- Live auction search; purchases require a separate explicit hardware click.
-local live={id=nil,waiting=false,offers={},message="Select an Item to Search.",elapsed=0}
+local live={id=nil,waiting=false,offers={},message="Select an Item to Search.",elapsed=0,retries=0,throttled=false}
 local refreshOffers
 local update
 local selectedOffer
@@ -147,7 +147,7 @@ local function resetFailedPurchase(message)
  live.message=message or "Purchase Failed. Select Buy Again to Retry."
  if refreshOffers then refreshOffers() end
 end
-local function startLiveSearch(id)
+local function startLiveSearch(id,retry)
  if commodityOrder or awaitingPurchase then
   live.message="Purchase Pending. Wait for the Auction House Result Before Searching Again."
   if refreshOffers then refreshOffers() end
@@ -156,6 +156,8 @@ local function startLiveSearch(id)
  if resetPurchaseDialogs then resetPurchaseDialogs() end
  if panel and panel.offerScroll then panel.offerScroll:SetValue(select(2,panel.offerScroll:GetMinMaxValues()) or 0) end
  live.id=id;live.offers={};live.waiting=false;live.elapsed=0;selectedOffer=nil
+  if not retry then live.retries=0 end
+  live.throttled=false
  if not id then live.message="Select an Item to Search.";return end
  if select(2,AH.Progress()) then live.message="Wait for the MFO Price Scan to Finish.";return end
  local item=AH.Shopping()[id]
@@ -215,7 +217,7 @@ local function collectLive(event,arg)
  if refreshOffers then refreshOffers() end
 end
 local liveEvents=CreateFrame("Frame")
-for _,name in ipairs({"ITEM_SEARCH_RESULTS_UPDATED","COMMODITY_SEARCH_RESULTS_UPDATED","AUCTION_ITEM_LIST_UPDATE","COMMODITY_PRICE_UPDATED","COMMODITY_PRICE_UNAVAILABLE","COMMODITY_PURCHASE_SUCCEEDED","COMMODITY_PURCHASE_FAILED","UI_ERROR_MESSAGE","BAG_UPDATE_DELAYED","AUCTION_HOUSE_THROTTLED_SYSTEM_READY"}) do
+for _,name in ipairs({"ITEM_SEARCH_RESULTS_UPDATED","COMMODITY_SEARCH_RESULTS_UPDATED","AUCTION_ITEM_LIST_UPDATE","AUCTION_HOUSE_THROTTLED_MESSAGE_SENT","COMMODITY_PRICE_UPDATED","COMMODITY_PRICE_UNAVAILABLE","COMMODITY_PURCHASE_SUCCEEDED","COMMODITY_PURCHASE_FAILED","UI_ERROR_MESSAGE","BAG_UPDATE_DELAYED","AUCTION_HOUSE_THROTTLED_SYSTEM_READY"}) do
  pcall(liveEvents.RegisterEvent,liveEvents,name)
 end
 liveEvents:SetScript("OnEvent",function(_,event,arg,arg2)

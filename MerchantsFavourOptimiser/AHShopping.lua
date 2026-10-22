@@ -1008,42 +1008,43 @@ local function attach(parent)
  skinPurchaseDialog(preflight,"Purchase Item")
  panel:Hide()
  panel.offset=0
- local columnHeaders={{"Item",14},{"Need",151},{"Owned",199},{"Buy",247}}
+ local columnHeaders={{"Item",14},{"Need",194},{"Owned",240},{"Buy",290}}
  for _,col in ipairs(columnHeaders) do
   local heading=left:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
   heading:SetPoint("TOPLEFT",left,"TOPLEFT",col[2],-43)
   heading:SetText(col[1])
  end
- local costHeading=left:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
- costHeading:SetPoint("TOPRIGHT",left,"TOPRIGHT",-18,-43)
- costHeading:SetText("Total Cost")
  for i=1,8 do
   local row=CreateFrame("Button",nil,left)
-  row:SetHeight(25)
+  row:SetHeight(39)
   local highlight=row:CreateTexture(nil,"BACKGROUND")
   highlight:SetAllPoints(row)
   highlight:SetTexture(ART.."WTP_ProfessionRow")
   row.highlight=highlight
   row.hovered=false
   highlight:Hide()
-  row:SetPoint("TOPLEFT",left,"TOPLEFT",10,-62-(i-1)*26)
+  row:SetPoint("TOPLEFT",left,"TOPLEFT",10,-62-(i-1)*40)
   row:SetPoint("RIGHT",left,"RIGHT",-10,0)
   row.label=row:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-  row.label:SetPoint("LEFT",4,0);row.label:SetWidth(132);row.label:SetJustifyH("LEFT");row.label:SetWordWrap(false)
+  row.label:SetPoint("TOPLEFT",row,"TOPLEFT",4,-5);row.label:SetWidth(170);row.label:SetJustifyH("LEFT");row.label:SetWordWrap(false)
   local function numberColumn(offset,width)
    local label=row:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-   label:SetPoint("LEFT",row,"LEFT",offset,0)
+   label:SetPoint("TOPLEFT",row,"TOPLEFT",offset,-5)
    label:SetWidth(width)
    label:SetJustifyH("RIGHT")
    return label
   end
-  row.need=numberColumn(139,28)
-  row.owned=numberColumn(187,28)
-  row.buy=numberColumn(235,28)
-  -- Keep all three coin values and icons on one line, right aligned.
+  row.need=numberColumn(181,30)
+  row.owned=numberColumn(229,30)
+  row.buy=numberColumn(279,30)
+  -- A dedicated second line gives coin textures their full width without
+  -- colliding with Buy, even when gold, silver and copper are all present.
+  local costLabel=row:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+  costLabel:SetPoint("BOTTOMLEFT",row,"BOTTOMLEFT",4,4)
+  costLabel:SetText("Total Cost:")
   row.cost=row:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-  row.cost:SetPoint("RIGHT",row,"RIGHT",-5,0)
-  row.cost:SetWidth(126)
+  row.cost:SetPoint("BOTTOMRIGHT",row,"BOTTOMRIGHT",-5,4)
+  row.cost:SetWidth(215)
   row.cost:SetJustifyH("RIGHT")
   row.cost:SetWordWrap(false)
   row:SetScript("OnClick",function(self)if self.item then selected=self.item.id;startLiveSearch(selected);update();if refreshOffers then refreshOffers() end end end)

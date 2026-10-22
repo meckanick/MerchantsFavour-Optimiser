@@ -451,6 +451,7 @@ local rowWidths={341,76,76,76,48,76}
 local entries={}
 local shopButtons={}
 local displayedResults={}
+local readinessButtons={}
 for i=1,#rows do
   local y=-(i-1)*19
   entries[i]={}
@@ -486,6 +487,23 @@ for i=1,#rows do
     status:SetText(ok and "Shopping List Replaced. Open MFO Shop at the Auction House." or (reason or "Unable to create shopping list."))
   end)
   shopButtons[i]=shop
+  local readiness=CreateFrame("Frame",nil,scrollChild)
+  readiness:SetPoint("TOPLEFT",scrollChild,"TOPLEFT",xpos[1]+1,y+2)
+  readiness:SetSize(14,16)
+  readiness:EnableMouse(true)
+  readiness.icon=readiness:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+  readiness.icon:SetAllPoints(readiness)
+  readiness:SetScript("OnEnter",function(self)
+    local record=displayedResults[i] and displayedResults[i].readiness
+    if not record then return end
+    GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
+    GameTooltip:AddLine("Crate Readiness - Individual Estimate",1,.82,.2)
+    GameTooltip:AddLine("This crate is assessed independently; other crates may share these materials.",.75,.75,.75,true)
+    MFO_CrateTracking.AddTooltip(GameTooltip,record)
+    GameTooltip:Show()
+  end)
+  readiness:SetScript("OnLeave",function()GameTooltip:Hide()end)
+  readinessButtons[i]=readiness
   -- Net C/F has its own hover target; the crate-name column stays tooltip-free.
   local netHover=CreateFrame("Frame",nil,scrollChild)
   netHover:SetPoint("TOPLEFT",scrollChild,"TOPLEFT",xpos[6]-5,y+2)
@@ -520,7 +538,7 @@ for i=1,#rows do
     local t=scrollChild:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
     -- Align numeric values under their existing header labels without moving the headers.
     -- Move only the crate-name text and Shop buttons to match their header labels.
-    t:SetPoint("TOPLEFT",xpos[j]+(j==1 and 8 or -5),y);t:SetWidth(rowWidths[j]);t:SetJustifyH("LEFT");t:SetWordWrap(false)
+    t:SetPoint("TOPLEFT",xpos[j]+(j==1 and 22 or -5),y);t:SetWidth(rowWidths[j]);t:SetJustifyH("LEFT");t:SetWordWrap(false)
     entries[i][j]=t
   end
 end
@@ -539,7 +557,16 @@ local function refresh(inventoryFresh)
      if not resolve(crate.name) then missingIDs=missingIDs+1 elseif cp==nil then missingPrices=missingPrices+1 end
    elseif cp==nil then missingPrices=missingPrices+1 end
     if rate then complete=complete+1 end
-    results[#results+1]={crate=crate,rate=rate,cp=cp,b=b,bc=bc,missing=missing,owned=owned,crateOwned=crateOwned}
+    local readiness
+    if b then
+      local crateID=crate.id or resolve(crate.name)
+      local materialID=resolve(b.name)
+      if crateID and materialID then
+        readiness=MFO_AH.CrateReadiness({{crateID=crateID,materialID=materialID,
+          quantity=1,materialQty=b.qty}})[1]
+      end
+    end
+    results[#results+1]={crate=crate,rate=rate,cp=cp,b=b,bc=bc,missing=missing,owned=owned,crateOwned=crateOwned,readiness=readiness}
   end
   table.sort(results,function(a,b)
     if a.rate and b.rate then return a.rate<b.rate end
@@ -550,6 +577,11 @@ local function refresh(inventoryFresh)
   displayedResults=results
   for i,r in ipairs(results) do
     local t=entries[i]
+    local indicator=readinessButtons[i]
+    if r.readiness then
+      indicator.icon:SetText(MFO_CrateTracking.Symbol(r.readiness.status))
+      indicator:Show()
+    else indicator:Hide() end
     t[1]:SetText(r.crate.name:gsub("Waylaid Crate: ","")..(r.b and (" ("..(MFO_DB.useOwned and ((r.missing or r.b.qty).." to Buy / "..(r.owned or 0).." Owned") or (r.b.qty.."x")).." "..r.b.name..")") or ""))
     t[2]:SetText(money(r.cp));t[3]:SetText(money(r.bc));t[4]:SetText(money(r.cp and r.bc and (r.cp+r.bc) or nil));t[5]:SetText(r.crate.favour or "?");t[6]:SetText(money(r.rate))
     t[6]:SetTextColor(r.rate and .95 or .6,r.rate and .8 or .6,r.rate and .35 or .6)

@@ -673,6 +673,18 @@ do
   MFO_DB={useOwned=true}
   dofile("MerchantsFavourOptimiser/StandaloneAH.lua")
   local ah=MFO_AH
+  -- Batch 5: reject malformed metadata before the readiness engine sees it.
+  check(not ah.SetShoppingCratePlan({
+    {crateID=1001,materialID=1001,quantity=1,materialQty=2},
+    {crateID=1001,materialID=1002,quantity=math.huge,materialQty=2},
+    {crateID=1001.5,materialID=1002,quantity=1,materialQty=2},
+    {crateID=1001,materialID=1002,quantity=1,materialQty=0/0},
+  }),"malformed crate metadata must be rejected")
+  equal(ah.ShoppingCratePlan(),nil,"invalid metadata must not persist")
+  check(ah.SetShoppingCratePlan({
+    {crateID=1001,materialID=1002,quantity=2,materialQty=3}
+  }),"valid crate metadata must remain supported")
+  equal(ah.ShoppingCratePlan()[1].quantity,2,"valid metadata retains quantities")
   local owned={[1001]=4,[1002]=3}
   ah.SetOwnedReader(function(id) return owned[id] or 0 end)
   local ok=ah.ReplaceShopping({

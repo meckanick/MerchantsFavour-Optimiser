@@ -162,6 +162,23 @@ local forced=MFO_Calculations.plan(20,planOptions,planOptions[1])
 equal(forced.items.five,2,"forced planner seed should be retained")
 equal(forced.cost,340,"forced planner should find cheapest completion")
 
+-- Batch 4: malformed or unpriced planner options must never enter DP.
+local safe=MFO_Calculations.plan(10,{
+ {key="bad-nan",favour=10,cost=0/0},
+ {key="bad-infinity",favour=10,cost=math.huge},
+ {key="bad-fraction",favour=2.5,cost=1},
+ {key="bad-key",favour=10,cost=1/0},
+ {key="valid",favour=10,cost=42},
+})
+equal(safe.cost,42,"planner must ignore malformed options")
+equal(safe.items.valid,1,"valid priced option remains selectable")
+local noOptions=MFO_Calculations.plan(10,nil)
+equal(noOptions,nil,"planner must handle absent options")
+local badForced=MFO_Calculations.plan(10,planOptions,{key="unknown",favour=5,cost=0})
+equal(badForced,nil,"planner must reject forced options outside candidate list")
+local mismatchedForced=MFO_Calculations.plan(10,planOptions,{key="five",favour=5,cost=0})
+equal(mismatchedForced,nil,"forced option must use its actual priced cost")
+
 -- Guard against accidental capitalization of case-sensitive Lua identifiers
 -- while editing player-facing text. This caught the v0.1.55 ownedCheck bug.
 local coreFile = assert(io.open("MerchantsFavourOptimiser/Core.lua", "r"))

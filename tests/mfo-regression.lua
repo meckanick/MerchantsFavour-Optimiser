@@ -455,7 +455,7 @@ check(ahTab:find('if watcher.uiElapsed>=1 then watcher.uiElapsed=0;update() end'
 -- Purchase recovery: ignore unrelated commodity events and close stale dialogs.
 check(ahTab:find('local awaitingPurchase=false',1,true)~=nil,"Track a submitted commodity confirmation")
 check(ahTab:find('if not commodityOrder and not awaitingPurchase then return end',1,true)~=nil,"Ignore unrelated failed commodity events")
-check(ahTab:find('if not awaitingPurchase then return end',1,true)~=nil,"Ignore unrelated commodity success events")
+check(ahTab:find('if purchaseUncertain or not awaitingPurchase then return end',1,true)~=nil,"Ignore unrelated or uncertain commodity success events")
 check(ahTab:find('resetPurchaseDialogs=function()',1,true)~=nil,"Dialog cleanup must be initialized")
 check(ahTab:find('if resetPurchaseDialogs then resetPurchaseDialogs() end',1,true)~=nil,"Purchase cleanup must dismiss stale dialogs")
 check(ahTab:find('awaitingPurchase=true;purchaseElapsed=0;purchaseWarningShown=false\n   C_AuctionHouse.ConfirmCommoditiesPurchase',1,true)~=nil,"Confirmation must track pending result before API call")

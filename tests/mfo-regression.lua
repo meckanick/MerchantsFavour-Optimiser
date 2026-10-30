@@ -718,6 +718,19 @@ do
   MFO_DB.useOwned=true
   ah.RecalculateShopping()
   equal(ah.Shopping()[1005].qty,3,"owned-on mode returns to observed stock")
+  -- Purchase while owned tracking is disabled must preserve its physical
+  -- baseline when the setting is switched on before delivery.
+  MFO_DB.useOwned=false
+  owned[1006]=3
+  ah.ReplaceShopping({[1006]={name="Toggle During Delivery",qty=7,requiredQty=10}})
+  check(ah.RecordShoppingPurchase(1006,2),"purchase while owned tracking disabled")
+  MFO_DB.useOwned=true
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1006].qty,5,"toggle must not lose provisional purchase")
+  owned[1006]=5
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1006].pendingPurchaseQty,0,"delivery after toggle clears pending")
+  equal(ah.Shopping()[1006].qty,5,"delivery after toggle is not counted twice")
   MFO_DB.useOwned=true
   ah.ReplaceShopping({[1004]={name="Fully Owned",qty=0,requiredQty=5}})
   equal(ah.Shopping()[1004].qty,0,"fully owned requirements must be retained")
@@ -1016,3 +1029,15 @@ check(ahTab:find('local purchaseUncertain=false',1,true)~=nil, 'purchase uncerta
 check(ahTab:find('purchaseUncertain=true',1,true)~=nil, 'purchase timeout must set uncertain state')
 check(ahTab:find('if purchaseUncertain or not awaitingPurchase then return end',1,true)~=nil, 'late purchase success must not be credited')
 check(ahTab:find('or commodityOrder or awaitingPurchase or purchaseUncertain then return end',1,true)~=nil, 'uncertain state must prevent buying')
+
+-- Batch 2: bank snapshot safety and physical inventory reader must not
+-- depend on the shopping Use Owned setting.
+local coreSource=assert(io.open("MerchantsFavourOptimiser/Core.lua","r")):read("*a")
+check(coreSource:find('if #ids==1 then for bag=5,11 do ids[#ids+1]=bag end end',1,true)~=nil,
+ "legacy bank IDs must be fallback only")
+check(coreSource:find('if readable==0 then return end',1,true)~=nil,
+ "unreadable bank must preserve prior snapshot")
+check(coreSource:find('if not itemOK then return end',1,true)~=nil,
+ "failed bank item reads must preserve prior snapshot")
+check(coreSource:find('if MFO_AH.SetOwnedReader then MFO_AH.SetOwnedReader(function(id)',1,true)~=nil,
+ "shopping reader must use physical inventory")

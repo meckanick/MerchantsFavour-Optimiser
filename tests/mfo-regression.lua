@@ -917,6 +917,16 @@ results=track.Evaluate(sample,{[101]=20},{[9001]=2},12345)
 equal(results[1].status,"bank_stock","crate held in bank cannot be bag-ready")
 results=track.Evaluate(sample,{[101]=20},{})
 equal(results[1].status,"missing_crate","materials alone do not imply crate ownership")
+results=track.Evaluate(sample,{[101]=20},{[9001]=2})
+equal(results[1].status,"missing_crate","bank inventory without verified scan must not imply crate ownership")
+results=track.Evaluate(sample,{[9001]=2},{[101]=20})
+equal(results[1].status,"needs_materials","bank inventory without verified scan must not imply materials available")
+results=track.Evaluate({{crateID=9001,materialID=9001,quantity=1,materialQty=1}},
+ {[9001]=2},{},12345)
+equal(#results,0,"crate cannot be its own material")
+results=track.Evaluate({{crateID=9001,materialID=101,quantity=math.huge,materialQty=1}},
+ {[9001]=1,[101]=1},{},12345)
+equal(#results,0,"infinite quantities must not cause an unbounded allocation loop")
 equal(track.FilledStatus(),"unverified","ordinary item IDs must never imply a filled crate")
 results=track.Evaluate({
  {crateID=9002,materialID=101,quantity=1,materialQty=5},

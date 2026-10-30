@@ -72,11 +72,12 @@ function T.Symbol(status)
  if status=="missing_crate" then return "|cffcc8888X|r" end
  return "|cffaaaaaa?|r"
 end
+-- Reuse static labels across tooltip hovers instead of allocating a new table.
+local readinessLabels={ready_to_fill="Ready to fill - items in bags",bank_stock="Bank withdrawal needed",
+ needs_materials="More materials needed",missing_crate="Crate not owned"}
 function T.AddTooltip(tooltip,record,materialName)
  if not tooltip or not record then return end
- local labels={ready_to_fill="Ready to fill - items in bags",bank_stock="Bank withdrawal needed",
-  needs_materials="More materials needed",missing_crate="Crate not owned"}
- tooltip:AddLine(labels[record.status] or "Readiness unknown",1,.82,.2)
+ tooltip:AddLine(readinessLabels[record.status] or "Readiness unknown",1,.82,.2)
  tooltip:AddLine(record.crateInBags>0 and "Crate: In bags" or
   (record.crateInBank>0 and "Crate: In bank" or "Crate: Not owned"),1,1,1)
  tooltip:AddLine(materialName or "Required materials",1,.82,.2)

@@ -803,7 +803,7 @@ check(ahTab:find('type(arg2)=="string" and arg2',1,true)~=nil and
       ahTab:find('lower:find("not enough money"',1,true)~=nil,
   "insufficient-funds error must support modern UI error event arguments")
 check(ahTab:find('if awaitingPurchase or commodityOrder then',1,true)~=nil and
-      ahTab:find('resetFailedPurchase("No purchase result received.',1,true)~=nil,
+      ahTab:find('purchaseUncertain=true',1,true)~=nil,
   "unanswered commodity purchase must release the UI lock without auto buying")
 
 -- Failed purchases must not lose the shopping selection or require a 20s wait
@@ -983,3 +983,9 @@ check(shopUI:find("local function startLiveSearch(id,retry)",1,true)~=nil,"retry
 check(shopUI:find("live.retries<1",1,true)~=nil,"search retries must be bounded")
 check(shopUI:find("AUCTION_HOUSE_THROTTLED_MESSAGE_SENT",1,true)~=nil,"throttle awareness")
 check(shopUI:find("startLiveSearch(live.id,true)",1,true)~=nil,"search retries selected item")
+
+-- Batch 1: timed-out commodity purchases are uncertain, not confirmed failures.
+check(ahTab:find('local purchaseUncertain=false',1,true)~=nil, 'purchase uncertainty state must exist')
+check(ahTab:find('purchaseUncertain=true',1,true)~=nil, 'purchase timeout must set uncertain state')
+check(ahTab:find('if purchaseUncertain or not awaitingPurchase then return end',1,true)~=nil, 'late purchase success must not be credited')
+check(ahTab:find('or commodityOrder or awaitingPurchase or purchaseUncertain then return end',1,true)~=nil, 'uncertain state must prevent buying')

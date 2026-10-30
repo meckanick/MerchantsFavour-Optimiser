@@ -705,12 +705,13 @@ do
   owned[1005]=5
   ah.RecalculateShopping()
   equal(ah.Shopping()[1005].qty,3,"stock removed after partial delivery must restore need")
-  owned[1005]=7
+  owned[1005]=8
   ah.RecalculateShopping()
   equal(ah.Shopping()[1005].pendingPurchaseQty,0,"remaining delivery clears pending credit")
-  equal(ah.Shopping()[1005].qty,3,"delivered stock replaces provisional credit")
+  equal(ah.Shopping()[1005].qty,2,"delivered stock replaces provisional credit")
+  owned[1005]=7
   ah.RecalculateShopping()
-  equal(ah.Shopping()[1005].qty,3,"repeated reconciliation remains stable")
+  equal(ah.Shopping()[1005].qty,3,"removed stock restores requirement")
   MFO_DB.useOwned=false
   ah.RecalculateShopping()
   equal(ah.Shopping()[1005].qty,6,"owned-off mode counts confirmed purchases once")

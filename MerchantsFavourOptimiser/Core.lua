@@ -180,17 +180,25 @@ local function scanBank()
       if type(bankIndex[key])=="number" then ids[#ids+1]=bankIndex[key] end
     end
   end
-  for bag=5,11 do ids[#ids+1]=bag end
+  -- Legacy bag indices are a fallback only when the client exposes no
+  -- named bank indices; mixing both can count the wrong containers.
+  if #ids==1 then for bag=5,11 do ids[#ids+1]=bag end end
+  local readable=0
   for _,bag in ipairs(ids) do
     if not bankVisited[bag] then
       bankVisited[bag]=true
-      local slots=C_Container.GetContainerNumSlots(bag) or 0
-      for slot=1,slots do
-        local info=C_Container.GetContainerItemInfo(bag,slot)
-        if info and info.itemID then counts[info.itemID]=(counts[info.itemID] or 0)+(info.stackCount or 1) end
+      local ok,slots=pcall(C_Container.GetContainerNumSlots,bag)
+      if ok and type(slots)=="number" and slots>=0 then
+        readable=readable+1
+        for slot=1,slots do
+          local itemOK,info=pcall(C_Container.GetContainerItemInfo,bag,slot)
+          if not itemOK then return end -- preserve the previous bank snapshot
+          if info and info.itemID then counts[info.itemID]=(counts[info.itemID] or 0)+(info.stackCount or 1) end
+        end
       end
     end
   end
+  if readable==0 then return end
   MFO_DB.bankCounts=counts
   MFO_DB.bankScanTime=time()
 end
@@ -207,7 +215,11 @@ local function ownedCount(id)
   if not MFO_DB or not MFO_DB.useOwned then return 0 end
   return (bagCounts[id] or 0)+(MFO_DB.bankCounts and MFO_DB.bankCounts[id] or 0)
 end
-if MFO_AH.SetOwnedReader then MFO_AH.SetOwnedReader(function(id) return ownedCount(id) end) end
+-- Shopping reconciliation needs physical stock even while Use Owned is off.
+-- The shopping module applies that setting separately.
+if MFO_AH.SetOwnedReader then MFO_AH.SetOwnedReader(function(id)
+  return (bagCounts[id] or 0)+(MFO_DB and MFO_DB.bankCounts and MFO_DB.bankCounts[id] or 0)
+end) end
 MFO_AH.RefreshShoppingInventory=function() learnBagItems();scanBags() end
 -- Read-only stock details for MFO Shop tooltips, independent of Use Owned.
 MFO_AH.ShoppingItemStock=function(id)

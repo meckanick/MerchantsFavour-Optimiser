@@ -138,6 +138,7 @@ local resetPurchaseDialogs
 local awaitingPurchase=false
 local purchaseElapsed=0
 local purchaseWarningShown=false
+local purchaseUncertain=false -- Timeout does not prove failure.
 local function resetFailedPurchase(message)
  commodityOrder=nil;purchaseReceipt=nil;awaitingPurchase=false;purchaseElapsed=0;purchaseWarningShown=false
  if resetPurchaseDialogs then resetPurchaseDialogs() end
@@ -148,6 +149,11 @@ local function resetFailedPurchase(message)
  if refreshOffers then refreshOffers() end
 end
 local function startLiveSearch(id,retry)
+ if purchaseUncertain then
+  live.message="Purchase Outcome Unknown. Verify Gold and Inventory, Then /reload Before Another Purchase."
+  if refreshOffers then refreshOffers() end
+  return
+ end
  if commodityOrder or awaitingPurchase then
   live.message="Purchase Pending. Wait for the Auction House Result Before Searching Again."
   if refreshOffers then refreshOffers() end
@@ -233,6 +239,7 @@ liveEvents:SetScript("OnEvent",function(_,event,arg,arg2)
  elseif event=="COMMODITY_PRICE_UPDATED" then
   if commodityOrder and not awaitingPurchase and confirmCommodity then confirmCommodity() end
  elseif event=="UI_ERROR_MESSAGE" then
+  if purchaseUncertain then return end
   if not commodityOrder and not awaitingPurchase then return end
   -- WoW Forever may report insufficient funds as a generic UI error rather
   -- than COMMODITY_PURCHASE_FAILED. Only clear a pending purchase for
@@ -246,10 +253,11 @@ liveEvents:SetScript("OnEvent",function(_,event,arg,arg2)
    resetFailedPurchase("Purchase failed: insufficient funds. You can try again.")
   end
  elseif event=="COMMODITY_PRICE_UNAVAILABLE" or event=="COMMODITY_PURCHASE_FAILED" then
+  if purchaseUncertain then return end
   if not commodityOrder and not awaitingPurchase then return end
   resetFailedPurchase("Commodity price changed or purchase failed. Search again before buying.")
  elseif event=="COMMODITY_PURCHASE_SUCCEEDED" then
-  if not awaitingPurchase then return end
+  if purchaseUncertain or not awaitingPurchase then return end
   local receipt=purchaseReceipt
   commodityOrder=nil;purchaseReceipt=nil;awaitingPurchase=false;purchaseElapsed=0;purchaseWarningShown=false
   if receipt and AH.RecordShoppingPurchase then
@@ -1077,6 +1085,10 @@ local function attach(parent)
    resetFailedPurchase("Not Enough Gold for This Purchase. Add Gold or Choose a Cheaper Offer.")
    return
   end
+  if purchaseUncertain then
+   live.message="Purchase Outcome Unknown. Verify Gold and Inventory, Then /reload."
+   preflight:Hide();refreshOffers();return
+  end
   commodityOrder={id=selected,qty=qty,estimated=estimated}
   purchaseElapsed=0
   api.StartCommoditiesPurchase(selected,qty)
@@ -1091,7 +1103,7 @@ local function attach(parent)
  panel.buyOffer:SetScript("OnClick",function()
   local offer=selectedOffer and live.offers[selectedOffer]
   local item=selected and AH.Shopping()[selected]
-  if not offer or not item or live.id~=selected or live.waiting or commodityOrder or awaitingPurchase then return end
+  if not offer or not item or live.id~=selected or live.waiting or commodityOrder or awaitingPurchase or purchaseUncertain then return end
   local needed=math.max(0,math.floor(tonumber(item.qty) or 0))
   local available=math.max(0,math.floor(tonumber(offer.qty) or 0))
   qtyInput:SetEnabled(not chainBuy)
@@ -1323,7 +1335,8 @@ watcher:SetScript("OnUpdate",function(_,dt)
   if purchaseElapsed>=20 then
    -- Some Forever AH failures never emit a commodity result event.
    -- Release the stuck UI lock but never repeat or confirm the purchase.
-   resetFailedPurchase("No purchase result received. Check your gold and inventory before retrying.")
+   purchaseUncertain=true
+   resetFailedPurchase("No purchase result received. Outcome unknown: verify gold and inventory, then /reload before another purchase.")
   end
  end
  if live.waiting then

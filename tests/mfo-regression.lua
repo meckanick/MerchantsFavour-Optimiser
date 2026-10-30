@@ -691,6 +691,32 @@ do
   check(ah.RecordShoppingPurchase(1002,2),"purchases must be recorded when owned tracking is off")
   ah.RecalculateShopping()
   equal(ah.Shopping()[1002].qty,3,"confirmed purchases must reduce quantity with owned tracking off")
+  -- Batch 2: partial deliveries must consume provisional credit once.
+  MFO_DB.useOwned=true
+  owned[1005]=4
+  ah.ReplaceShopping({[1005]={name="Partial Delivery",qty=6,requiredQty=10}})
+  check(ah.RecordShoppingPurchase(1005,4),"partial-delivery purchase recorded")
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1005].qty,2,"pending purchases reduce shopping need")
+  owned[1005]=6
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1005].pendingPurchaseQty,2,"two delivered units consume pending credit")
+  equal(ah.Shopping()[1005].qty,2,"partial delivery must not change net need")
+  owned[1005]=5
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1005].qty,3,"stock removed after partial delivery must restore need")
+  owned[1005]=7
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1005].pendingPurchaseQty,0,"remaining delivery clears pending credit")
+  equal(ah.Shopping()[1005].qty,3,"delivered stock replaces provisional credit")
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1005].qty,3,"repeated reconciliation remains stable")
+  MFO_DB.useOwned=false
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1005].qty,6,"owned-off mode counts confirmed purchases once")
+  MFO_DB.useOwned=true
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1005].qty,3,"owned-on mode returns to observed stock")
   MFO_DB.useOwned=true
   ah.ReplaceShopping({[1004]={name="Fully Owned",qty=0,requiredQty=5}})
   equal(ah.Shopping()[1004].qty,0,"fully owned requirements must be retained")

@@ -165,11 +165,18 @@ function AH.RecalculateShopping()
         if pending>0 then
           local baseline=item.purchaseBaseline or 0
           local delivered=math.max(0,owned-baseline)
-          if delivered>=pending then
-            item.pendingPurchaseQty=0
+          -- Reconcile observed deliveries incrementally. Do not count the
+          -- same bag increase again after a subsequent stock decrease.
+          local received=math.min(pending,delivered)
+          if received>0 then
+            pending=pending-received
+            item.pendingPurchaseQty=pending
+            item.purchaseBaseline=owned
+          end
+          if pending==0 then
             item.purchaseBaseline=nil
           else
-            owned=owned+(pending-delivered)
+            owned=owned+pending
           end
         end
         item.qty=math.max(0,required-owned)

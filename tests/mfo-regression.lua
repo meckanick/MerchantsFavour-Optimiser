@@ -978,6 +978,16 @@ check(coreSource:find("MFO_AH.SetShoppingCratePlan(cratePlan)",1,true)~=nil,
 check(coreSource:find("MFO_AH.SetShoppingCratePlan({{crateID=crateID",1,true)~=nil,
  "single crate shopping must save its chosen material relationship")
 
+-- Batch 5: repeated crate tooltip rendering retains the same status text.
+local tooltipLines={}
+local tooltip={AddLine=function(_,line) tooltipLines[#tooltipLines+1]=line end}
+local tooltipRecord={status="bank_stock",crateInBags=0,crateInBank=1,
+ materialsRequired=3,materialsInBags=1,materialsInBank=2,materialsMissing=0}
+track.AddTooltip(tooltip,tooltipRecord,"Linen Cloth")
+equal(tooltipLines[1],"Bank withdrawal needed","bank tooltip status label")
+tooltipLines={}
+track.AddTooltip(tooltip,tooltipRecord,"Linen Cloth")
+equal(tooltipLines[1],"Bank withdrawal needed","repeated tooltip status stable")
 -- Stage 2 indicators and tooltip wiring.
 check(track.Symbol("ready_to_fill"):find("UI-CheckBox-Check",1,true)~=nil,"ready icon")
 equal(track.Symbol("bank_stock"),"|cffffff66B|r","bank icon")

@@ -3,7 +3,7 @@ MFO_CrateTracking = {}
 local T=MFO_CrateTracking
 local function quantity(value)
  value=tonumber(value) or 0
- if value~=value or value<0 then return 0 end
+ if value~=value or value==math.huge or value<0 then return 0 end
  return math.floor(value)
 end
 -- Entries: {crateID, quantity, materialID, materialQty}.
@@ -11,7 +11,9 @@ end
 -- Allocation is deterministic and never reuses the same inventory.
 function T.Evaluate(entries,bags,bank,bankScanTime)
  local output,bagLeft,bankLeft={}, {}, {}
- bags=bags or {};bank=bank or {}
+ bags=bags or {}
+ -- A bank count without a successful scan timestamp is not verified stock.
+ bank=(type(bankScanTime)=="number" and bankScanTime>0) and (bank or {}) or {}
  local ordered={}
  for i,entry in ipairs(entries or {}) do
   if type(entry)=="table" then
@@ -34,7 +36,7 @@ function T.Evaluate(entries,bags,bank,bankScanTime)
   local e=record.entry
   local id,mat=quantity(e.crateID),quantity(e.materialID)
   local count,per=quantity(e.quantity),quantity(e.materialQty)
-  if id>0 and mat>0 and count>0 and per>0 then
+  if id>0 and mat>0 and id~=mat and count>0 and per>0 then
    for n=1,count do
     local crateBag=take(bags,bagLeft,id,1)
     local crateBank=crateBag==0 and take(bank,bankLeft,id,1) or 0

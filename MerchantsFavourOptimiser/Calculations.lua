@@ -40,18 +40,29 @@ function MFO_Calculations.plan(target, options, forced)
   if type(target)~="number" or target<1 or target~=math.floor(target) or target>1000 then
     return nil, "Enter a Favour Target Between 1 and 1000."
   end
-  local maxReward=0
-  for _,o in ipairs(options) do
-    if type(o.favour)=="number" and o.favour>0 and o.favour==math.floor(o.favour)
-      and type(o.cost)=="number" then
+  -- Validate options once so malformed prices/rewards cannot enter the DP.
+  local valid,maxReward={},0
+  for _,o in ipairs(options or {}) do
+    if type(o)=="table" and type(o.key)=="string" and o.key~=""
+      and type(o.favour)=="number" and o.favour>0
+      and o.favour==math.floor(o.favour) and o.favour<=1000
+      and type(o.cost)=="number" and o.cost==o.cost
+      and o.cost~=math.huge and o.cost~=-math.huge then
+      valid[#valid+1]=o
       maxReward=math.max(maxReward,o.favour)
     end
   end
+  options=valid
   if maxReward==0 then return nil,"No Fully Priced Crates Available." end
   local limit=target+maxReward-1
   local dp={[0]={cost=0,items={}}}
   if forced then
-    if not forced.favour or forced.favour>limit then return nil,"Invalid Starting Crate." end
+    if type(forced)~="table" or not forced.key or not forced.favour or forced.favour>limit then return nil,"Invalid Starting Crate." end
+    local found=false
+    for _,o in ipairs(options) do
+      if o.key==forced.key and o.favour==forced.favour and o.cost==forced.cost then found=true;break end
+    end
+    if not found then return nil,"Invalid Starting Crate." end
     dp={[forced.favour]={cost=forced.cost,items={[forced.key]=1}}}
   end
   for favour=0,limit do

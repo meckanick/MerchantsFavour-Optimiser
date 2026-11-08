@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.1.179 — Development (unreleased)
+
+- Added an optional current-character Syndicator bank inventory source with a Native/Syndicator toggle and `/mfo inventory` commands.
+- Used only Syndicator's public v288-compatible API. No bundled Syndicator code or required dependency.
+- Kept live MFO bag counts as the bag source and retained the native bank snapshot as fallback when Syndicator is absent, pending, hidden or invalid.
+- Prevented duplicate bank counts and excluded other characters, mail, auctions, guilds and warband storage from owned materials and crate readiness.
+- Marked Syndicator-sourced bank information as cached without inventing a scan timestamp.
+- Added Lua 5.1 regression tests for lookup failures, current-character filtering, source switching and crate readiness.
+- WoW Forever `16001` manifest compatibility inspected; real-client testing still required before release.
+
 ## v0.1.178 — 8 November 2026
 
 ### Auction House reliability

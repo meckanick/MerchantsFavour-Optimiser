@@ -164,6 +164,10 @@ function AH.RecalculateShopping()
         local pending=item.pendingPurchaseQty or 0
         if pending>0 then
           local baseline=item.purchaseBaseline or 0
+          -- Materials may be used or removed between partial deliveries.
+          -- Lower the inventory baseline when observed stock falls, so a
+          -- subsequent arrival is not mistaken for previously credited stock.
+          if owned<baseline then baseline=owned;item.purchaseBaseline=owned end
           local delivered=math.max(0,owned-baseline)
           -- Reconcile observed deliveries incrementally. Do not count the
           -- same bag increase again after a subsequent stock decrease.

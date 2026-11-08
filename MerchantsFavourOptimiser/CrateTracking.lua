@@ -13,7 +13,8 @@ function T.Evaluate(entries,bags,bank,bankScanTime)
  local output,bagLeft,bankLeft={}, {}, {}
  bags=bags or {}
  -- A bank count without a successful scan timestamp is not verified stock.
- bank=(type(bankScanTime)=="number" and bankScanTime>0) and (bank or {}) or {}
+ bank=((type(bankScanTime)=="number" and bankScanTime>0) or
+   bankScanTime=="syndicator") and (bank or {}) or {}
  local ordered={}
  for i,entry in ipairs(entries or {}) do
   if type(entry)=="table" then
@@ -85,7 +86,7 @@ function T.AddTooltip(tooltip,record,materialName)
  tooltip:AddLine("In bags: "..record.materialsInBags.." | Bank: "..record.materialsInBank,1,1,1)
  tooltip:AddLine("Still needed: "..record.materialsMissing,1,1,1)
  if record.crateInBank>0 or record.materialsInBank>0 then
-  if record.bankSnapshot and type(time)=="function" then
+  if type(record.bankSnapshot)=="number" and type(time)=="function" then
    local age=math.max(0,math.floor((time()-record.bankSnapshot)/60))
    tooltip:AddLine("Bank last checked "..age.." minutes ago (may be outdated).",1,.72,.3,true)
   else tooltip:AddLine("Bank stock is cached and may be outdated.",1,.72,.3,true) end

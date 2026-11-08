@@ -201,11 +201,22 @@ local function scanBank()
   if readable==0 then return end
   MFO_DB.bankCounts=counts
   MFO_DB.bankScanTime=time()
+  MFO_InventoryProvider.ResetCache()
 end
 -- Independent of Use Owned: completion readiness always reflects actual inventory.
 MFO_AH.CrateReadiness=function(entries)
-  return MFO_CrateTracking.Evaluate(entries,bagCounts,
-    MFO_DB and MFO_DB.bankCounts, MFO_DB and MFO_DB.bankScanTime)
+  -- Evaluate a whole plan using one bank snapshot; never reuse alt, mail or guild stock.
+  local ids={}
+  for _,entry in ipairs(entries or {}) do
+    if type(entry)=="table" then
+      if type(entry.crateID)=="number" then ids[entry.crateID]=true end
+      if type(entry.materialID)=="number" then ids[entry.materialID]=true end
+    end
+  end
+  local bank,stamp=MFO_InventoryProvider.BankSnapshot(
+    MFO_DB and MFO_DB.bankCounts,ids,MFO_DB and MFO_DB.bankScanTime,
+    MFO_InventoryProvider.Mode(MFO_DB))
+  return MFO_CrateTracking.Evaluate(entries,bagCounts,bank,stamp)
 end
 MFO_AH.RefreshCrateReadiness=function()
   learnBagItems();scanBags()
@@ -213,20 +224,25 @@ MFO_AH.RefreshCrateReadiness=function()
 end
 local function ownedCount(id)
   if not MFO_DB or not MFO_DB.useOwned then return 0 end
-  return (bagCounts[id] or 0)+(MFO_DB.bankCounts and MFO_DB.bankCounts[id] or 0)
+  return MFO_InventoryProvider.TotalCount(id,bagCounts,MFO_DB.bankCounts,
+    MFO_InventoryProvider.Mode(MFO_DB))
 end
 -- Shopping reconciliation needs physical stock even while Use Owned is off.
 -- The shopping module applies that setting separately.
 if MFO_AH.SetOwnedReader then MFO_AH.SetOwnedReader(function(id)
-  return (bagCounts[id] or 0)+(MFO_DB and MFO_DB.bankCounts and MFO_DB.bankCounts[id] or 0)
+  return MFO_InventoryProvider.TotalCount(id,bagCounts,MFO_DB and MFO_DB.bankCounts,
+    MFO_InventoryProvider.Mode(MFO_DB))
 end) end
-MFO_AH.RefreshShoppingInventory=function() learnBagItems();scanBags() end
+MFO_AH.RefreshShoppingInventory=function()
+  learnBagItems();scanBags();MFO_InventoryProvider.ResetCache()
+end
 -- Read-only stock details for MFO Shop tooltips, independent of Use Owned.
 MFO_AH.ShoppingItemStock=function(id)
  if type(id)~="number" then return 0,0,nil end
- return bagCounts[id] or 0,
-  (MFO_DB and MFO_DB.bankCounts and MFO_DB.bankCounts[id]) or 0,
-  MFO_DB and MFO_DB.bankScanTime
+ local bank,source=MFO_InventoryProvider.BankCount(id,MFO_DB and MFO_DB.bankCounts,
+   MFO_InventoryProvider.Mode(MFO_DB))
+ return bagCounts[id] or 0,bank,
+   source=="native" and MFO_DB and MFO_DB.bankScanTime or nil,source
 end
 local function calc(crate)
   return MFO_Calculations.calculate(crate, price, ownedCount, resolve)
@@ -563,6 +579,7 @@ for i=1,#rows do
 end
 local planFavour
 local function refresh(inventoryFresh)
+  MFO_InventoryProvider.ResetCache()
   -- Clear and reuse the per-refresh price cache rather than allocating a new table.
   for id in pairs(refreshPriceCache) do refreshPriceCache[id]=nil end
   priceCacheActive=true
@@ -610,7 +627,12 @@ local function refresh(inventoryFresh)
   if missingPrices>0 then footerParts[#footerParts+1]=missingPrices.." Missing Prices" end
   if MFO_DB.useOwned then
     footerParts[#footerParts+1]="Using Owned Items"
-    if not MFO_DB.bankScanTime then footerParts[#footerParts+1]="Bank Not Scanned" end
+    if MFO_InventoryProvider.Mode(MFO_DB)=="syndicator" then
+      footerParts[#footerParts+1]=MFO_InventoryProvider.IsAvailable() and
+        "Syndicator Bank Cache" or "Native Bank Fallback"
+    elseif not MFO_DB.bankScanTime then
+      footerParts[#footerParts+1]="Bank Not Scanned"
+    end
   end
   status:SetText(table.concat(footerParts," | "))
   if planFavour then planFavour(true) end
@@ -994,6 +1016,29 @@ scanButton:SetScript("OnEnter",function(self)
   GameTooltip:Show()
 end)
 scanButton:SetScript("OnLeave",function() GameTooltip:Hide() end)
+-- Optional inventory source: native is the default, Syndicator never required.
+local inventoryButton=CreateFrame("Button",nil,frame)
+inventoryButton:SetSize(132,22)
+inventoryButton:SetPoint("LEFT",scanButton,"RIGHT",7,0)
+SkinWoodButton(inventoryButton)
+local function setInventoryMode(mode)
+  MFO_DB.inventorySource=mode=="syndicator" and "syndicator" or "native"
+  MFO_InventoryProvider.ResetCache()
+  inventoryButton:SetText(MFO_DB.inventorySource=="syndicator" and "Bank: Syndicator" or "Bank: Native")
+  refresh()
+end
+inventoryButton:SetScript("OnClick",function()
+  setInventoryMode(MFO_InventoryProvider.Mode(MFO_DB)=="native" and "syndicator" or "native")
+end)
+inventoryButton:SetScript("OnEnter",function(self)
+  GameTooltip:SetOwner(self,"ANCHOR_BOTTOMRIGHT")
+  GameTooltip:AddLine("Bank Inventory Source",1,.82,.2)
+  GameTooltip:AddLine("Native uses the last MFO bank scan. Syndicator uses cached bank counts for this character only.",1,1,1,true)
+  GameTooltip:AddLine("Syndicator is optional. Missing, hidden, pending or invalid results fall back to native counts.",.8,.8,.8,true)
+  GameTooltip:AddLine("Other characters, mail, auctions, guild and warband stock are never counted.",.8,.8,.8,true)
+  GameTooltip:Show()
+end)
+inventoryButton:SetScript("OnLeave",function() GameTooltip:Hide() end)
 -- Dim the crate table while scanning, with a centred radial progress display.
 local scanOverlay=CreateFrame("Frame",nil,frame)
 scanOverlay:SetPoint("TOPLEFT",scrollFrame,"TOPLEFT",0,0)
@@ -1027,8 +1072,8 @@ scanCaption:SetPoint("TOP",scanPercent,"BOTTOM",0,-6)
 scanCaption:SetText("Scanning AH")
 scanOverlay:Hide()
 local scanSummary=CreateFrame("Frame",nil,frame)
-scanSummary:SetSize(250,22)
-scanSummary:SetPoint("LEFT",scanButton,"RIGHT",12,0)
+scanSummary:SetSize(210,22)
+scanSummary:SetPoint("LEFT",inventoryButton,"RIGHT",10,0)
 scanSummary:EnableMouse(true)
 local scanSummaryText=scanSummary:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
 scanSummaryText:SetPoint("LEFT",scanSummary,"LEFT",0,0)
@@ -1114,6 +1159,8 @@ SlashCmdList.MFO=function(msg)
   if msg=="refresh" then refresh()
   elseif msg=="scan" then scanRelevantItems()
   elseif msg=="shop" then showShopping()
+  elseif msg=="inventory native" then setInventoryMode("native")
+  elseif msg=="inventory syndicator" then setInventoryMode("syndicator")
   else if frame:IsShown() then frame:Hide() else refresh();frame:Show() end end
 end
 local events=CreateFrame("Frame")
@@ -1151,6 +1198,7 @@ events:SetScript("OnEvent",function(_,event,name)
  MFO_DB=MFO_DB or {};MFO_DB.ids=MFO_DB.ids or {}
  ownedCheck:SetChecked(MFO_DB.useOwned or false)
  plannerStockToggle:SetChecked(MFO_DB.useOwned or false)
+ inventoryButton:SetText(MFO_InventoryProvider.Mode(MFO_DB)=="syndicator" and "Bank: Syndicator" or "Bank: Native")
  positionMinimapButton()
  refresh()
  print("|cffffcc66Merchant's Favour Optimiser|r loaded. Type /mfo")

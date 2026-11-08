@@ -18,6 +18,7 @@ MFO helps answer three questions: **Which crate offers the best value? How can I
 - **Shopping progress:** an in-header bar displays progress as quantities available in bags/bank, confirmed purchases tracked by MFO, and quantities still to buy. Purchased items may still need collecting from the mailbox.
 - **Crate readiness:** compact indicators and readable tooltips show whether a planned crate is in your bags, needs bank stock, or lacks materials. Shared material quantities are allocated once across the saved crate plan. Readiness is **not** proof a crate has been filled or handed in.
 - **Owned stock support:** optionally reduce shopping costs using items in your bags and a cached bank snapshot. Crate readiness uses physical stock independently of the price-estimate toggle.
+- **Optional Syndicator bank source (v0.1.179 development):** select Native or Syndicator for current-character bank counts. Syndicator is not required; unavailable or unsuitable results fall back to MFO's native cached bank snapshot. Other characters, mail, auctions, guild and warband stock are never treated as available to fill crates.
 - **Realm and faction separation:** saved prices, scan dates and shopping lists are separated by WoW Forever realm and faction.
 - **Interface conveniences:** minimap launcher, `/mfo` and `/mfo shop` commands, one-click refresh, item hover details, WoW coin icons and themed buttons.
 
@@ -27,6 +28,7 @@ See [CHANGELOG.md](CHANGELOG.md) for version-by-version release changes.
 
 - World of Warcraft Forever with compatible Auction House APIs.
 - No additional addon is required for MFO's scanning, price history or shopping list.
+- Syndicator is **optional** for bank inventory reads. This development integration was inspected against Syndicator v288's public API and WoW Forever interface `16001`; test current Syndicator builds in-game before relying on them.
 
 Prices are estimates based on saved scans and available listings. Auction House stock and buyout prices can change between scanning and purchasing.
 
@@ -37,6 +39,7 @@ Prices are estimates based on saved scans and available listings. Auction House 
 3. Confirm that `MerchantsFavourOptimiser.toc` sits directly inside that folder, not inside an extra nested folder.
 4. Enable **Merchant's Favour Optimiser** from the in-game AddOns menu.
 5. Visit an Auction House and use **Scan AH** to populate current price estimates.
+6. For optional bank counts from Syndicator, install its **Forever** build and click **Bank: Native** in MFO's top toolbar to switch to **Bank: Syndicator**. You can always switch back.
 
 ## Getting started
 
@@ -73,6 +76,8 @@ When **Use Owned** is enabled, items already owned can reduce the estimated purc
 | **Scan AH** | Query the Auction House for relevant items |
 | **Refresh** | Recalculate using locally saved prices |
 | **Use Owned** | Include bag and cached bank stock in purchase estimates |
+| **Bank: Native / Bank: Syndicator** | Choose where current-character bank counts come from; native is the default and fallback |
+| `/mfo inventory native` or `/mfo inventory syndicator` | Switch bank source using a command |
 | **Favour Needed** | Set the target used by the Favour Planner |
 | **Shop / Shop Planned Items** | Add selected crates and materials to the shopping list |
 | **Open MFO** | Return from MFO Shop to the main window |
@@ -82,7 +87,8 @@ When **Use Owned** is enabled, items already owned can reduce the estimated purc
 MFO stores settings in the account-wide `MFO_DB` saved variable. Market-specific prices, scan timestamps and shopping lists are separated by realm and faction. Bank stock is cached from the last time it was scanned.
 
 - **No price or live listing?** Scan the Auction House again; an item may have no current buyout or a search may time out.
-- **Owned counts seem wrong?** Refresh the list and revisit the bank to update cached bank quantities. Purchases awaiting mailbox collection are not necessarily in your bags.
+- **Owned counts seem wrong?** Refresh the list and revisit the bank to update native cached bank quantities. Purchases awaiting mailbox collection are not necessarily in your bags.
+- **Syndicator not available or showing old counts?** Verify Syndicator's Forever build is installed, let it finish its inventory update, and revisit the bank if needed. MFO uses native counts when Syndicator cannot provide a valid result. These are cached counts, not guaranteed live bank access.
 - **Shopping is 100% but crate is not ready?** Collect purchased items from the mailbox, verify crate ownership and material counts, and refresh inventory. Shopping progress is separate from crate readiness.
 - **Lua error?** Report the complete error and steps to reproduce in [GitHub Issues](https://github.com/meckanick/MerchantsFavour-Optimiser/issues).
 
@@ -96,12 +102,13 @@ Source lives in `MerchantsFavourOptimiser/`. The addon is written for the WoW Fo
 | `Data.lua` | Crate, material bundle and Favour data |
 | `Calculations.lua` | Cost and Favour calculations |
 | `CrateTracking.lua` | Shared material allocation and crate readiness |
+| `InventoryProvider.lua` | Optional, guarded Syndicator current-character bank reads with native fallback |
 | `StandaloneAH.lua` | Auction House scanning, saved prices and shopping data |
 | `Core.lua` | Main interface, Favour Planner, inventory and minimap controls |
 | `AHShopping.lua` | MFO Shop, purchasing UI, tooltips and progress display |
 | `tests/mfo-regression.lua` | Automated regression tests |
 
-Development takes place on `development`. Tested changes are merged to `main` before release. The [GitHub Actions workflow](https://github.com/meckanick/MerchantsFavour-Optimiser/actions) checks Lua 5.1 syntax, regression tests, addon structure and ZIP packaging. See [AGENTS.md](AGENTS.md) and [DEVELOPMENT.md](DEVELOPMENT.md).
+Development takes place on `development`. Tested changes are merged to `main` before release. The [GitHub Actions workflow](https://github.com/meckanick/MerchantsFavour-Optimiser/actions) checks Lua 5.1 syntax, regression tests (including optional Syndicator API mocks), addon structure and ZIP packaging. See [AGENTS.md](AGENTS.md) and [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ## License and attribution
 

@@ -30,7 +30,9 @@ jobs:
               luac5.1 -p "$file"
             done
       - name: Run crate data and calculation regression tests
-        run: lua5.1 tests/mfo-regression.lua
+        run: |
+          lua5.1 tests/mfo-regression.lua
+          lua5.1 tests/mfo-syndicator.lua
       - name: Validate addon structure, manifest version and referenced assets
         shell: bash
         run: |

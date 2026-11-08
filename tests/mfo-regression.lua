@@ -741,6 +741,23 @@ do
   owned[1005]=7
   ah.RecalculateShopping()
   equal(ah.Shopping()[1005].qty,3,"removed stock restores requirement")
+  -- Delivery accounting must recover when stock is consumed between arrivals.
+  -- Start 4/10, buy 4, receive 2, consume 1, then receive the final 2.
+  owned[1007]=4
+  ah.ReplaceShopping({[1007]={name="Interleaved Delivery",qty=6,requiredQty=10}})
+  check(ah.RecordShoppingPurchase(1007,4),"interleaved purchase recorded")
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1007].qty,2,"pending four reduce outstanding from six to two")
+  owned[1007]=6
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1007].pendingPurchaseQty,2,"first two deliveries are credited once")
+  owned[1007]=5
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1007].qty,3,"consuming one material restores one outstanding")
+  owned[1007]=7
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1007].pendingPurchaseQty,0,"final two deliveries clear remaining pending")
+  equal(ah.Shopping()[1007].qty,3,"interleaved stock removal cannot double-credit deliveries")
   MFO_DB.useOwned=false
   ah.RecalculateShopping()
   equal(ah.Shopping()[1005].qty,6,"owned-off mode counts confirmed purchases once")

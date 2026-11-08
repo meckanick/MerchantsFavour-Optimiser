@@ -744,7 +744,7 @@ do
   -- Delivery accounting must recover when stock is consumed between arrivals.
   -- Start 4/10, buy 4, receive 2, consume 1, then receive the final 2.
   owned[1007]=4
-  ah.ReplaceShopping({[1007]={name="Interleaved Delivery",qty=6,requiredQty=10}})
+  ah.Shop({[1007]={name="Interleaved Delivery",qty=6,requiredQty=10}})
   check(ah.RecordShoppingPurchase(1007,4),"interleaved purchase recorded")
   ah.RecalculateShopping()
   equal(ah.Shopping()[1007].qty,2,"pending four reduce outstanding from six to two")

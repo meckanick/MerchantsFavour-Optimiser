@@ -561,7 +561,8 @@ check(coreSource:find("if shownPercent~=lastScanPercent then",1,true)~=nil,
 -- The rankings footer does not display bank snapshot age; do not compute it.
 check(coreSource:find('local bankInfo=""',1,true)==nil and
       coreSource:find('bankInfo=" Bank Snapshot: "',1,true)==nil and
-      coreSource:find('if not MFO_DB.bankScanTime then footerParts[#footerParts+1]="Bank Not Scanned" end',1,true)~=nil,
+      coreSource:find('elseif not MFO_DB.bankScanTime then',1,true)~=nil and
+      coreSource:find('footerParts[#footerParts+1]="Bank Not Scanned"',1,true)~=nil,
   "rankings refresh should avoid unused bank age calculation while preserving bank status")
 
 -- AH price cache must be cleared per refresh, reused, and inactive outside refreshes.
@@ -1107,3 +1108,24 @@ check(coreSource:find('if not itemOK then return end',1,true)~=nil,
  "failed bank item reads must preserve prior snapshot")
 check(coreSource:find('if MFO_AH.SetOwnedReader then MFO_AH.SetOwnedReader(function(id)',1,true)~=nil,
  "shopping reader must use physical inventory")
+
+-- v0.1.179: optional Syndicator provider must not change default native inventory.
+local toc=assert(io.open("MerchantsFavourOptimiser/MerchantsFavourOptimiser.toc","r")):read("*a")
+check(toc:find("## Version: 0.1.179",1,true)~=nil,"development manifest should be v0.1.179")
+check(toc:find("## OptionalDeps: Syndicator",1,true)~=nil,"Syndicator must be optional")
+local providerPos=assert(toc:find("InventoryProvider.lua",1,true))
+local corePos=assert(toc:find("Core.lua",1,true))
+check(providerPos<corePos,"provider must load before Core")
+check(coreSource:find('local function setInventoryMode(mode)',1,true)~=nil,
+ "main UI must expose a saved native/Syndicator inventory selection")
+check(coreSource:find('elseif msg=="inventory native" then',1,true)~=nil and
+      coreSource:find('elseif msg=="inventory syndicator" then',1,true)~=nil,
+ "slash commands must allow switching bank source")
+check(coreSource:find('MFO_InventoryProvider.BankSnapshot(',1,true)~=nil,
+ "crate readiness must query one snapshot for whole plan")
+check(coreSource:find('MFO_InventoryProvider.TotalCount(id,bagCounts',1,true)~=nil,
+ "owned inventory reader must use provider without double counting")
+check(coreSource:find('local total=MFO_InventoryProvider.TotalCount',1,true)~=nil,
+ "owned reader must return only numeric stock")
+check(shopUI:find('bankSource=="syndicator"',1,true)~=nil,
+ "shopping tooltip should identify Syndicator cached bank counts")

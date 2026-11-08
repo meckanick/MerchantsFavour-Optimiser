@@ -224,14 +224,16 @@ MFO_AH.RefreshCrateReadiness=function()
 end
 local function ownedCount(id)
   if not MFO_DB or not MFO_DB.useOwned then return 0 end
-  return MFO_InventoryProvider.TotalCount(id,bagCounts,MFO_DB.bankCounts,
+  local total=MFO_InventoryProvider.TotalCount(id,bagCounts,MFO_DB.bankCounts,
     MFO_InventoryProvider.Mode(MFO_DB))
+  return total
 end
 -- Shopping reconciliation needs physical stock even while Use Owned is off.
 -- The shopping module applies that setting separately.
 if MFO_AH.SetOwnedReader then MFO_AH.SetOwnedReader(function(id)
-  return MFO_InventoryProvider.TotalCount(id,bagCounts,MFO_DB and MFO_DB.bankCounts,
+  local total=MFO_InventoryProvider.TotalCount(id,bagCounts,MFO_DB and MFO_DB.bankCounts,
     MFO_InventoryProvider.Mode(MFO_DB))
+  return total
 end) end
 MFO_AH.RefreshShoppingInventory=function()
   learnBagItems();scanBags();MFO_InventoryProvider.ResetCache()

@@ -127,7 +127,7 @@ local function activeAH()
  if AuctionFrame and AuctionFrame:IsShown() then return AuctionFrame end
 end
 -- Live auction search; purchases require a separate explicit hardware click.
-local live={id=nil,waiting=false,offers={},message="Select an Item to Search.",elapsed=0}
+local live={id=nil,waiting=false,offers={},message="Select an Item to Search.",elapsed=0,retries=0,throttled=false}
 local refreshOffers
 local update
 local selectedOffer
@@ -138,6 +138,7 @@ local resetPurchaseDialogs
 local awaitingPurchase=false
 local purchaseElapsed=0
 local purchaseWarningShown=false
+local purchaseUncertain=false -- Timeout does not prove failure.
 local function resetFailedPurchase(message)
  commodityOrder=nil;purchaseReceipt=nil;awaitingPurchase=false;purchaseElapsed=0;purchaseWarningShown=false
  if resetPurchaseDialogs then resetPurchaseDialogs() end
@@ -147,7 +148,12 @@ local function resetFailedPurchase(message)
  live.message=message or "Purchase Failed. Select Buy Again to Retry."
  if refreshOffers then refreshOffers() end
 end
-local function startLiveSearch(id)
+local function startLiveSearch(id,retry)
+ if purchaseUncertain then
+  live.message="Purchase Outcome Unknown. Verify Gold and Inventory, Then /reload Before Another Purchase."
+  if refreshOffers then refreshOffers() end
+  return
+ end
  if commodityOrder or awaitingPurchase then
   live.message="Purchase Pending. Wait for the Auction House Result Before Searching Again."
   if refreshOffers then refreshOffers() end
@@ -156,6 +162,8 @@ local function startLiveSearch(id)
  if resetPurchaseDialogs then resetPurchaseDialogs() end
  if panel and panel.offerScroll then panel.offerScroll:SetValue(select(2,panel.offerScroll:GetMinMaxValues()) or 0) end
  live.id=id;live.offers={};live.waiting=false;live.elapsed=0;selectedOffer=nil
+  if not retry then live.retries=0 end
+  live.throttled=false
  if not id then live.message="Select an Item to Search.";return end
  if select(2,AH.Progress()) then live.message="Wait for the MFO Price Scan to Finish.";return end
  local item=AH.Shopping()[id]
@@ -215,15 +223,23 @@ local function collectLive(event,arg)
  if refreshOffers then refreshOffers() end
 end
 local liveEvents=CreateFrame("Frame")
-for _,name in ipairs({"ITEM_SEARCH_RESULTS_UPDATED","COMMODITY_SEARCH_RESULTS_UPDATED","AUCTION_ITEM_LIST_UPDATE","COMMODITY_PRICE_UPDATED","COMMODITY_PRICE_UNAVAILABLE","COMMODITY_PURCHASE_SUCCEEDED","COMMODITY_PURCHASE_FAILED","UI_ERROR_MESSAGE","BAG_UPDATE_DELAYED","AUCTION_HOUSE_THROTTLED_SYSTEM_READY"}) do
+for _,name in ipairs({"ITEM_SEARCH_RESULTS_UPDATED","COMMODITY_SEARCH_RESULTS_UPDATED","AUCTION_ITEM_LIST_UPDATE","AUCTION_HOUSE_THROTTLED_MESSAGE_SENT","COMMODITY_PRICE_UPDATED","COMMODITY_PRICE_UNAVAILABLE","COMMODITY_PURCHASE_SUCCEEDED","COMMODITY_PURCHASE_FAILED","UI_ERROR_MESSAGE","BAG_UPDATE_DELAYED","AUCTION_HOUSE_THROTTLED_SYSTEM_READY"}) do
  pcall(liveEvents.RegisterEvent,liveEvents,name)
 end
 liveEvents:SetScript("OnEvent",function(_,event,arg,arg2)
  if event=="AUCTION_HOUSE_THROTTLED_SYSTEM_READY" then
-  return -- Throttle notifications are not auction result payloads.
+  if live.waiting and live.throttled and live.retries<1 and not commodityOrder and not awaitingPurchase then
+   live.retries=live.retries+1
+   startLiveSearch(live.id,true)
+   if refreshOffers then refreshOffers() end
+  end
+  return -- Never interpret throttle events as search results.
+ elseif event=="AUCTION_HOUSE_THROTTLED_MESSAGE_SENT" then
+  if live.waiting then live.throttled=true end
  elseif event=="COMMODITY_PRICE_UPDATED" then
   if commodityOrder and not awaitingPurchase and confirmCommodity then confirmCommodity() end
  elseif event=="UI_ERROR_MESSAGE" then
+  if purchaseUncertain then return end
   if not commodityOrder and not awaitingPurchase then return end
   -- WoW Forever may report insufficient funds as a generic UI error rather
   -- than COMMODITY_PURCHASE_FAILED. Only clear a pending purchase for
@@ -237,10 +253,11 @@ liveEvents:SetScript("OnEvent",function(_,event,arg,arg2)
    resetFailedPurchase("Purchase failed: insufficient funds. You can try again.")
   end
  elseif event=="COMMODITY_PRICE_UNAVAILABLE" or event=="COMMODITY_PURCHASE_FAILED" then
+  if purchaseUncertain then return end
   if not commodityOrder and not awaitingPurchase then return end
   resetFailedPurchase("Commodity price changed or purchase failed. Search again before buying.")
  elseif event=="COMMODITY_PURCHASE_SUCCEEDED" then
-  if not awaitingPurchase then return end
+  if purchaseUncertain or not awaitingPurchase then return end
   local receipt=purchaseReceipt
   commodityOrder=nil;purchaseReceipt=nil;awaitingPurchase=false;purchaseElapsed=0;purchaseWarningShown=false
   if receipt and AH.RecordShoppingPurchase then
@@ -1068,6 +1085,10 @@ local function attach(parent)
    resetFailedPurchase("Not Enough Gold for This Purchase. Add Gold or Choose a Cheaper Offer.")
    return
   end
+  if purchaseUncertain then
+   live.message="Purchase Outcome Unknown. Verify Gold and Inventory, Then /reload."
+   preflight:Hide();refreshOffers();return
+  end
   commodityOrder={id=selected,qty=qty,estimated=estimated}
   purchaseElapsed=0
   api.StartCommoditiesPurchase(selected,qty)
@@ -1082,7 +1103,7 @@ local function attach(parent)
  panel.buyOffer:SetScript("OnClick",function()
   local offer=selectedOffer and live.offers[selectedOffer]
   local item=selected and AH.Shopping()[selected]
-  if not offer or not item or live.id~=selected or live.waiting or commodityOrder or awaitingPurchase then return end
+  if not offer or not item or live.id~=selected or live.waiting or commodityOrder or awaitingPurchase or purchaseUncertain then return end
   local needed=math.max(0,math.floor(tonumber(item.qty) or 0))
   local available=math.max(0,math.floor(tonumber(offer.qty) or 0))
   qtyInput:SetEnabled(not chainBuy)
@@ -1314,11 +1335,25 @@ watcher:SetScript("OnUpdate",function(_,dt)
   if purchaseElapsed>=20 then
    -- Some Forever AH failures never emit a commodity result event.
    -- Release the stuck UI lock but never repeat or confirm the purchase.
-   resetFailedPurchase("No purchase result received. Check your gold and inventory before retrying.")
+   purchaseUncertain=true
+   resetFailedPurchase("No purchase result received. Outcome unknown: verify gold and inventory, then /reload before another purchase.")
   end
  end
  if live.waiting then
   live.elapsed=live.elapsed+.5
+  -- Bounded search-only retry if the first request was silently ignored.
+  if live.elapsed>=2 and live.retries<1 and not commodityOrder and not awaitingPurchase then
+   local ready=true
+   if type(CanSendAuctionQuery)=="function" then
+    local ok,can=pcall(CanSendAuctionQuery)
+    ready=ok and can
+   end
+   if ready then
+    live.retries=live.retries+1
+    startLiveSearch(live.id,true)
+    if refreshOffers then refreshOffers() end
+   end
+  end
   if live.elapsed>=15 then
    live.waiting=false;live.offers={};selectedOffer=nil
    live.message="Auction Search Timed Out. Select the Item Again to Retry."

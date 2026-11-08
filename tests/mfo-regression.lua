@@ -162,6 +162,23 @@ local forced=MFO_Calculations.plan(20,planOptions,planOptions[1])
 equal(forced.items.five,2,"forced planner seed should be retained")
 equal(forced.cost,340,"forced planner should find cheapest completion")
 
+-- Batch 4: malformed or unpriced planner options must never enter DP.
+local safe=MFO_Calculations.plan(10,{
+ {key="bad-nan",favour=10,cost=0/0},
+ {key="bad-infinity",favour=10,cost=math.huge},
+ {key="bad-fraction",favour=2.5,cost=1},
+ {key="bad-key",favour=10,cost=1/0},
+ {key="valid",favour=10,cost=42},
+})
+equal(safe.cost,42,"planner must ignore malformed options")
+equal(safe.items.valid,1,"valid priced option remains selectable")
+local noOptions=MFO_Calculations.plan(10,nil)
+equal(noOptions,nil,"planner must handle absent options")
+local badForced=MFO_Calculations.plan(10,planOptions,{key="unknown",favour=5,cost=0})
+equal(badForced,nil,"planner must reject forced options outside candidate list")
+local mismatchedForced=MFO_Calculations.plan(10,planOptions,{key="five",favour=5,cost=0})
+equal(mismatchedForced,nil,"forced option must use its actual priced cost")
+
 -- Guard against accidental capitalization of case-sensitive Lua identifiers
 -- while editing player-facing text. This caught the v0.1.55 ownedCheck bug.
 local coreFile = assert(io.open("MerchantsFavourOptimiser/Core.lua", "r"))
@@ -308,7 +325,7 @@ check(ahTab:find('header:SetText("")',1,true)~=nil,"Native title must not be dup
 
 check(ahTab:find('right:SetPoint("TOPLEFT",left,"TOPRIGHT",8,0)',1,true)~=nil,"Right panel must anchor to left without overlap")
 
-check(ahTab:find('local function startLiveSearch(id)',1,true)~=nil,"Live AH search must be triggered by item selection")
+check(ahTab:find('local function startLiveSearch(id,retry)',1,true)~=nil,"Live AH search must be triggered by item selection")
 check(ahTab:find('COMMODITY_SEARCH_RESULTS_UPDATED',1,true)~=nil,"Live AH must support commodity results")
 check(ahTab:find('ITEM_SEARCH_RESULTS_UPDATED',1,true)~=nil,"Live AH must support item results")
 
@@ -442,7 +459,7 @@ check(ahTab:find('C_AuctionHouse.ConfirmCommoditiesPurchase(order.id,order.qty)'
 
 -- AH reliability: no throttle event may be interpreted as a search result.
 check(ahTab:find('if event=="AUCTION_HOUSE_THROTTLED_SYSTEM_READY" then',1,true)~=nil,"Throttle ready event must be handled separately")
-check(ahTab:find('return -- Throttle notifications are not auction result payloads.',1,true)~=nil,"Throttle event must not clear live search")
+check(ahTab:find('return -- Never interpret throttle events as search results.',1,true)~=nil,"Throttle event must not clear live search")
 check(ahTab:find('if live.elapsed>=15 then',1,true)~=nil,"Stalled live searches must expire")
 check(ahTab:find('Auction Search Timed Out. Select the Item Again to Retry.',1,true)~=nil,"Search timeout must show recovery instruction")
 check(ahTab:find('live.offers={};live.waiting=false;selectedOffer=nil',1,true)~=nil,"Purchase completion must invalidate stale offers")
@@ -455,16 +472,16 @@ check(ahTab:find('if watcher.uiElapsed>=1 then watcher.uiElapsed=0;update() end'
 -- Purchase recovery: ignore unrelated commodity events and close stale dialogs.
 check(ahTab:find('local awaitingPurchase=false',1,true)~=nil,"Track a submitted commodity confirmation")
 check(ahTab:find('if not commodityOrder and not awaitingPurchase then return end',1,true)~=nil,"Ignore unrelated failed commodity events")
-check(ahTab:find('if not awaitingPurchase then return end',1,true)~=nil,"Ignore unrelated commodity success events")
+check(ahTab:find('if purchaseUncertain or not awaitingPurchase then return end',1,true)~=nil,"Ignore unrelated or uncertain commodity success events")
 check(ahTab:find('resetPurchaseDialogs=function()',1,true)~=nil,"Dialog cleanup must be initialized")
 check(ahTab:find('if resetPurchaseDialogs then resetPurchaseDialogs() end',1,true)~=nil,"Purchase cleanup must dismiss stale dialogs")
 check(ahTab:find('awaitingPurchase=true;purchaseElapsed=0;purchaseWarningShown=false\n   C_AuctionHouse.ConfirmCommoditiesPurchase',1,true)~=nil,"Confirmation must track pending result before API call")
 
 -- In-flight purchases cannot be resubmitted while awaiting AH acknowledgement.
 check(ahTab:find('if commodityOrder or awaitingPurchase then',1,true)~=nil,"Search and purchase must guard active commodity transactions")
-check(ahTab:find('or commodityOrder or awaitingPurchase then return end',1,true)~=nil,"Buy Selected must reject duplicate in-flight purchases")
+check(ahTab:find('or commodityOrder or awaitingPurchase or purchaseUncertain then return end',1,true)~=nil,"Buy Selected must reject duplicate in-flight purchases")
 check(ahTab:find('purchaseElapsed>=20',1,true)~=nil,"Delayed purchase must be reported")
-check(ahTab:find('Check your gold and inventory before retrying.',1,true)~=nil,"Delayed purchase warning must discourage blind retries")
+check(ahTab:find('Outcome unknown: verify gold and inventory, then /reload before another purchase.',1,true)~=nil,"Delayed purchase warning must discourage blind retries")
 check(ahTab:find('if not awaitingPurchase then commodityOrder=nil end',1,true)~=nil,"Reactivating shopping must preserve an in-flight confirmation")
 
 -- Performance: avoid reconstructing static crate metadata and duplicate detail price reads.
@@ -656,6 +673,18 @@ do
   MFO_DB={useOwned=true}
   dofile("MerchantsFavourOptimiser/StandaloneAH.lua")
   local ah=MFO_AH
+  -- Batch 5: reject malformed metadata before the readiness engine sees it.
+  check(not ah.SetShoppingCratePlan({
+    {crateID=1001,materialID=1001,quantity=1,materialQty=2},
+    {crateID=1001,materialID=1002,quantity=math.huge,materialQty=2},
+    {crateID=1001.5,materialID=1002,quantity=1,materialQty=2},
+    {crateID=1001,materialID=1002,quantity=1,materialQty=0/0},
+  }),"malformed crate metadata must be rejected")
+  equal(ah.ShoppingCratePlan(),nil,"invalid metadata must not persist")
+  check(ah.SetShoppingCratePlan({
+    {crateID=1001,materialID=1002,quantity=2,materialQty=3}
+  }),"valid crate metadata must remain supported")
+  equal(ah.ShoppingCratePlan()[1].quantity,2,"valid metadata retains quantities")
   local owned={[1001]=4,[1002]=3}
   ah.SetOwnedReader(function(id) return owned[id] or 0 end)
   local ok=ah.ReplaceShopping({
@@ -691,6 +720,63 @@ do
   check(ah.RecordShoppingPurchase(1002,2),"purchases must be recorded when owned tracking is off")
   ah.RecalculateShopping()
   equal(ah.Shopping()[1002].qty,3,"confirmed purchases must reduce quantity with owned tracking off")
+  -- Batch 2: partial deliveries must consume provisional credit once.
+  MFO_DB.useOwned=true
+  owned[1005]=4
+  ah.ReplaceShopping({[1005]={name="Partial Delivery",qty=6,requiredQty=10}})
+  check(ah.RecordShoppingPurchase(1005,4),"partial-delivery purchase recorded")
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1005].qty,2,"pending purchases reduce shopping need")
+  owned[1005]=6
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1005].pendingPurchaseQty,2,"two delivered units consume pending credit")
+  equal(ah.Shopping()[1005].qty,2,"partial delivery must not change net need")
+  owned[1005]=5
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1005].qty,3,"stock removed after partial delivery must restore need")
+  owned[1005]=8
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1005].pendingPurchaseQty,0,"remaining delivery clears pending credit")
+  equal(ah.Shopping()[1005].qty,2,"delivered stock replaces provisional credit")
+  owned[1005]=7
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1005].qty,3,"removed stock restores requirement")
+  -- Delivery accounting must recover when stock is consumed between arrivals.
+  -- Start 4/10, buy 4, receive 2, consume 1, then receive the final 2.
+  owned[1007]=4
+  ah.Shop({[1007]={name="Interleaved Delivery",qty=6,requiredQty=10}})
+  check(ah.RecordShoppingPurchase(1007,4),"interleaved purchase recorded")
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1007].qty,2,"pending four reduce outstanding from six to two")
+  owned[1007]=6
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1007].pendingPurchaseQty,2,"first two deliveries are credited once")
+  owned[1007]=5
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1007].qty,3,"consuming one material restores one outstanding")
+  owned[1007]=7
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1007].pendingPurchaseQty,0,"final two deliveries clear remaining pending")
+  equal(ah.Shopping()[1007].qty,3,"interleaved stock removal cannot double-credit deliveries")
+  MFO_DB.useOwned=false
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1005].qty,6,"owned-off mode counts confirmed purchases once")
+  MFO_DB.useOwned=true
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1005].qty,3,"owned-on mode returns to observed stock")
+  -- Purchase while owned tracking is disabled must preserve its physical
+  -- baseline when the setting is switched on before delivery.
+  MFO_DB.useOwned=false
+  owned[1006]=3
+  ah.ReplaceShopping({[1006]={name="Toggle During Delivery",qty=7,requiredQty=10}})
+  check(ah.RecordShoppingPurchase(1006,2),"purchase while owned tracking disabled")
+  MFO_DB.useOwned=true
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1006].qty,5,"toggle must not lose provisional purchase")
+  owned[1006]=5
+  ah.RecalculateShopping()
+  equal(ah.Shopping()[1006].pendingPurchaseQty,0,"delivery after toggle clears pending")
+  equal(ah.Shopping()[1006].qty,5,"delivery after toggle is not counted twice")
   MFO_DB.useOwned=true
   ah.ReplaceShopping({[1004]={name="Fully Owned",qty=0,requiredQty=5}})
   equal(ah.Shopping()[1004].qty,0,"fully owned requirements must be retained")
@@ -803,7 +889,7 @@ check(ahTab:find('type(arg2)=="string" and arg2',1,true)~=nil and
       ahTab:find('lower:find("not enough money"',1,true)~=nil,
   "insufficient-funds error must support modern UI error event arguments")
 check(ahTab:find('if awaitingPurchase or commodityOrder then',1,true)~=nil and
-      ahTab:find('resetFailedPurchase("No purchase result received.',1,true)~=nil,
+      ahTab:find('purchaseUncertain=true',1,true)~=nil,
   "unanswered commodity purchase must release the UI lock without auto buying")
 
 -- Failed purchases must not lose the shopping selection or require a 20s wait
@@ -877,6 +963,16 @@ results=track.Evaluate(sample,{[101]=20},{[9001]=2},12345)
 equal(results[1].status,"bank_stock","crate held in bank cannot be bag-ready")
 results=track.Evaluate(sample,{[101]=20},{})
 equal(results[1].status,"missing_crate","materials alone do not imply crate ownership")
+results=track.Evaluate(sample,{[101]=20},{[9001]=2})
+equal(results[1].status,"missing_crate","bank inventory without verified scan must not imply crate ownership")
+results=track.Evaluate(sample,{[9001]=2},{[101]=20})
+equal(results[1].status,"needs_materials","bank inventory without verified scan must not imply materials available")
+results=track.Evaluate({{crateID=9001,materialID=9001,quantity=1,materialQty=1}},
+ {[9001]=2},{},12345)
+equal(#results,0,"crate cannot be its own material")
+results=track.Evaluate({{crateID=9001,materialID=101,quantity=math.huge,materialQty=1}},
+ {[9001]=1,[101]=1},{},12345)
+equal(#results,0,"infinite quantities must not cause an unbounded allocation loop")
 equal(track.FilledStatus(),"unverified","ordinary item IDs must never imply a filled crate")
 results=track.Evaluate({
  {crateID=9002,materialID=101,quantity=1,materialQty=5},
@@ -899,6 +995,16 @@ check(coreSource:find("MFO_AH.SetShoppingCratePlan(cratePlan)",1,true)~=nil,
 check(coreSource:find("MFO_AH.SetShoppingCratePlan({{crateID=crateID",1,true)~=nil,
  "single crate shopping must save its chosen material relationship")
 
+-- Batch 5: repeated crate tooltip rendering retains the same status text.
+local tooltipLines={}
+local tooltip={AddLine=function(_,line) tooltipLines[#tooltipLines+1]=line end}
+local tooltipRecord={status="bank_stock",crateInBags=0,crateInBank=1,
+ materialsRequired=3,materialsInBags=1,materialsInBank=2,materialsMissing=0}
+track.AddTooltip(tooltip,tooltipRecord,"Linen Cloth")
+equal(tooltipLines[1],"Bank withdrawal needed","bank tooltip status label")
+tooltipLines={}
+track.AddTooltip(tooltip,tooltipRecord,"Linen Cloth")
+equal(tooltipLines[1],"Bank withdrawal needed","repeated tooltip status stable")
 -- Stage 2 indicators and tooltip wiring.
 check(track.Symbol("ready_to_fill"):find("UI-CheckBox-Check",1,true)~=nil,"ready icon")
 equal(track.Symbol("bank_stock"),"|cffffff66B|r","bank icon")
@@ -977,3 +1083,27 @@ check(shopUI:find('panel.progressLabel:SetTextColor(1,1,1,1)',1,true)~=nil,
  "progress label should be white")
 check(shopUI:find('panel.progressSummary:SetWidth(330)',1,true)~=nil,
  "progress status should fit beneath centered header bar")
+
+-- v0.1.178: first-click AH search gets one bounded, search-only retry.
+check(shopUI:find("local function startLiveSearch(id,retry)",1,true)~=nil,"retryable search helper")
+check(shopUI:find("live.retries<1",1,true)~=nil,"search retries must be bounded")
+check(shopUI:find("AUCTION_HOUSE_THROTTLED_MESSAGE_SENT",1,true)~=nil,"throttle awareness")
+check(shopUI:find("startLiveSearch(live.id,true)",1,true)~=nil,"search retries selected item")
+
+-- Batch 1: timed-out commodity purchases are uncertain, not confirmed failures.
+check(ahTab:find('local purchaseUncertain=false',1,true)~=nil, 'purchase uncertainty state must exist')
+check(ahTab:find('purchaseUncertain=true',1,true)~=nil, 'purchase timeout must set uncertain state')
+check(ahTab:find('if purchaseUncertain or not awaitingPurchase then return end',1,true)~=nil, 'late purchase success must not be credited')
+check(ahTab:find('or commodityOrder or awaitingPurchase or purchaseUncertain then return end',1,true)~=nil, 'uncertain state must prevent buying')
+
+-- Batch 2: bank snapshot safety and physical inventory reader must not
+-- depend on the shopping Use Owned setting.
+local coreSource=assert(io.open("MerchantsFavourOptimiser/Core.lua","r")):read("*a")
+check(coreSource:find('if #ids==1 then for bag=5,11 do ids[#ids+1]=bag end end',1,true)~=nil,
+ "legacy bank IDs must be fallback only")
+check(coreSource:find('if readable==0 then return end',1,true)~=nil,
+ "unreadable bank must preserve prior snapshot")
+check(coreSource:find('if not itemOK then return end',1,true)~=nil,
+ "failed bank item reads must preserve prior snapshot")
+check(coreSource:find('if MFO_AH.SetOwnedReader then MFO_AH.SetOwnedReader(function(id)',1,true)~=nil,
+ "shopping reader must use physical inventory")

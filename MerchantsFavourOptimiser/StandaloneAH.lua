@@ -164,12 +164,23 @@ function AH.RecalculateShopping()
         local pending=item.pendingPurchaseQty or 0
         if pending>0 then
           local baseline=item.purchaseBaseline or 0
+          -- Materials may be used or removed between partial deliveries.
+          -- Lower the inventory baseline when observed stock falls, so a
+          -- subsequent arrival is not mistaken for previously credited stock.
+          if owned<baseline then baseline=owned;item.purchaseBaseline=owned end
           local delivered=math.max(0,owned-baseline)
-          if delivered>=pending then
-            item.pendingPurchaseQty=0
+          -- Reconcile observed deliveries incrementally. Do not count the
+          -- same bag increase again after a subsequent stock decrease.
+          local received=math.min(pending,delivered)
+          if received>0 then
+            pending=pending-received
+            item.pendingPurchaseQty=pending
+            item.purchaseBaseline=owned
+          end
+          if pending==0 then
             item.purchaseBaseline=nil
           else
-            owned=owned+(pending-delivered)
+            owned=owned+pending
           end
         end
         item.qty=math.max(0,required-owned)
@@ -188,8 +199,11 @@ function AH.SetShoppingCratePlan(entries)
     if type(entry)=="table" then
       local id,material=tonumber(entry.crateID),tonumber(entry.materialID)
       local qty,per=tonumber(entry.quantity),tonumber(entry.materialQty)
-      if id and id>0 and material and material>0 and qty and qty>=1 and
-         qty==math.floor(qty) and per and per>=1 and per==math.floor(per) then
+      if id and id>0 and id<math.huge and id==math.floor(id)
+         and material and material>0 and material<math.huge
+         and material==math.floor(material) and material~=id
+         and qty and qty>=1 and qty<math.huge and qty==math.floor(qty)
+         and per and per>=1 and per<math.huge and per==math.floor(per) then
         copy[#copy+1]={crateID=id,materialID=material,quantity=qty,materialQty=per}
       end
     end

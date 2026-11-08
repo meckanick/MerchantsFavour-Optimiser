@@ -21,6 +21,8 @@ MFO helps answer three questions: **Which crate offers the best value? How can I
 - **Realm and faction separation:** saved prices, scan dates and shopping lists are separated by WoW Forever realm and faction.
 - **Interface conveniences:** minimap launcher, `/mfo` and `/mfo shop` commands, one-click refresh, item hover details, WoW coin icons and themed buttons.
 
+See [CHANGELOG.md](CHANGELOG.md) for version-by-version release changes.
+
 ## Requirements
 
 - World of Warcraft Forever with compatible Auction House APIs.

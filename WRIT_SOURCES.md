@@ -42,4 +42,22 @@ python -B -m unittest discover -s tests -p 'test_verify_writs.py'
 lua5.1 tests/writ-data-regression.lua
 ```
 
-The generated data and calculation prototype are pending live-client validation and TOC integration.
+## Cost calculation
+
+The addon loads the verified records and calculator through its TOC. Use
+`MFO_WritCalculations.available(faction, professions)` to filter records, and
+`calculateSelection(writIDs, faction, getPrice, getOwned)` to price distinct Writs
+against one pool of owned stock. Pass profession names as keys in an optional
+set. A Writ appears once if any of its professions match. These associations
+describe item and recipe supply. Faction controls turn-in eligibility.
+
+Use a price reader that returns unit copper and a stale flag, such as a closure
+calling `MFO_AH.PriceQuote(id, maxAgeSeconds, now)` with a fixed timestamp for the
+estimate. A missing or stale price on any purchase makes expenditure and cost
+per reputation point unavailable. Owned stock still reduces purchase quantities.
+If an owned unit lacks a fresh price, its savings cannot be valued. An entirely
+owned selection requires zero expenditure.
+
+The calculator accepts the same item-count callback pattern as the crate
+calculator, including counts from `MFO_InventoryProvider.TotalCount`. The Writ
+calculator and database still need live-client validation.

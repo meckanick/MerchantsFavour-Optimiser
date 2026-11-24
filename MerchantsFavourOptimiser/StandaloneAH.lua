@@ -74,7 +74,7 @@ end
 -- Reuse the active market's price table across repeated ranking lookups.
 -- Recheck realm/faction so switching characters cannot reuse another market.
 local priceRealm,priceFaction,priceRecords
-function AH.Price(id)
+local function priceRecord(id)
   if not id then return nil end
   local realm,faction=marketIdentity()
   -- Compare the two market identifiers directly rather than allocating
@@ -85,8 +85,19 @@ function AH.Price(id)
     priceRecords=db(realm,faction).prices
     priceRealm,priceFaction=realm,faction
   end
-  local record=priceRecords[id]
+  return priceRecords[id]
+end
+function AH.Price(id)
+  local record=priceRecord(id)
   return record and record.price or nil
+end
+-- Writ estimates use the item's own scan time, including for legacy records.
+function AH.PriceQuote(id,maxAge,now)
+  local record=priceRecord(id)
+  if not record or not record.price then return nil end
+  local updated=record.updated
+  local fresh=type(updated)=="number" and updated>0 and updated<=now and now-updated<=maxAge
+  return record.price,not fresh
 end
 function AH.LastScan()
   return db().lastAHScan

@@ -6,6 +6,8 @@
 ## OptionalDeps: Syndicator
 Data.lua
 Calculations.lua
+WritData.lua
+WritCalculations.lua
 CrateTracking.lua
 InventoryProvider.lua
 StandaloneAH.lua

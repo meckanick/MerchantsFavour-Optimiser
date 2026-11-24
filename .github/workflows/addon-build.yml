@@ -34,6 +34,7 @@ jobs:
           lua5.1 tests/mfo-regression.lua
           lua5.1 tests/mfo-syndicator.lua
           lua5.1 tests/writ-data-regression.lua
+          lua5.1 tests/writ-calculations-regression.lua
           python3 -B -m unittest discover -s tests -p 'test_verify_writs.py'
       - name: Validate addon structure, manifest version and referenced assets
         shell: bash

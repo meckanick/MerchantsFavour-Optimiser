@@ -18,3 +18,15 @@ Coordinates omitted because sources disagree. Coin pouch amounts omitted because
 Require row-level evidence for Writ ID, quest ID, requested item IDs and quantities, reputation, tier, faction eligibility and daily status. Cross-check against separate sources where possible; shared upstream datasets are not independent live observations. Record NPC/zone only when supported, omit uncertain optional fields. Do not infer IDs from neighboring IDs. Do not include sealed envelopes as deterministic Writs. Use factual fields only, not copied third-party code or quest text. Review source licenses before bulk imports. Confirm against the live client before stable release.
 
 The seed is intentionally not in the TOC until integration and validation.
+
+## Bulk comparison (2026-11-24)
+Compared all 150 IDs in AidVir/wow-forever-favor data/writs.js and emsw0rth/craftmanshelper CraftmansHelper/Data/Writs.lua with buildthehomelab/wow-mod-supply-logistics data/writs.tsv. 146 matched item, quest, quantity, tier/reward and profession association. Four absent from the TSV: 264065, 264069, 264124, 264139. No IDs inferred. The candidate TSV is research only, not loaded by the addon. Faction is a single-source hint, including the default Both, and must be confirmed against individual quest records before promotion. Shared upstream data limits independence. Daily and tier rules corroborated by Wowhead and Icy Veins; individual daily exceptions remain to be checked.
+
+Sources:
+- https://github.com/AidVir/wow-forever-favor/blob/main/data/writs.js (no explicit license located; factual comparison only)
+- https://github.com/emsw0rth/craftmanshelper/blob/main/CraftmansHelper/Data/Writs.lua (license not established; factual comparison only)
+- https://github.com/buildthehomelab/wow-mod-supply-logistics/blob/main/data/writs.tsv (repository README explicitly identifies Efficient Games EG Link output as CC BY 4.0; adapted numeric fields, filtered and combined with cross-checks; https://creativecommons.org/licenses/by/4.0/). Candidate TSV is distributed under CC BY 4.0 for the adapted dataset, not a change to MFO code licensing.
+- https://www.wowhead.com/forever/guide/professions/craftsmans-writs-overview-recipes-rewards
+- https://www.icy-veins.com/wow-forever/news/sealed-writs-are-a-daily-source-of-supply-faction-reputation-in-wow-forever/
+
+The active database remains at one entry pending faction checks. No copied source code or quest prose.

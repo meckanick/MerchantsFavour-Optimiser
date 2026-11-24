@@ -2,14 +2,15 @@
 -- WoW Forever uses a Classic-derived client; all optional auction APIs are guarded.
 MFO_AH = {}
 local AH=MFO_AH
-local queue,position,busy,waiting,started,page,lowest={},1,false,false,0,0,nil
+local queue,position,busy,waiting,started,page,lowest={},1,false,false,nil,0,nil
 local priced,attempts,scanTotal=0,0,0
 local missing={}
+local scanMode,scanRealm,scanFaction,scanMarket,completed
 -- Forward declarations ensure the legacy scanner sees the actual capability
 -- flags rather than unrelated globals.
 local modern,eventOK
 local function recordMissing(entry)
-  if entry then missing[#missing+1]={id=entry.id,name=entry.name} end
+  if entry then missing[#missing+1]={id=entry.id,name=entry.name or "Unknown item"} end
 end
 function AH.Missing() return missing end
 -- Market-scoped prices and shopping lists; settings and character-owned inventory stay account-wide.
@@ -99,8 +100,11 @@ function AH.PriceQuote(id,maxAge,now)
   local fresh=type(updated)=="number" and updated>0 and updated<=now and now-updated<=maxAge
   return record.price,not fresh
 end
-function AH.LastScan()
-  return db().lastAHScan
+function AH.LastScan(mode)
+  local market=db()
+  if mode=="Writs" then return market.lastWritScan end
+  if mode=="Full" then return market.lastFullScan end
+  return market.lastAHScan
 end
 -- Full requirements are retained separately from the quantity left to purchase.
 -- This prevents deducting the same owned stock twice on subsequent refreshes.
@@ -239,7 +243,7 @@ function AH.ClearShopping()
   db().shoppingCratePlan=nil
 end
 function AH.Progress()
-  return math.floor(math.min(100,(position-1)/math.max(1,scanTotal)*100)),busy,priced,scanTotal
+  return math.floor(math.min(100,(position-1)/math.max(1,scanTotal)*100)),busy,priced,scanTotal,completed
 end
 function AH.Status()
   if busy then return "Scanning "..math.min(position,#queue).."/"..#queue end
@@ -254,49 +258,78 @@ local function stopScan(message)
   AH.message=message
   if AH.onUpdate then AH.onUpdate() end
 end
+local function scanMarketMatches()
+  local realm,faction=marketIdentity()
+  return realm==scanRealm and faction==scanFaction
+end
+local function finishScan()
+  completed=true
+  local now=time()
+  if scanMode~="Writs" then scanMarket.lastAHScan=now end
+  if scanMode~="Crates" then scanMarket.lastWritScan=now end
+  if scanMode=="Full" then scanMarket.lastFullScan=now end
+  stopScan("AH scan complete: "..priced.."/"..#queue.." priced")
+end
+local function waitForItem(entry)
+  local now=GetTime and GetTime() or 0
+  started=started or now
+  if now-started<=15 then return true end
+  recordMissing(entry)
+  position=position+1
+  started=nil
+  return false
+end
 local function nextQuery()
   if modern then return end
   if not busy or waiting then return end
   if position>#queue then
-    busy=false
-    db().lastAHScan=time()
-    AH.message="AH scan complete: "..priced.."/"..#queue.." prices found"
-    if AH.onUpdate then AH.onUpdate() end
+    finishScan()
     return
+  end
+  local entry=queue[position]
+  if not entry.name then
+    entry.name=GetItemInfo and GetItemInfo(entry.id)
+    if not entry.name then waitForItem(entry);return end
   end
   if type(CanSendAuctionQuery)=="function" then
     local ok,can=pcall(CanSendAuctionQuery)
     if not ok or not can then return end
   end
-  local entry=queue[position]
-  if not entry then busy=false;return end
   local ok=pcall(QueryAuctionItems,entry.name,nil,nil,page,0,0,0,0,nil,false)
   if not ok then stopScan("AH query failed; scan not saved");return end
   waiting=true
   started=GetTime and GetTime() or 0
 end
-function AH.Scan(items)
-  if busy then return false,"Scan already running" end
-  if not auctionOpen() then return false,"Open the Auction House first" end
-  if not eventOK then return false,"Auction list update event unavailable" end
-  if type(QueryAuctionItems)~="function" or type(GetAuctionItemInfo)~="function" or
-    type(GetNumAuctionItems)~="function" then
-    return false,"Legacy Auction House query API unavailable in this client"
-  end
-  queue={}
-  -- pairs() visits each item ID key once, so a separate deduplication
-  -- table would only allocate memory without filtering anything.
-  for id,name in pairs(items) do
-    if type(id)=="number" and type(name)=="string" and name~="" then
-      queue[#queue+1]={id=id,name=name}
+local function prepareScan(items,mode)
+  local realm,faction=marketIdentity()
+  local names={}
+  if mode~="Writs" then
+    for id,name in pairs(items) do
+      if type(id)=="number" and type(name)=="string" and name~="" then names[id]=name end
     end
   end
-  table.sort(queue,function(a,b)return a.name<b.name end)
+  if mode~="Crates" then
+    local function add(id)
+      if names[id]==nil then names[id]=(GetItemInfo and GetItemInfo(id)) or false end
+    end
+    for _,writ in ipairs(MFO_WritCalculations.available(faction)) do
+      add(writ.id)
+      for _,item in ipairs(writ.items) do add(item.id) end
+    end
+  end
+  queue={}
+  for id,name in pairs(names) do queue[#queue+1]={id=id,name=name or nil} end
+  table.sort(queue,function(a,b)
+    local first,second=a.name or "",b.name or ""
+    if first==second then return a.id<b.id end
+    return first<second
+  end)
   if #queue==0 then return false,"No resolved items to scan" end
-  position=1;page=0;lowest=nil;busy=true;waiting=false;priced=0;scanTotal=#queue;missing={}
+  scanMode,scanRealm,scanFaction,completed=mode,realm,faction,false
+  scanMarket=db(realm,faction)
+  position=1;busy=true;waiting=false;started=nil;priced=0;scanTotal=#queue;attempts=0;missing={}
   AH.message="Scanning "..#queue.." items"
-  nextQuery()
-  return true,AH.message
+  return true
 end
 -- WoW Forever uses the modern C_AuctionHouse API, unlike legacy Classic.
 modern = C_AuctionHouse and type(C_AuctionHouse.SendSearchQuery)=="function"
@@ -305,9 +338,7 @@ local activeItemKey
 local function modernNext()
   if not busy or waiting then return end
   if position>#queue then
-    busy=false;db().lastAHScan=time()
-    AH.message="AH scan complete: "..priced.."/"..#queue.." priced"
-    if AH.onUpdate then AH.onUpdate() end
+    finishScan()
     return
   end
   local entry=queue[position]
@@ -318,6 +349,7 @@ local function modernNext()
   end
   if C_AuctionHouse.GetItemKeyInfo and not C_AuctionHouse.GetItemKeyInfo(key) then
     if type(GetItemInfo)=="function" then GetItemInfo(entry.id) end
+    if not waitForItem(entry) then activeItemKey=nil end
     return
   end
   -- Arm result handling before dispatch; a first query may respond synchronously.
@@ -329,7 +361,7 @@ local modernEvents=CreateFrame("Frame")
 local modernOK=pcall(modernEvents.RegisterEvent,modernEvents,"ITEM_SEARCH_RESULTS_UPDATED")
 local commodityOK=pcall(modernEvents.RegisterEvent,modernEvents,"COMMODITY_SEARCH_RESULTS_UPDATED")
 modernEvents:SetScript("OnEvent",function(_,event,arg)
-  if not busy or not waiting or not modern then return end
+  if not busy or not waiting or not modern or not auctionOpen() or not scanMarketMatches() then return end
   local entry=queue[position]
   local id=type(arg)=="table" and arg.itemID or arg
   if id~=entry.id then return end
@@ -375,31 +407,36 @@ modernEvents:SetScript("OnEvent",function(_,event,arg)
     end
   end
   if price then
-    db().prices[entry.id]={price=price,updated=time()}
+    scanMarket.prices[entry.id]={price=price,updated=time()}
     priced=priced+1
   else
+    if not entry.name and GetItemInfo then entry.name=GetItemInfo(entry.id) end
     recordMissing(entry)
   end
   attempts=0
-  activeItemKey=nil
+  activeItemKey=nil;started=nil
   waiting=false;position=position+1
   if AH.onUpdate then AH.onUpdate() end
 end)
-local legacyScan=AH.Scan
-AH.Scan=function(items)
-  if not modern then return legacyScan(items) end
+function AH.Scan(items,mode)
+  mode=mode or "Crates"
+  if mode~="Crates" and mode~="Writs" and mode~="Full" then return false,"Unknown scan mode" end
   if busy then return false,"Scan already running" end
   if not auctionOpen() then return false,"Open the Auction House first" end
-  if not modernOK and not commodityOK then return false,"Modern AH result events unavailable" end
-  queue={}
-  for id,name in pairs(items) do
-    if type(id)=="number" and type(name)=="string" then queue[#queue+1]={id=id,name=name} end
+  if modern then
+    if not modernOK and not commodityOK then return false,"Modern AH result events unavailable" end
+  else
+    if not eventOK then return false,"Auction list update event unavailable" end
+    if type(QueryAuctionItems)~="function" or type(GetAuctionItemInfo)~="function" or
+      type(GetNumAuctionItems)~="function" then
+      return false,"Legacy Auction House query API unavailable in this client"
+    end
   end
-  table.sort(queue,function(a,b)return a.name<b.name end)
-  if #queue==0 then return false,"No resolved items to scan" end
-  position=1;busy=true;waiting=false;priced=0;scanTotal=#queue;attempts=0;missing={};activeItemKey=nil
-  AH.message="Scanning "..#queue.." items"
-  modernNext()
+  local ok,message=prepareScan(items,mode)
+  if not ok then return false,message end
+  activeItemKey=nil;page=0;lowest=nil
+  if AH.onUpdate then AH.onUpdate() end
+  if modern then modernNext() else nextQuery() end
   return true,AH.message
 end
 local events=CreateFrame("Frame")
@@ -408,7 +445,7 @@ if not eventOK then
   AH.message="AH scan event unavailable in this client"
 end
 events:SetScript("OnEvent",function()
-  if not busy or not waiting then return end
+  if not busy or not waiting or modern or not auctionOpen() or not scanMarketMatches() then return end
   local entry=queue[position]
   if not entry then return end
   local ok,count,total=pcall(GetNumAuctionItems,"list")
@@ -428,9 +465,9 @@ events:SetScript("OnEvent",function()
   if type(total)=="number" and (page+1)*50<total then
     page=page+1
   else
-    if lowest then db().prices[entry.id]={price=lowest,updated=time()};priced=priced+1
+    if lowest then scanMarket.prices[entry.id]={price=lowest,updated=time()};priced=priced+1
     else recordMissing(entry) end
-    position=position+1;page=0;lowest=nil
+    position=position+1;page=0;lowest=nil;started=nil
   end
   if AH.onUpdate then AH.onUpdate() end
 end)
@@ -447,6 +484,10 @@ events:SetScript("OnUpdate",function(_,elapsed)
   scanTick=scanTick+elapsed
   if scanTick<.2 then return end
   scanTick=0
+  if not scanMarketMatches() then
+    stopScan("AH market changed; scan cancelled without updating completion time")
+    return
+  end
   if modern and not waiting then modernNext();return end
   if waiting then
     if GetTime and GetTime()-started>15 then

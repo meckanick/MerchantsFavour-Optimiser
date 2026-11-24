@@ -26,6 +26,7 @@ local function money(v)
   return silverCopper
 end
 local scanAgeFooter
+local scanMode="Crates"
 local lastScanAgeText,lastScanAgeColor
 local function setScanAgeDisplay(text,color)
   -- The visible age usually stays unchanged across multiple refreshes.
@@ -44,9 +45,10 @@ local function setScanAgeDisplay(text,color)
 end
 -- Display the timestamp of the last completed MFO standalone AH scan.
 local function updateScanNote()
-  local scannedAt=MFO_AH and MFO_AH.LastScan()
+  local scannedAt=MFO_AH and MFO_AH.LastScan(scanMode)
+  local label=scanMode=="Crates" and "Last AH Scan: " or ("Last "..scanMode.." Scan: ")
   if type(scannedAt)~="number" or scannedAt<=0 then
-    setScanAgeDisplay("Last AH Scan: Unknown","unknown")
+    setScanAgeDisplay(label.."Unknown","unknown")
     return
   end
   local ageSeconds=math.max(0,time()-scannedAt)
@@ -75,7 +77,7 @@ local function updateScanNote()
     elapsed=amount.." "..unit..(amount==1 and "" or "s")
   end
   local color=days<1 and "fresh" or days<3 and "recent" or days<7 and "old" or "stale"
-  setScanAgeDisplay("Last AH Scan: "..elapsed.." Ago",color)
+  setScanAgeDisplay(label..elapsed.." Ago",color)
 end
 -- Cache repeated item price reads only during a single ranking/planner refresh.
 -- Nil prices are cached too; the cache is discarded after refresh.
@@ -964,14 +966,16 @@ local function scanRelevantItems()
   -- The scanner copies this list into its queue synchronously.
   for id in pairs(scanItemScratch) do scanItemScratch[id]=nil end
   local items=scanItemScratch
-  for _,crate in ipairs(rows) do
-    items[crate.id]=crate.name
-    for _,bundle in ipairs(crate.bundles) do
-      local id=resolve(bundle.name)
-      if id then items[id]=bundle.name end
+  if scanMode~="Writs" then
+    for _,crate in ipairs(rows) do
+      items[crate.id]=crate.name
+      for _,bundle in ipairs(crate.bundles) do
+        local id=resolve(bundle.name)
+        if id then items[id]=bundle.name end
+      end
     end
   end
-  local ok,message=MFO_AH.Scan(items)
+  local ok,message=MFO_AH.Scan(items,scanMode)
   status:SetText(message or (ok and "Scanning" or "Scan unavailable"))
 
 end
@@ -1018,10 +1022,31 @@ scanButton:SetScript("OnEnter",function(self)
   GameTooltip:Show()
 end)
 scanButton:SetScript("OnLeave",function() GameTooltip:Hide() end)
+local scanModeButton=CreateFrame("Button",nil,frame)
+scanModeButton:SetSize(82,22)
+scanModeButton:SetPoint("LEFT",scanButton,"RIGHT",7,0)
+scanModeButton:SetText(scanMode)
+SkinWoodButton(scanModeButton)
+scanModeButton:SetScript("OnClick",function(self)
+  local _,running=MFO_AH.Progress()
+  if running then return end
+  scanMode=scanMode=="Crates" and "Writs" or scanMode=="Writs" and "Full" or "Crates"
+  self:SetText(scanMode)
+  updateScanNote()
+end)
+scanModeButton:SetScript("OnEnter",function(self)
+  GameTooltip:SetOwner(self,"ANCHOR_BOTTOMRIGHT")
+  GameTooltip:AddLine("Click to Change Scan Mode",1,.82,.2)
+  GameTooltip:AddLine("Crates: crates and their materials",1,1,1)
+  GameTooltip:AddLine("Writs: verified Writs and their required items",1,1,1)
+  GameTooltip:AddLine("Full: Crates and Writs in one scan",1,1,1)
+  GameTooltip:Show()
+end)
+scanModeButton:SetScript("OnLeave",function() GameTooltip:Hide() end)
 -- Optional inventory source: native is the default, Syndicator never required.
 local inventoryButton=CreateFrame("Button",nil,frame)
 inventoryButton:SetSize(132,22)
-inventoryButton:SetPoint("LEFT",scanButton,"RIGHT",7,0)
+inventoryButton:SetPoint("LEFT",scanModeButton,"RIGHT",7,0)
 SkinWoodButton(inventoryButton)
 local function setInventoryMode(mode)
   MFO_DB.inventorySource=mode=="syndicator" and "syndicator" or "native"
@@ -1074,7 +1099,7 @@ scanCaption:SetPoint("TOP",scanPercent,"BOTTOM",0,-6)
 scanCaption:SetText("Scanning AH")
 scanOverlay:Hide()
 local scanSummary=CreateFrame("Frame",nil,frame)
-scanSummary:SetSize(210,22)
+scanSummary:SetSize(170,22)
 scanSummary:SetPoint("LEFT",inventoryButton,"RIGHT",10,0)
 scanSummary:EnableMouse(true)
 local scanSummaryText=scanSummary:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
@@ -1089,7 +1114,7 @@ scanSummary:SetScript("OnEnter",function(self)
   else
     GameTooltip:AddLine("No price found for:",1,.55,.4)
     for _,item in ipairs(missing) do GameTooltip:AddLine(item.name.." ("..item.id..")",1,1,1) end
-    GameTooltip:AddLine("These items may have no buyout listings.",.7,.7,.7,true)
+    GameTooltip:AddLine("These items may have no buyout listings or unavailable item information.",.7,.7,.7,true)
   end
   GameTooltip:Show()
 end)
@@ -1099,7 +1124,7 @@ local lastScanPercent=-1
 local lastScanSummaryText
 local lastScanDisplayMode
 local function updateScanProgress()
-  local percent,running,priced,total=MFO_AH.Progress()
+  local percent,running,priced,total,completed=MFO_AH.Progress()
   percent=math.max(0,math.min(100,tonumber(percent) or 0))
   local shownPercent=math.floor(percent)
   if shownPercent~=lastScanPercent then
@@ -1120,7 +1145,7 @@ local function updateScanProgress()
     end
     lastScanLit=lit
   end
-  local mode=running and "running" or total>0 and "complete" or "idle"
+  local mode=running and "running" or completed and "complete" or "idle"
   if mode~=lastScanDisplayMode then
     -- Visibility only changes when the scan enters a different state.
     if mode=="running" then

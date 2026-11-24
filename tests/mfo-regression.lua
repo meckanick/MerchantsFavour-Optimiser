@@ -222,7 +222,7 @@ print("PASS: 30 crate definitions, calculations and UI capitalization guards")
 
 check(coreSource:find('scanAgeFooter:SetPoint("BOTTOMRIGHT"',1,true)~=nil,
   "scan-age indicator must sit at bottom-right")
-check(coreSource:find('setScanAgeDisplay("Last AH Scan: "..elapsed.." Ago",color)',1,true)~=nil,
+check(coreSource:find('setScanAgeDisplay(label..elapsed.." Ago",color)',1,true)~=nil,
   "scan-age indicator must display measured elapsed age")
 check(coreSource:find('local color=days<1 and "fresh" or days<3 and "recent" or days<7 and "old" or "stale"',1,true)~=nil and
       coreSource:find('scanAgeFooter:SetTextColor(.3,.95,.3)',1,true)~=nil and
@@ -238,12 +238,12 @@ check(coreSource:find('if missingIDs>0 then footerParts',1,true)~=nil,
 check(coreSource:find('if missingPrices>0 then footerParts',1,true)~=nil,
   "footer should only show missing price warnings when relevant")
 
-check(coreSource:find('local scannedAt=MFO_AH and MFO_AH.LastScan()',1,true)~=nil,
-  "scan footer must use standalone full-scan completion timestamp")
+check(coreSource:find('local scannedAt=MFO_AH and MFO_AH.LastScan(scanMode)',1,true)~=nil,
+  "scan footer must use standalone scan-mode completion timestamp")
 check(not coreSource:find('GetAuctionAgeByItemID',1,true),
-  "scan footer must not mistake oldest item price age for last full scan")
+  "scan footer must not mistake oldest item price age for last completed scan")
 
-check(coreSource:find('MFO_AH.Scan(items)',1,true)~=nil,"MFO must scan without Auctionator")
+check(coreSource:find('MFO_AH.Scan(items,scanMode)',1,true)~=nil,"MFO must scan without Auctionator")
 check(coreSource:find('MFO_AH.ReplaceShopping(items)',1,true)~=nil,"MFO must replace its own shopping list")
 check(not coreSource:find('Auctionator.API.v1.MultiSearch',1,true),"MFO shopping must not depend on Auctionator")
 
@@ -523,13 +523,13 @@ check(coreSource:find('elseif cp==nil then missingPrices=missingPrices+1 end',1,
 check(coreSource:find("if text~=lastScanAgeText then",1,true)~=nil and
       coreSource:find("if color~=lastScanAgeColor then",1,true)~=nil,
   "scan-age footer must avoid redundant text and colour updates")
-check(coreSource:find('setScanAgeDisplay("Last AH Scan: Unknown","unknown")',1,true)~=nil and
-      coreSource:find('setScanAgeDisplay("Last AH Scan: "..elapsed.." Ago",color)',1,true)~=nil,
+check(coreSource:find('setScanAgeDisplay(label.."Unknown","unknown")',1,true)~=nil and
+      coreSource:find('setScanAgeDisplay(label..elapsed.." Ago",color)',1,true)~=nil,
   "scan-age footer must update for both missing and completed scans")
 
 -- Scan overlay visibility should only be toggled on state transitions.
 check(coreSource:find("local lastScanDisplayMode",1,true)~=nil and
-      coreSource:find('local mode=running and "running" or total>0 and "complete" or "idle"',1,true)~=nil and
+      coreSource:find('local mode=running and "running" or completed and "complete" or "idle"',1,true)~=nil and
       coreSource:find("if mode~=lastScanDisplayMode then",1,true)~=nil and
       coreSource:find("lastScanDisplayMode=mode",1,true)~=nil,
   "AH overlay visibility must only change on scan state transitions")

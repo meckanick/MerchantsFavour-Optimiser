@@ -29,10 +29,12 @@ jobs:
               echo "Checking $file"
               luac5.1 -p "$file"
             done
-      - name: Run crate data and calculation regression tests
+      - name: Run addon regression tests
         run: |
           lua5.1 tests/mfo-regression.lua
           lua5.1 tests/mfo-syndicator.lua
+          lua5.1 tests/writ-data-regression.lua
+          python3 -B -m unittest discover -s tests -p 'test_verify_writs.py'
       - name: Validate addon structure, manifest version and referenced assets
         shell: bash
         run: |

@@ -1,35 +1,45 @@
 # Writ data provenance
 
-Checked 2026-11-24. Initial seed: 1 cross-checked entry out of 150 reported by https://aidvir.github.io/wow-forever-favor/writs.html. The other 149 are not included pending row-level verification. No in-game testing yet.
+The 2026-11-24 audit reviewed 150 Writs. The generated table contains 130 verified records. Twenty remain excluded because the quest race mask and a faction hint disagree. The audit records raw quest facts and source builds for every Writ, including exclusions. Each Lua `sourceKey` is the corresponding Writ ID in [the audit](research/writ-audit.json).
 
-## 264018 — Elixir of Defense
+## What the inputs establish
 
-- Writ ID, name, tier: https://www.wowhead.com/forever/item=264018/craftsmans-writ-elixir-of-defense
-- Quest ID 94218, both factions, daily, one Writ and one Elixir of Defense, 75 reputation, Rizzle Brassbolts: https://db.icy-veins.com/wow-forever/quests/94218
-- Corroboration of reward, faction and zone: https://questing.wiki/wow-forever/quests/94218/
-- Required item ID 8951 and quantity one, profession: https://www.foreverdb.app/en/forever/items/8951/elixir-of-defense
-- Client-derived item ID corroboration: https://wowforeverhelper.com/item/8951/elixir-of-defense
-- Tier, NPC, zone and profession corroboration: https://www.wowhead.com/forever/guide/professions/craftsmans-writs-overview-recipes-rewards
+- [Efficient Games EG Link](https://github.com/JIVESCORP/eg-link-output-wowf/tree/d78a89020881ec338a4a7c1f2a89ee613f68554b) publishes server quest responses collected from Forever clients. The verifier checks the exact file hashes and Forever export metadata. Build 70938 covers all 150 quest IDs, 70959 covers 143, and 71037 covers 145. Where a quest appears in multiple builds, its checked fields must agree. Builds from EG Link share an upstream source.
+- The verifier checks both item objectives, the Writ quantity of one, objective item IDs and quantities, both supply reputation overrides and the tier's treasure picker. It reads the daily bit in the base flags and rejects conflicting repeat flags. The extension flags, quest type, minimum level and time limit must match the reviewed Writ profile. See the [EG Link field schema](https://github.com/JIVESCORP/eg-link-output-wowf/blob/d78a89020881ec338a4a7c1f2a89ee613f68554b/DATASETS.md#questslocale) and [Questie flag definitions](https://github.com/Questie/Questie/blob/master/Database/QuestieDB.lua).
+- All 150 rows explicitly carry the all-races mask `ffffffffffffffff` and the daily flag. The other accepted masks are the complete Forever faction masks, including each faction's Skyborne bit. Missing, partial and unknown masks fail verification. Quest responses can establish what the race mask says. NPC availability, live turn-in eligibility and server-side requirements outside the export still need in-game checks.
+- [The logistics TSV](https://github.com/buildthehomelab/wow-mod-supply-logistics/blob/178d06486e6e74c64c034b93392474c22d89fc2e/data/writs.tsv) corroborates the candidate quest, objective, quantity and reward. Its skill columns supply profession associations, including both for `264144` (Gordok Ogre Suit). Profession tags describe crafting and recipe supply. They do not express character eligibility.
+- The [AidVir Writ index](https://github.com/AidVir/wow-forever-favor/blob/e714f1f25a3fe8983c3af4e8c7985e2a9b8b3596/data/writs.js) (SHA-256 `98bd97855c056986e8643a39649d41271232a4c0ead268696453aa333cc56803`, no explicit license found) and [CraftmansHelper index](https://github.com/emsw0rth/craftmanshelper/blob/4e20664d8bb07a75b917172bb694a56a09588750/CraftmansHelper/Data/Writs.lua) (SHA-256 `5ab5f110e7f4169a42488ad01a70c8504b69b15b0da69fbdf8dbca3921609907`, GPL-3.0) were consulted for factual comparisons only. Their source files are not generator inputs or bundled with MFO. The faction hints in the candidate TSV come from the AidVir comparison. A default Both hint does not establish faction eligibility.
 
-Coordinates omitted because sources disagree. Coin pouch amounts omitted because variable. Do not use Classic Era item names to resolve Forever IDs: 3389 is renamed Elixir of Lesser Defense, not the requested item.
+Data from [Efficient Games](https://efficient.games), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). MFO filters and combines the numeric quest fields with the candidate comparisons and derived tags. The logistics Writ TSV is [separately attributed as CC BY 4.0](https://github.com/buildthehomelab/wow-mod-supply-logistics/blob/178d06486e6e74c64c034b93392474c22d89fc2e/README.md). The generated table and audit omit upstream code, game text, names, and optional NPC and zone labels. MFO's code license is MIT.
 
-## Inclusion rules
+## Four Writs absent from the logistics TSV
 
-Require row-level evidence for Writ ID, quest ID, requested item IDs and quantities, reputation, tier, faction eligibility and daily status. Cross-check against separate sources where possible; shared upstream datasets are not independent live observations. Record NPC/zone only when supported, omit uncertain optional fields. Do not infer IDs from neighboring IDs. Do not include sealed envelopes as deterministic Writs. Use factual fields only, not copied third-party code or quest text. Review source licenses before bulk imports. Confirm against the live client before stable release.
+Each has two item objectives with quantity one, an explicit daily flag and all-races mask, and matching rewards in all three pinned Forever builds.
 
-The seed is intentionally not in the TOC until integration and validation.
+| Writ | Quest | Requested item | Tier and reputation | Profession evidence |
+| --- | --- | --- | --- | --- |
+| 264065 | 94265 | 9061 | Expert, 125 | Alchemy crafts Goblin Rocket Fuel. Engineering supplies the recipe. [Forever item](https://guide.wow4ever.se/en/items/9061) · [Engineering recipe](https://www.wowhead.com/forever/guide/professions/engineering-overview-trainer-locations-recipes) |
+| 264069 | 94269 | 9060 | Expert, 125 | Blacksmithing crafts Inlaid Mithril Cylinder. Engineering supplies the plans. [Forever item](https://guide.wow4ever.se/en/items/9060) · [Engineering plans](https://wowfdb.com/professions/engineering/recipes/) |
+| 264124 | 94324 | 246948 | Artisan, 200 | Alchemy crafts Distilled Firewater. [Forever item and recipe](https://www.foreverdb.app/en/forever/items/246948/distilled-firewater) |
+| 264139 | 94339 | 18232 | Artisan, 200 | Engineering crafts Field Repair Bot 74A. [Forever recipe](https://wowforever.ninja/professions/engineering/22704-field-repair-bot-74a/) |
 
-## Bulk comparison (2026-11-24)
-Compared all 150 IDs in AidVir/wow-forever-favor data/writs.js and emsw0rth/craftmanshelper CraftmansHelper/Data/Writs.lua with buildthehomelab/wow-mod-supply-logistics data/writs.tsv. 146 matched item, quest, quantity, tier/reward and profession association. Four absent from the TSV: 264065, 264069, 264124, 264139. No IDs inferred. The candidate TSV is research only, not loaded by the addon. Faction is a single-source hint, including the default Both, and must be confirmed against individual quest records before promotion. Shared upstream data limits independence. Daily and tier rules corroborated by Wowhead and Icy Veins; individual daily exceptions remain to be checked.
+## Exclusions
 
-Sources:
-- https://github.com/AidVir/wow-forever-favor/blob/main/data/writs.js (no explicit license located; factual comparison only)
-- https://github.com/emsw0rth/craftmanshelper/blob/main/CraftmansHelper/Data/Writs.lua (license not established; factual comparison only)
-- https://github.com/buildthehomelab/wow-mod-supply-logistics/blob/main/data/writs.tsv (repository README explicitly identifies Efficient Games EG Link output as CC BY 4.0; adapted numeric fields, filtered and combined with cross-checks; https://creativecommons.org/licenses/by/4.0/). Candidate TSV is distributed under CC BY 4.0 for the adapted dataset, not a change to MFO code licensing.
-- https://www.wowhead.com/forever/guide/professions/craftsmans-writs-overview-recipes-rewards
-- https://www.icy-veins.com/wow-forever/news/sealed-writs-are-a-daily-source-of-supply-faction-reputation-in-wow-forever/
+The pinned quest responses indicate Both for the following IDs. Their faction hints are Alliance or Horde. The three corresponding EG Link turn-in exports had no observations for these quests to resolve the discrepancy.
 
-The active database remains at one entry pending faction checks. No copied source code or quest prose.
+- Alliance hints (8) — 264011, 264015, 264024, 264025, 264027, 264030, 264033, 264054.
+- Horde hints (12) — 264013, 264016, 264020, 264028, 264029, 264031, 264039, 264043, 264044, 264047, 264050, 264055.
 
-## Further quest-level audit
-264065 / 94265: Wowhead item page https://www.wowhead.com/forever/item=264065/craftsmans-writ-goblin-rocket-fuel identifies Expert and daily quest. https://guide.wow4ever.se/en/quests/94265 confirms both factions and one fuel plus one writ (EG Link CC BY 4.0). https://zephras.com/forever/enUS/quest/94265/ confirms 125 reputation and turn-in Alchemist Pestlezugg. https://bindonforever.com/quest/94265 corroborates both factions and Tanaris delivery using QuestieDB. Existing two candidate sources agree on item 9061 and quantity one; profession classification remains unresolved (Alchemy versus Alchemy/Engineering). Hold pending explicit profession schema decision. 264069, 264124, 264139 remain excluded. IceDNicco quest index marks many entries faction unavailable; this is not evidence of Both. No blanket promotion of 146 candidates. Regression execution pending.
+The turn-in files are `data/wowf/<build>/turn_ins.json` at the same EG Link revision. SHA-256 values are `b0bdb851d6790e590323432d9f08bef811613a829c03cd68414ad2ecec8899f1` (70938), `329efdcf27854b9a851ed5e0c09712aaa7feeae63de3344a6441e228b19e8659` (70959), and `1bb3dffa767e54087f0242e3b94adfd8ab51ccf75098219a3fc3e3924980b78b` (71037).
+
+## Reproduce the audit
+
+Download the raw source URLs from the audit's `sources` section. Save the three exports as `<build>-quests.enUS.json` and the logistics export as `logistics.tsv` in a local directory. Run from the repository root.
+
+```sh
+python tools/verify_writs.py --source-dir raw-inputs --report research/writ-audit.json --lua MerchantsFavourOptimiser/WritData.lua
+python -B -m unittest discover -s tests -p 'test_verify_writs.py'
+lua5.1 tests/writ-data-regression.lua
+```
+
+The generated data and calculation prototype are pending live-client validation and TOC integration.

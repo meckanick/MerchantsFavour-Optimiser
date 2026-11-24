@@ -11,5 +11,6 @@ WritCalculations.lua
 CrateTracking.lua
 InventoryProvider.lua
 StandaloneAH.lua
+WritTab.lua
 Core.lua
 AHShopping.lua

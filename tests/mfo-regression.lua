@@ -238,8 +238,9 @@ check(coreSource:find('if missingIDs>0 then footerParts',1,true)~=nil,
 check(coreSource:find('if missingPrices>0 then footerParts',1,true)~=nil,
   "footer should only show missing price warnings when relevant")
 
-check(coreSource:find('local scannedAt=MFO_AH and MFO_AH.LastScan(scanMode)',1,true)~=nil,
-  "scan footer must use standalone scan-mode completion timestamp")
+check(coreSource:find('local scannedAt=MFO_AH and MFO_AH.LastScan(mode)',1,true)~=nil and
+      coreSource:find('writPanel:IsShown() and "Writs" or scanMode',1,true)~=nil,
+  "scan footer must use Writ completion time in the Writ tab and scan-mode time in Crates")
 check(not coreSource:find('GetAuctionAgeByItemID',1,true),
   "scan footer must not mistake oldest item price age for last completed scan")
 
@@ -1116,6 +1117,9 @@ check(toc:find("## OptionalDeps: Syndicator",1,true)~=nil,"Syndicator must be op
 local providerPos=assert(toc:find("InventoryProvider.lua",1,true))
 local corePos=assert(toc:find("Core.lua",1,true))
 check(providerPos<corePos,"provider must load before Core")
+local writTabPos=assert(toc:find("WritTab.lua",1,true))
+check(assert(toc:find("WritCalculations.lua",1,true))<writTabPos and writTabPos<corePos,
+  "Writ tab must load after its calculations and before Core")
 check(coreSource:find('local function setInventoryMode(mode)',1,true)~=nil,
  "main UI must expose a saved native/Syndicator inventory selection")
 check(coreSource:find('elseif msg=="inventory native" then',1,true)~=nil and

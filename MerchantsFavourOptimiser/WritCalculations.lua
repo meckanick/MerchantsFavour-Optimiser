@@ -86,10 +86,10 @@ end
 
 -- Profession tags filter crafting and recipe supply. They are not turn-in requirements.
 -- professions is an optional set keyed by profession name.
-function Writ.available(faction, professions)
+function Writ.available(faction, professions, includeIneligible)
   local available = {}
   for _, writ in ipairs(MFO_WritData) do
-    if eligible(writ, faction) then
+    if includeIneligible or eligible(writ, faction) then
       if not professions then
         available[#available + 1] = writ
       else

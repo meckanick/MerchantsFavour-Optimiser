@@ -27,6 +27,7 @@ local function money(v)
 end
 local scanAgeFooter
 local scanMode="Crates"
+local writPanel
 local lastScanAgeText,lastScanAgeColor
 local function setScanAgeDisplay(text,color)
   -- The visible age usually stays unchanged across multiple refreshes.
@@ -45,8 +46,9 @@ local function setScanAgeDisplay(text,color)
 end
 -- Display the timestamp of the last completed MFO standalone AH scan.
 local function updateScanNote()
-  local scannedAt=MFO_AH and MFO_AH.LastScan(scanMode)
-  local label=scanMode=="Crates" and "Last AH Scan: " or ("Last "..scanMode.." Scan: ")
+  local mode=writPanel and writPanel:IsShown() and "Writs" or scanMode
+  local scannedAt=MFO_AH and MFO_AH.LastScan(mode)
+  local label=mode=="Crates" and "Last AH Scan: " or ("Last "..mode.." Scan: ")
   if type(scannedAt)~="number" or scannedAt<=0 then
     setScanAgeDisplay(label.."Unknown","unknown")
     return
@@ -372,10 +374,11 @@ local scrollChild=CreateFrame("Frame",nil,scrollFrame)
 scrollChild:SetSize(864,#rows*19+4)
 scrollFrame:SetScrollChild(scrollChild)
 -- Preserve Blizzard scrolling mechanics; tint controls to the bronze palette.
-local scrollBar=scrollFrame.ScrollBar or _G["MFOCompactScrollFrameScrollBar"]
-if scrollBar then
-  local up=scrollBar.ScrollUpButton or _G["MFOCompactScrollFrameScrollBarScrollUpButton"]
-  local down=scrollBar.ScrollDownButton or _G["MFOCompactScrollFrameScrollBarScrollDownButton"]
+local function SkinWoodScroll(scroll, name)
+  local scrollBar=scroll.ScrollBar or _G[name.."ScrollBar"]
+  if not scrollBar then return end
+  local up=scrollBar.ScrollUpButton or _G[name.."ScrollBarScrollUpButton"]
+  local down=scrollBar.ScrollDownButton or _G[name.."ScrollBarScrollDownButton"]
   local thumb=scrollBar.GetThumbTexture and scrollBar:GetThumbTexture()
   if up then
     up:SetSize(14,14)
@@ -486,6 +489,7 @@ if scrollBar then
   scrollBar:HookScript("OnUpdate",UpdateScrollAppearance)
   UpdateScrollAppearance()
 end
+SkinWoodScroll(scrollFrame,"MFOCompactScrollFrame")
 local rowWidths={341,76,76,76,48,76}
 local entries={}
 local shopButtons={}
@@ -584,6 +588,12 @@ end
 local planFavour
 local function refresh(inventoryFresh)
   MFO_InventoryProvider.ResetCache()
+  if writPanel and writPanel:IsShown() then
+    updateScanNote()
+    if not inventoryFresh then learnBagItems();scanBags() end
+    writPanel:Refresh()
+    return
+  end
   -- Clear and reuse the per-refresh price cache rather than allocating a new table.
   for id in pairs(refreshPriceCache) do refreshPriceCache[id]=nil end
   priceCacheActive=true
@@ -645,12 +655,16 @@ end
 -- Update the timestamp of MFO's completed standalone scan without requiring a manual refresh.
 -- Opening the AH alone does not mark a scan as complete.
 local lastScanDisplayUpdate=0
-frame:HookScript("OnShow",function() updateScanNote() end)
+frame:HookScript("OnShow",function()
+  updateScanNote()
+  if writPanel and writPanel:IsShown() then writPanel:Refresh() end
+end)
 frame:HookScript("OnUpdate",function(_,elapsed)
   lastScanDisplayUpdate=lastScanDisplayUpdate+elapsed
   if lastScanDisplayUpdate>=30 then
     lastScanDisplayUpdate=0
     updateScanNote()
+    if writPanel and writPanel:IsShown() then writPanel:Refresh() end
   end
 end)
 local refreshBtn=CreateFrame("Button",nil,frame);refreshBtn:SetSize(82,22);refreshBtn:SetPoint("TOPRIGHT",frame,"TOPRIGHT",-38,-44);refreshBtn:SetText("Refresh");SkinWoodButton(refreshBtn);refreshBtn:SetScript("OnClick",function() refresh() end)
@@ -1176,6 +1190,49 @@ MFO_AH.onUpdate=function()
   if not running then status:SetText(MFO_AH.Status()) end
   if frame:IsShown() then refresh() end
 end
+do
+  local writScroll
+  writPanel,writScroll=MFO_CreateWritTab(frame,SkinWoodButton,SkinWoodScroll,money,MFO_ART,
+    MFO_AH.ShoppingItemStock,updateOwnedSetting,status)
+  local crateTab,writTab
+  local inactiveScanMode="Writs"
+  local function selectTab(showWrits)
+    if writPanel:IsShown()==showWrits then return end
+    GameTooltip:Hide()
+    if showWrits then
+      targetInput:ClearFocus()
+      targetInput:Hide();targetLabel:Hide();clearButton:Hide()
+      planner:Hide();subheader:Hide();scrollFrame:Hide()
+      writPanel:Show()
+    else
+      writPanel:Hide()
+      targetInput:Show();targetLabel:Show();clearButton:Show()
+    end
+    local activeScroll=showWrits and writScroll or scrollFrame
+    scanMode,inactiveScanMode=inactiveScanMode,scanMode
+    scanModeButton:SetText(scanMode)
+    scanOverlay:ClearAllPoints()
+    scanOverlay:SetPoint("TOPLEFT",activeScroll,"TOPLEFT")
+    scanOverlay:SetPoint("BOTTOMRIGHT",activeScroll,"BOTTOMRIGHT")
+    crateTab:GetFontString():SetTextColor(1,showWrits and .74 or .94,showWrits and .3 or .67)
+    writTab:GetFontString():SetTextColor(1,showWrits and .94 or .74,showWrits and .67 or .3)
+    refresh()
+  end
+  local function makeTab(label,x,showWrits)
+    local tab=CreateFrame("Button",nil,frame)
+    tab:SetSize(65,20)
+    tab:SetPoint("TOPLEFT",x,-10)
+    local font=tab:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+    font:SetPoint("CENTER",tab)
+    tab:SetFontString(font)
+    tab:SetText(label)
+    SkinWoodButton(tab)
+    tab:SetScript("OnClick",function() selectTab(showWrits) end)
+    return tab
+  end
+  crateTab,writTab=makeTab("Crates",66,false),makeTab("Writs",135,true)
+  crateTab:GetFontString():SetTextColor(1,.94,.67)
+end
 -- Explicit open action for other MFO views (never toggle an already-open window).
 MFO_OpenMainWindow=function()
   refresh()
@@ -1203,7 +1260,9 @@ registerSupportedEvent("ADDON_LOADED")
 registerSupportedEvent("BAG_UPDATE_DELAYED")
 registerSupportedEvent("BANKFRAME_OPENED")
 registerSupportedEvent("PLAYERBANKSLOTS_CHANGED")
-events:SetScript("OnEvent",function(_,event,name)
+registerSupportedEvent("GET_ITEM_INFO_RECEIVED")
+events:SetScript("OnEvent",function(_,event,name,success)
+ if event=="GET_ITEM_INFO_RECEIVED" then writPanel:ItemInfoReceived(name,success);return end
  if event=="BANKFRAME_OPENED" then scanBank();if frame:IsShown() then refresh() end;return end
  if event=="PLAYERBANKSLOTS_CHANGED" then
   -- Only scan live bank containers while the bank UI is open; retain the last

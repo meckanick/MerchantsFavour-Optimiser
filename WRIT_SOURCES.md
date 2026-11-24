@@ -30,3 +30,6 @@ Sources:
 - https://www.icy-veins.com/wow-forever/news/sealed-writs-are-a-daily-source-of-supply-faction-reputation-in-wow-forever/
 
 The active database remains at one entry pending faction checks. No copied source code or quest prose.
+
+## Further quest-level audit
+264065 / 94265: Wowhead item page https://www.wowhead.com/forever/item=264065/craftsmans-writ-goblin-rocket-fuel identifies Expert and daily quest. https://guide.wow4ever.se/en/quests/94265 confirms both factions and one fuel plus one writ (EG Link CC BY 4.0). https://zephras.com/forever/enUS/quest/94265/ confirms 125 reputation and turn-in Alchemist Pestlezugg. https://bindonforever.com/quest/94265 corroborates both factions and Tanaris delivery using QuestieDB. Existing two candidate sources agree on item 9061 and quantity one; profession classification remains unresolved (Alchemy versus Alchemy/Engineering). Hold pending explicit profession schema decision. 264069, 264124, 264139 remain excluded. IceDNicco quest index marks many entries faction unavailable; this is not evidence of Both. No blanket promotion of 146 candidates. Regression execution pending.

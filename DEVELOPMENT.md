@@ -113,12 +113,26 @@ Writs at the same stop. Verify that the route and pins update even while MFO is
 closed. Repeat a turn-in with a Shift-click TomTom arrow and check that MFO
 clears its own arrow when the stop disappears or markers are disabled.
 
+## Writ crafting estimates
+
+Enable **Crafting** on the Writs tab and open the character's own profession
+windows. Run a Writs or Full scan. Compare a Silver Skeleton Key Writ when the
+recipe is learned, when the required tool is missing, and when a purchased
+reagent has yet to arrive. Compare Arcanite costs with Transmute: Arcanite ready
+and on cooldown. Check that the instructions identify the anvil, put
+intermediates first, and carry the same quantities into Combined and MFO Shop.
+Complete the recipes manually and refresh the Shop with **Use Owned** both on
+and off. Writ readiness should continue to follow quest and bag evidence.
+Switch characters, open a linked profession, and toggle Crafting off to verify
+that unconfirmed recipe evidence is excluded and saved buy-only lists still work.
+
 ## Source map
 
 - `Data.lua` — crate definitions and material requirements
 - `Calculations.lua` — cost and Favour calculations
 - `CrateTracking.lua` — readiness and shared allocation
 - `WritTracking.lua` — character-specific quest status and server reset tracking
+- `WritRecipes.lua` and `WritCrafting.lua` — sourced recipes, Forever profession checks and bounded purchase/crafting estimates
 - `WritLocations.lua` and `WritDelivery.lua` — sourced destinations, delivery order and map pins
 - `InventoryProvider.lua` — optional Syndicator bank counts and native fallback
 - `StandaloneAH.lua` — Auction House and shopping data

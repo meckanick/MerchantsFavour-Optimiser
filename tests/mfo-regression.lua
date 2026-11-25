@@ -362,7 +362,7 @@ check(ahTab:find('playTabClick()',1,true)~=nil,"MFO tab click must trigger tab s
 
 -- Replacing a shopping list must be explicit, atomic and scoped to the market.
 local ahSource=assert(io.open("MerchantsFavourOptimiser/StandaloneAH.lua","r")):read("*a")
-check(ahSource:find("function AH.ReplaceShopping(items, writIDs)",1,true)~=nil,"AH must provide explicit replacement")
+check(ahSource:find("function AH.ReplaceShopping(",1,true)~=nil,"AH must provide explicit replacement")
 check(ahSource:find('if not next(replacement) then return false',1,true)~=nil,"Empty replacement must preserve existing list")
 check(ahSource:find("market.shopping=replacement",1,true)~=nil,"Replacement must overwrite current market list")
 check(coreSource:find("MFO_AH.ReplaceShopping(items)",1,true)~=nil,"Main Shop buttons must replace list")
@@ -942,7 +942,8 @@ check(ahTab:find('Known Remaining Cost: ',1,true)~=nil and
 check(ahTab:find('panel.budget=',1,true)==nil and
       ahTab:find('Gold After Purchase:',1,true)==nil,
   "duplicate budget and affordability display must be removed")
-check(ahTab:find('local price=AH.Price(v.id)',1,true)~=nil and
+check(ahTab:find('AH.Price(v.id)',1,true)~=nil and
+      ahTab:find('AH.PriceQuote(v.id,7*86400-1,now)',1,true)~=nil and
       ahTab:find('gold(total)',1,true)~=nil,
   "footer must reuse existing AH price cache and coin formatting")
 

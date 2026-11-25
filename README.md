@@ -57,6 +57,13 @@ Prices are estimates based on saved scans and available listings. Auction House 
 - Return to the planner and enter **Writs Left Today**. Enter an optional gold budget, then click **Calculate**. The budget covers purchases before any crate turn-in rewards. The result shows the best plan found within the budget, including partial progress when the target cannot be reached.
 - **Shop Planned Items** replaces the current MFO Shop list. Use Owned allocates bag and cached bank stock once across all turn-ins. Combined, Writs and budgeted Crates exclude missing or stale prices for anything the plan needs to buy. The owned-stock search is bounded and may show an estimate.
 
+### Comparing Writ crafting costs
+
+1. Turn on **Crafting** in the Writs tab. The setting is off by default.
+2. Open each relevant profession on the current character so MFO can verify learned recipes. Run a **Writs** or **Full** auction scan to include recipe materials.
+3. Hover a Writ, **Shop Planned Items**, or **Crafting Plan** in MFO Shop to see both estimates, potential savings and the crafting order. **Use Owned** includes stock from your bags and trusted bank data.
+4. Review and confirm purchases in MFO Shop. Collect your purchases and follow the crafting steps in your profession window. Refresh the Shop to update remaining quantities.
+
 ### Delivering Writs
 
 - Open **Writs → Delivery Route**. Ready Writs share a stop when they have the same recipient. Hover a stop to see its Writs. Click it to open its zone map.

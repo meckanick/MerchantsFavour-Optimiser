@@ -831,7 +831,8 @@ do
       return bags+bank
     end
     local result,reason=MFO_ReputationPlanner.plan(current,target,copper,tonumber(daily:GetText()),
-      faction,usesWrits and MFO_WritTracking.Snapshot() or {},crates,quote,usesWrits and writOwned or ownedCount)
+      faction,usesWrits and MFO_WritTracking.Snapshot() or {},crates,quote,usesWrits and writOwned or ownedCount,
+      usesWrits and MFO_WritCrafting.Recipes() or nil)
     if not result then
       showDetails({}, {})
       plannerInfo:SetText(reason)
@@ -840,6 +841,7 @@ do
     local names={}
     local itemName=GetItemInfo or (C_Item and C_Item.GetItemInfo)
     for id in pairs(result.required) do names[id]=(itemName and itemName(id)) or ("Item #"..id) end
+    for id in pairs(result.procurement or {}) do names[id]=(itemName and itemName(id)) or ("Item #"..id) end
     for _,entry in ipairs(result.details) do
       local option=entry.option
       if not option.writ then
@@ -856,12 +858,13 @@ do
       notice=#result.writIDs.." Writs Planned | "..result.confirmed.." Confirmed | "..
         result.unknown.." Unknown (Excluded)"
     end
-    if result.pruned then notice=notice.." | Owned-Stock Optimisation Is an Estimate" end
+    if result.pruned then notice=notice.." | Plan Search Is an Estimate" end
+    if result.crafting then notice=notice.." | Hover Shop for Crafting Costs" end
     if result.remaining>0 then notice=notice.." | Target Not Reached" end
     plannerWarning:SetText(notice)
     if #result.details>0 then
       plannerShopping={items=result.shopping,details=result.details,required=result.required,
-        writIDs=result.writIDs,names=names}
+        writIDs=result.writIDs,names=names,estimate=result}
     end
     return true
   end
@@ -1017,6 +1020,10 @@ plannerShop:SetScript("OnEnter",function(self)
   for id,qty in pairs(plannerShopping.items) do sorted[#sorted+1]={id=id,qty=qty,name=items[id] or tostring(id)} end
   table.sort(sorted,function(a,b)return a.name<b.name end)
   for _,item in ipairs(sorted) do GameTooltip:AddLine(item.name.." x "..item.qty,1,1,1) end
+  MFO_WritCrafting.Describe(plannerShopping.estimate,money,function(id)
+    local readName=GetItemInfo or (C_Item and C_Item.GetItemInfo)
+    return items[id] or (readName and readName(id))
+  end,function(line) GameTooltip:AddLine(line,1,.9,.65,true) end)
   GameTooltip:AddLine("Saved in MFO shopping list; purchases are manual.",.8,.8,.8,true)
   GameTooltip:Show()
 end)
@@ -1028,7 +1035,8 @@ plannerShop:SetScript("OnClick",function()
   for id,required in pairs(plannerShopping.required) do
     items[id]={name=names[id] or tostring(id),qty=plannerShopping.items[id] or 0,requiredQty=required}
   end
-  local ok,reason=MFO_AH.ReplaceShopping(items,plannerShopping.writIDs)
+  local ok,reason=MFO_AH.ReplaceShopping(items,plannerShopping.writIDs,
+    plannerShopping.estimate and plannerShopping.estimate.crafting~=nil)
   if ok and MFO_AH.SetShoppingCratePlan then
     local cratePlan={}
     for _,entry in ipairs(plannerShopping.details) do
@@ -1041,6 +1049,7 @@ plannerShop:SetScript("OnClick",function()
     MFO_AH.SetShoppingCratePlan(cratePlan)
   end
   if not ok then status:SetText(reason or "Unable to Create Shopping List.");return end
+  if plannerShopping.estimate and MFO_WritCrafting.Enabled() then MFO_AH.RecalculateShopping() end
   local opened=MFO_AH.OpenShop and MFO_AH.OpenShop()
   status:SetText(opened and "Plan Sent to MFO Shop." or "Plan Saved. Open MFO Shop at the Auction House.")
   if opened then frame:Hide() end
@@ -1438,6 +1447,9 @@ local questEvents={
   PLAYER_ENTERING_WORLD=true,
 }
 for eventName in pairs(questEvents) do registerSupportedEvent(eventName) end
+local professionEvents={TRADE_SKILL_DATA_SOURCE_CHANGED=true,TRADE_SKILL_LIST_UPDATE=true,
+  NEW_RECIPE_LEARNED=true,SKILL_LINES_CHANGED=true}
+for eventName in pairs(professionEvents) do registerSupportedEvent(eventName) end
 local function refreshQuestDisplays()
   delivery.Refresh(bagCounts)
   if frame:IsVisible() then
@@ -1462,6 +1474,16 @@ events:SetScript("OnUpdate",function(_,elapsed)
   end
 end)
 events:SetScript("OnEvent",function(_,event,name,success)
+ if professionEvents[event] then
+  if MFO_WritCrafting.Enabled() then
+    MFO_WritCrafting.Recipes(event=="TRADE_SKILL_LIST_UPDATE")
+    if event~="TRADE_SKILL_LIST_UPDATE" then
+      MFO_AH.RecalculateShopping()
+      refreshQuestDisplays()
+    end
+  end
+  return
+ end
  if questEvents[event] then
   if event=="PLAYER_ENTERING_WORLD" and MFO_DB then scanBags() end
   if MFO_DB and (event=="QUEST_LOG_UPDATE" or event=="PLAYER_ENTERING_WORLD"

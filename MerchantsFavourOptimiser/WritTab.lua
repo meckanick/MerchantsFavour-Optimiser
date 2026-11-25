@@ -40,6 +40,10 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock
       GameTooltip:SetHyperlink("item:"..control.itemID)
     end
     if control.description then GameTooltip:AddLine(control.description,1,.82,.2,true) end
+    if control.craftEstimate then
+      MFO_WritCrafting.Describe(control.craftEstimate,money,GetItemInfo or (C_Item and C_Item.GetItemInfo)
+        or function() end,function(line) GameTooltip:AddLine(line,1,.9,.65,true) end)
+    end
     GameTooltip:Show()
   end
 
@@ -122,6 +126,22 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock
 
   local shopOne=button(panel,"Add Open Writ",112,22,0,-27)
   local shopMany=button(panel,"Add Selected (0)",124,22,118,-27)
+  local craftButton=button(panel,"Crafting: Off",114,22,503,-27)
+  craftButton:SetScript("OnClick",function()
+    if not MFO_WritCrafting then return end
+    MFO_DB.writCrafting=not MFO_WritCrafting.Enabled()
+    MFO_AH.RecalculateShopping()
+    if MFO_AH.RefreshWritShop then MFO_AH.RefreshWritShop() end
+    panel:Refresh()
+  end)
+  craftButton:SetScript("OnEnter",function(self)
+    GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
+    GameTooltip:AddLine("Compare Finished Items With Crafting",1,.82,.2)
+    GameTooltip:AddLine("Uses verified recipes learned by this character and fresh auction prices.",1,1,1,true)
+    GameTooltip:AddLine("Open your professions to verify known recipes. Run a Writs or Full scan to price the reagents.",1,1,1,true)
+    GameTooltip:Show()
+  end)
+  craftButton:SetScript("OnLeave",function() GameTooltip:Hide() end)
   local routeButton=button(panel,"Delivery Route",108,22,623,-27)
   local markerButton=button(panel,"",112,22,737,-27)
   markerButton:SetScript("OnClick",function()
@@ -131,8 +151,8 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock
   end)
   local selectionHint=panel:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
   selectionHint:SetPoint("TOPLEFT",248,-32)
-  selectionHint:SetText("Click to open a Writ  |  Shift-click to select multiple")
-  local catalogControls={header,shopOne,shopMany,selectionHint,searchLabel,search,tier,faction,stock}
+  selectionHint:SetText("Click to open  |  Shift-click to select")
+  local catalogControls={header,shopOne,shopMany,selectionHint,searchLabel,search,tier,faction,stock,craftButton}
   for _,control in pairs(professionButtons) do catalogControls[#catalogControls+1]=control end
   routeButton:SetScript("OnClick",function(self)
     showRoute=not showRoute
@@ -232,6 +252,7 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock
   local function renderLine(index,id,description,isWrit,values,stop)
     local line=getLine(index)
     line.itemID,line.description,line.isWrit,line.stop=id,description,isWrit,stop
+    line.craftEstimate=nil
     line:ClearAllPoints()
     line:SetPoint("TOPLEFT",0,-(index-1)*22)
     line.shade:SetColorTexture(.40,.33,.27,isWrit and (index%2==0 and .22 or .13) or .45)
@@ -288,6 +309,9 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock
     if showRoute then renderRoute();return end
     local now=time()
     local useOwned=MFO_DB and MFO_DB.useOwned
+    local craftEnabled=MFO_WritCrafting and MFO_WritCrafting.Enabled()
+    local recipes=craftEnabled and MFO_WritCrafting.Recipes() or nil
+    craftButton:SetText(craftEnabled and "Crafting: On" or "Crafting: Off")
     stock:SetText(useOwned and "Use Owned: On" or "Use Owned: Off")
     local filter=next(selectedProfessions) and selectedProfessions
     for profession,control in pairs(professionButtons) do
@@ -341,7 +365,7 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock
           end
         end
         if match then
-          local result=MFO_WritCalculations.calculate(writ,quote,useOwned and count or nil)
+          local result=MFO_WritCalculations.calculate(writ,quote,useOwned and count or nil,recipes)
           result.writ=writ
           result.name=itemName(writ.id) or ("Item #"..writ.id)
           result.professions=table.concat(writ.professions,", ")
@@ -409,9 +433,17 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock
       addLine(writ.id,description,true,{prefix..result.name,result.professions,
         writ.tier,result.reputation,money(result.writCost),money(result.itemCost),money(result.total),result.owned,rate,result.questLabel})
       rowPool[index].eligible=eligible[writ.id]
+      rowPool[index].craftEstimate=(result.crafting or result.craftLimited) and result or nil
       if expanded then
-        addDetail(writ.id,1)
-        for _,item in ipairs(writ.items) do addDetail(item.id,item.qty) end
+        if result.procurement then
+          local ids={}
+          for id in pairs(result.procurement) do ids[#ids+1]=id end
+          table.sort(ids)
+          for _,id in ipairs(ids) do addDetail(id,result.procurement[id]) end
+        else
+          addDetail(writ.id,1)
+          for _,item in ipairs(writ.items) do addDetail(item.id,item.qty) end
+        end
       end
     end
     finishLines(index)

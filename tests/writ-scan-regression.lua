@@ -1,6 +1,8 @@
 local addon="MerchantsFavourOptimiser/"
 dofile(addon.."WritData.lua")
 dofile(addon.."WritCalculations.lua")
+dofile(addon.."WritRecipes.lua")
+dofile(addon.."WritCrafting.lua")
 
 local writIDs={}
 for _,writ in ipairs(MFO_WritData) do
@@ -104,6 +106,19 @@ local function runScanner(modern)
   now=30
   scan("Full",expected(true,true))
   assert(ah.LastScan()==30 and ah.LastScan("Writs")==30 and ah.LastScan("Full")==30)
+
+  MFO_DB.writCrafting=true
+  local withReagents=expected(false,true)
+  local visited={}
+  for _,writ in ipairs(MFO_WritData) do
+    for _,item in ipairs(writ.items) do
+      MFO_WritCrafting.AddScanMaterials(item.id,function(id) withReagents[id]=true end,visited)
+    end
+  end
+  assert(withReagents[2775] and not writIDs[2775],"include a recursive reagent")
+  scan("Writs",withReagents)
+  scan("Crates",expected(true,false))
+  MFO_DB.writCrafting=false
 
   now=40
   queries={}

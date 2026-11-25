@@ -219,4 +219,25 @@ click(panel,"Map Markers: On")
 assert(MFO_DB.writDeliveryMarkers==false and MFO_DB.useOwned)
 click(panel,"Writ Prices")
 assert(search.shown and rows[1].isWrit and not rows[1].stop)
-print("PASS: Writ tab filters, rankings, costs, tooltips, cache, refresh and delivery controls")
+dofile("MerchantsFavourOptimiser/WritCrafting.lua")
+MFO_WritCrafting.Recipes=function()
+  return {[101]={output=2,reagents={[200]=1},name="Elixir",profession="Alchemy"}}
+end
+local tip={}
+GameTooltip.AddLine=function(_,line) tip[#tip+1]=line end
+local shopRefreshes=0
+MFO_AH.RecalculateShopping=function() shopRefreshes=shopRefreshes+1 end
+MFO_DB.useOwned=false
+prices[200],names[200]=3,"Ingredient"
+click(panel,"Crafting: Off")
+local open=writRow(1)
+assert(MFO_DB.writCrafting and shopRefreshes==1 and open.cells[7].text==53)
+open:OnEnter()
+local text=table.concat(tip,"\n")
+assert(text:find("Buy Finished Items: 150",1,true) and text:find("With Crafting: 53",1,true))
+assert(text:find("1x Ingredient",1,true) and text:find("Estimated Savings: 97",1,true))
+if open.cells[1].text:sub(1,1)=="+" then open:OnClick() end
+assert(rows[3].itemID==200 and rows[3].cells[7].text==3,"expanded Writ shows procurement rows")
+click(panel,"Crafting: On")
+assert(not MFO_DB.writCrafting and shopRefreshes==2 and writRow(1).cells[7].text==150)
+print("PASS: Writ tab filters, rankings, costs, tooltips, cache, delivery and crafting controls")

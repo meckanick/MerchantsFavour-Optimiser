@@ -303,6 +303,10 @@ end
 update=function()
  if not panel or not panel:IsShown() then return end
  local shopping=AH.Shopping()
+ local craftEstimate=AH.ShoppingCraftEstimate()
+ if panel.crafting then
+  panel.crafting:SetShown(craftEstimate and (craftEstimate.crafting or craftEstimate.craftLimited) and true or false)
+ end
  local items={}
  for id,v in pairs(shopping) do
   if type(id)=="number" and type(v)=="table" and ((v.qty or 0)>0 or (v.requiredQty or 0)>0) then
@@ -360,6 +364,10 @@ update=function()
    local useOwned=MFO_DB and MFO_DB.useOwned
    local available=useOwned and math.min(credited,math.max(0,item.owned-(entry.legacyStockReserve or 0))) or 0
    local purchases=useOwned and (entry.pendingPurchaseQty or 0) or item.purchased
+   if entry.availableQty~=nil then
+    available=entry.availableQty
+    purchases=credited-available
+   end
    requiredTotal=requiredTotal+item.required
    availableTotal=availableTotal+available
    purchasedTotal=purchasedTotal+math.min(credited-available,purchases)
@@ -379,8 +387,16 @@ update=function()
  panel.offset=math.min(panel.offset,math.max(0,#items-#rows))
  local total,unpriced=0,0
  local prices={}
+ local now=craftEstimate and time()
  for _,v in ipairs(items) do
-  local price=AH.Price(v.id)
+  local price
+  if craftEstimate then
+   local stale
+   price,stale=AH.PriceQuote(v.id,7*86400-1,now)
+   if stale then price=nil end
+  else
+   price=AH.Price(v.id)
+  end
   prices[v.id]=price
   if v.qty>0 then
    if price then total=total+price*v.qty else unpriced=unpriced+1 end
@@ -645,6 +661,17 @@ local function attach(parent)
  local header=panel:CreateFontString(nil,"OVERLAY","GameFontNormalLarge")
  header:SetPoint("TOP",panel,"TOP",0,-14)
  header:SetText("")
+ panel.crafting=button(panel,"Crafting Plan",124)
+ panel.crafting:SetPoint("TOPRIGHT",panel,"TOPRIGHT",-25,-42)
+ panel.crafting:Hide()
+ panel.crafting:SetScript("OnEnter",function(self)
+  GameTooltip:SetOwner(self,"ANCHOR_LEFT")
+  local name=GetItemInfo or (C_Item and C_Item.GetItemInfo) or function() end
+  MFO_WritCrafting.Describe(AH.ShoppingCraftEstimate(),gold,name,
+   function(line) GameTooltip:AddLine(line,1,.9,.65,true) end)
+  GameTooltip:Show()
+ end)
+ panel.crafting:SetScript("OnLeave",function() GameTooltip:Hide() end)
 
  local line=right:CreateTexture(nil,"ARTWORK")
  line:SetPoint("TOPLEFT",right,"TOPLEFT",10,-40)

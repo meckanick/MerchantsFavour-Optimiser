@@ -10,7 +10,7 @@ function Planner.goldBudget(text)
   return tonumber(whole)*10000 + tonumber(decimals..string.rep("0",4-#decimals))
 end
 
-function Planner.plan(mode, target, budget, dailyLimit, faction, questStates, crates, getPrice, getOwned)
+function Planner.plan(mode, target, budget, dailyLimit, faction, questStates, crates, getPrice, getOwned, recipes)
   if not MFO_Calculations.validTarget(target) then
     return nil, "Enter a Whole-Number Favour Target Between 1 and 1000."
   end
@@ -22,6 +22,7 @@ function Planner.plan(mode, target, budget, dailyLimit, faction, questStates, cr
     return nil, "Enter a Daily Writ Limit From 0 to "..#MFO_WritData.."."
   end
 
+  if mode == "Crates" then recipes = nil end
   local prices, stock = {}, {}
   local function price(id)
     if prices[id] == nil then
@@ -36,8 +37,16 @@ function Planner.plan(mode, target, budget, dailyLimit, faction, questStates, cr
     return stock[id]
   end
 
-  local options, uses, confirmed, unknown = {}, {}, 0, 0
+  local options, uses, confirmed, unknown, pruned = {}, {}, 0, 0, false
   local function add(option, demand)
+    if recipes then
+      local estimate = Writ.estimate(demand, {[option.id]=1}, 0, price, owned, recipes, true)
+      if estimate.craftLimited then pruned = true end
+      if not estimate.total then return end
+      option.demand = demand
+      options[#options+1] = option
+      return
+    end
     local paid, tracked = 0, {}
     for id, qty in pairs(demand) do
       local unit, count = price(id), owned(id)
@@ -79,7 +88,7 @@ function Planner.plan(mode, target, budget, dailyLimit, faction, questStates, cr
     local reward = option.favour
     while reward > 0 do stride, reward = reward, stride % reward end
     -- Stock exclusive to one daily cannot affect any later option's price.
-    if option.writ then
+    if option.writ and not recipes then
       for id, qty in pairs(option.tracked) do
         if uses[id] == 1 then
           option.paid = option.paid - (prices[id] or 0) * math.min(stock[id], qty)
@@ -94,9 +103,9 @@ function Planner.plan(mode, target, budget, dailyLimit, faction, questStates, cr
   -- Process each Writ once (descending reputation), then allow repeatable crates
   -- (ascending). For the same reputation and Writ count, keep a few distinct
   -- remaining-stock states. With identical remaining stock, cheaper dominates.
-  local empty = {total=0, used={}}
+  local empty = {total=0, used={}, acquisitions={}}
   local noStates = {}
-  local states, best, pruned = {[0]={[0]={empty}}}, empty, false
+  local states, best = {[0]={[0]={empty}}}, empty
   local bestRep = 0
   local function better(rep, total)
     if rep >= target then
@@ -115,11 +124,23 @@ function Planner.plan(mode, target, budget, dailyLimit, faction, questStates, cr
         local nextCount = count + (option.writ and 1 or 0)
         if not option.writ or nextCount <= dailyLimit then
           for _, state in ipairs(bucket) do
-            local total = state.total + option.paid
-            for id, qty in pairs(option.tracked) do
-              local used, unit = state.used[id] or 0, prices[id]
-              if not unit and used + qty > stock[id] then total = math.huge; break end
-              if unit then total = total - math.min(qty, stock[id] - used) * unit end
+            local total, demand, acquired
+            if recipes then
+              demand, acquired = {}, {}
+              for id, qty in pairs(state.used) do demand[id] = qty end
+              for id, qty in pairs(option.demand) do demand[id] = (demand[id] or 0) + qty end
+              for id, qty in pairs(state.acquisitions) do acquired[id] = qty end
+              acquired[option.id] = (acquired[option.id] or 0) + 1
+              local estimate = Writ.estimate(demand, acquired, 0, price, owned, recipes, true)
+              if estimate.craftLimited then pruned = true end
+              total = estimate.total or math.huge
+            else
+              total = state.total + option.paid
+              for id, qty in pairs(option.tracked) do
+                local used, unit = state.used[id] or 0, prices[id]
+                if not unit and used + qty > stock[id] then total = math.huge; break end
+                if unit then total = total - math.min(qty, stock[id] - used) * unit end
+              end
             end
             if total < math.huge and (not budget or total <= budget) then
               local nextRep = rep + option.favour
@@ -131,15 +152,15 @@ function Planner.plan(mode, target, budget, dailyLimit, faction, questStates, cr
                 states[nextRep][nextCount] = cell
               end
               if wins or (cell and (#cell < 4 or total <= cell[#cell].total)) then
-                local used = state.used
-                if next(option.tracked) then
+                local used = demand or state.used
+                if not recipes and next(option.tracked) then
                   used = {}
                   for id, qty in pairs(state.used) do used[id] = qty end
                   for id, qty in pairs(option.tracked) do
                     used[id] = math.min(stock[id], (used[id] or 0) + qty)
                   end
                 end
-                local node = {total=total, used=used, previous=state, option=option}
+                local node = {total=total, used=used, acquisitions=acquired, previous=state, option=option}
                 if wins then best, bestRep = node, nextRep end
                 if cell then
                   local duplicate
@@ -182,7 +203,7 @@ function Planner.plan(mode, target, budget, dailyLimit, faction, questStates, cr
     for id, qty in pairs(option.demand) do demand[id] = (demand[id] or 0) + qty end
     node = node.previous
   end
-  local result = Writ.costRequirements(demand, acquisitions, bestRep, price, owned)
+  local result = Writ.estimate(demand, acquisitions, bestRep, price, owned, recipes)
   result.required, result.details, result.writIDs, result.turnIn = demand, {}, {}, 0
   for _, option in ipairs(options) do
     local qty = quantities[option]

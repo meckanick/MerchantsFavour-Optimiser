@@ -13,6 +13,10 @@ local function recordMissing(entry)
   if entry then missing[#missing+1]={id=entry.id,name=entry.name or "Unknown item"} end
 end
 function AH.Missing() return missing end
+local function getItemName(id)
+  local read=GetItemInfo or (C_Item and C_Item.GetItemInfo)
+  return read and read(id)
+end
 -- Market-scoped prices and shopping lists; settings and character-owned inventory stay account-wide.
 local lastRawRealm,normalizedRealm
 local function marketIdentity()
@@ -109,6 +113,7 @@ end
 -- Full requirements are retained separately from the quantity left to purchase.
 -- This prevents deducting the same owned stock twice on subsequent refreshes.
 local ownedReader
+local craftMarket, craftView, craftEstimate, craftOwner
 function AH.SetOwnedReader(reader)
   ownedReader=type(reader)=="function" and reader or nil
 end
@@ -133,6 +138,9 @@ function AH.Shop(items)
       shopping[id]=item
       db().shoppingCratePlan=nil
       db().shoppingWritIDs=nil
+      db().shoppingCraft=nil
+      db().shoppingCraftPlan=nil
+      craftMarket,craftView,craftEstimate=nil,nil,nil
     end
   end
   return true
@@ -153,7 +161,7 @@ local function checkWritEligibility(ids)
 end
 
 -- Replace atomically; an invalid or empty request must not erase a valid list.
-function AH.ReplaceShopping(items, writIDs)
+function AH.ReplaceShopping(items, writIDs, crafting)
   if type(items)~="table" then return false,"Invalid shopping items" end
   local replacement={}
   for id,entry in pairs(items) do
@@ -179,54 +187,139 @@ function AH.ReplaceShopping(items, writIDs)
   market.shopping=replacement
   market.shoppingCratePlan=nil
   market.shoppingWritIDs=selection
+  market.shoppingCraftPlan=crafting and true or nil
+  market.shoppingCraft=nil
+  craftMarket,craftView,craftEstimate=nil,nil,nil
   return true
 end
 -- Confirmed purchases are credited immediately, even before the bag update.
 -- Once inventory reflects delivery, remove only the temporary stock credit.
 function AH.RecordShoppingPurchase(id,qty)
-  local item=db().shopping[id]
+  local market=db()
+  local owner=market.shoppingCraft and MFO_WritTracking.CharacterKey()
+  local saved=owner and market.shoppingCraft[owner]
+  local item=market.shopping[id] or (saved and saved.materials[id])
+  local crafting=saved and MFO_WritCrafting.Enabled() and craftMarket==market and craftView and craftOwner==owner
   qty=math.floor(tonumber(qty) or 0)
   if not item or not item.requiredQty or qty<1 then return false end
   item.purchasedQty=(item.purchasedQty or 0)+qty
   if ownedReader then
-    local observed=math.max(0,math.floor(tonumber(ownedReader(id)) or 0))
     if not item.pendingPurchaseQty or item.pendingPurchaseQty==0 then
-      item.purchaseBaseline=observed
+      item.purchaseBagsOnly=crafting and AH.ShoppingItemStock and true or nil
+      local observed=item.purchaseBagsOnly and AH.ShoppingItemStock(id,true) or ownedReader(id)
+      item.purchaseBaseline=math.max(0,math.floor(tonumber(observed) or 0))
     end
     item.pendingPurchaseQty=(item.pendingPurchaseQty or 0)+qty
   end
   return true
 end
+
+local function refreshCraftShopping(market, owned)
+  craftMarket,craftView,craftEstimate,craftOwner=market,nil,nil,nil
+  if (not market.shoppingWritIDs and not market.shoppingCraftPlan)
+    or not MFO_WritCrafting or not MFO_WritCrafting.Enabled() then return end
+  local recipes=MFO_WritCrafting.Recipes()
+  local owner=MFO_WritTracking.CharacterKey()
+  if not owner then return end
+  local saved=market.shoppingCraft and market.shoppingCraft[owner]
+  if not recipes and not saved then return end
+  market.shoppingCraft=market.shoppingCraft or {}
+  saved=saved or {materials={},bagBaseline={},outputs={}}
+  market.shoppingCraft[owner]=saved
+  craftOwner=owner
+  local demand, acquisitions, reserve={}, {}, {}
+  for id, entry in pairs(market.shopping) do
+    demand[id]=entry.requiredQty or entry.qty
+    reserve[id]=entry.legacyStockReserve or (not entry.requiredQty and owned(id)) or 0
+  end
+  for _, id in ipairs(market.shoppingWritIDs or {}) do acquisitions[id]=1 end
+  for _, entry in ipairs(market.shoppingCratePlan or {}) do
+    acquisitions[entry.crateID]=(acquisitions[entry.crateID] or 0)+entry.quantity
+  end
+  local function available(id)
+    local entry=market.shopping[id] or saved.materials[id] or {}
+    local bags,bank=0,0
+    if AH.ShoppingItemStock then bags,bank=AH.ShoppingItemStock(id,true) else bags=owned(id) end
+    local baseline=saved.bagBaseline[id]
+    if baseline==nil then
+      baseline=math.max(0,bags-((entry.purchasedQty or 0)-(entry.pendingPurchaseQty or 0)))
+    end
+    baseline=math.min(baseline,bags)
+    saved.bagBaseline[id]=baseline
+    local pending=entry.pendingPurchaseQty or 0
+    if MFO_DB.useOwned then
+      local physical=bags+bank-(reserve[id] or 0)
+      return math.max(0,physical+pending),math.max(0,physical)
+    end
+    local received=bags-baseline
+    if not saved.outputs[id] then received=math.min(received,(entry.purchasedQty or 0)-pending) end
+    return math.max(0,received)+pending,math.max(0,received)
+  end
+  local now=time()
+  craftEstimate=MFO_WritCalculations.estimate(demand,acquisitions,0,
+    function(id) return AH.PriceQuote(id,7*86400-1,now) end,available,recipes)
+  if craftEstimate.procurement then
+    for _, step in ipairs(craftEstimate.crafting.steps) do saved.outputs[step.id]=true end
+  end
+  craftView={}
+  for id, qty in pairs(craftEstimate.procurement or demand) do
+    local record=market.shopping[id] or saved.materials[id]
+    if not record then
+      record={}
+      saved.materials[id]=record
+    end
+    if not market.shopping[id] then
+      record.requiredQty=qty
+      record.name=getItemName(id) or record.name or ("Item #"..id)
+    end
+    local remaining=craftEstimate.shopping[id] or 0
+    local _,physical=available(id)
+    local entry={name=record.name,qty=remaining,requiredQty=qty,availableQty=math.min(qty-remaining,physical),
+      legacyStockReserve=reserve[id], pendingPurchaseQty=record.pendingPurchaseQty, purchasedQty=record.purchasedQty}
+    craftView[id]=entry
+  end
+end
 -- Recompute from original demand, never from an already reduced purchase qty.
 -- Old lists without requiredQty retain their current quantities as baseline.
 function AH.RecalculateShopping()
-  local shopping=db().shopping
+  local market=db()
   if not ownedReader then return false end
-  for id,item in pairs(shopping) do
-    -- Legacy lists may already contain net quantities; their original
-    -- requirements are unknown, so never subtract inventory again.
-    if item.requiredQty then
-      local required=math.max(0,math.floor(tonumber(item.requiredQty) or 0))
-      local useOwned=MFO_DB and MFO_DB.useOwned
-      local owned=math.max(0,math.floor(tonumber(ownedReader(id)) or 0))
-      local pending=item.pendingPurchaseQty or 0
-      if pending>0 then
-        local baseline=math.min(owned,item.purchaseBaseline or 0)
-        -- Lower the baseline when stock is used between partial deliveries.
-        local received=math.min(pending,owned-baseline)
-        pending=pending-received
-        item.pendingPurchaseQty=pending
-        item.purchaseBaseline=pending>0 and owned or nil
-      end
-      if useOwned then
-        item.qty=math.max(0,required-math.max(0,owned+pending-(item.legacyStockReserve or 0)))
-      else
-        -- Owned stock is intentionally ignored, but purchases made from
-        -- this list must still reduce the outstanding shopping quantity.
-        item.qty=math.max(0,required-(item.purchasedQty or 0))
+  local function owned(id)
+    return math.max(0,math.floor(tonumber(ownedReader(id)) or 0))
+  end
+  local function recalculate(shopping)
+    for id,item in pairs(shopping) do
+      -- Legacy lists may already contain net quantities; their original
+      -- requirements are unknown, so never subtract inventory again.
+      if item.requiredQty then
+        local required=math.max(0,math.floor(tonumber(item.requiredQty) or 0))
+        local useOwned=MFO_DB and MFO_DB.useOwned
+        local physical=owned(id)
+        local pending=item.pendingPurchaseQty or 0
+        if pending>0 then
+          local observed=item.purchaseBagsOnly and AH.ShoppingItemStock and AH.ShoppingItemStock(id,true) or physical
+          local baseline=math.min(observed,item.purchaseBaseline or 0)
+          -- Lower the baseline when stock is used between partial deliveries.
+          local received=math.min(pending,observed-baseline)
+          pending=pending-received
+          item.pendingPurchaseQty=pending
+          item.purchaseBaseline=pending>0 and observed or nil
+          if pending==0 then item.purchaseBagsOnly=nil end
+        end
+        if useOwned then
+          item.qty=math.max(0,required-math.max(0,physical+pending-(item.legacyStockReserve or 0)))
+        else
+          -- Owned stock is intentionally ignored, but purchases made from
+          -- this list must still reduce the outstanding shopping quantity.
+          item.qty=math.max(0,required-(item.purchasedQty or 0))
+        end
       end
     end
   end
+  recalculate(market.shopping)
+  local saved=market.shoppingCraft and market.shoppingCraft[MFO_WritTracking.CharacterKey()]
+  if saved then recalculate(saved.materials) end
+  refreshCraftShopping(market,owned)
   return true
 end
 function AH.AddShoppingWrits(ids, itemName)
@@ -265,7 +358,12 @@ function AH.AddShoppingWrits(ids, itemName)
       end
       entry.qty=entry.qty+qty
     else
-      market.shopping[id]={name=itemName(id) or ("Item #"..id),qty=qty,requiredQty=qty}
+      local saved=market.shoppingCraft and market.shoppingCraft[MFO_WritTracking.CharacterKey()]
+      local material=saved and saved.materials[id]
+      if material then saved.materials[id]=nil end
+      entry=material or {name=itemName(id) or ("Item #"..id)}
+      entry.qty,entry.requiredQty=qty,qty
+      market.shopping[id]=entry
     end
   end
   market.shoppingWritIDs=selection
@@ -348,47 +446,83 @@ function AH.ShoppingCratePlan()
   return db().shoppingCratePlan
 end
 function AH.Shopping()
-  return db().shopping
+  local market=db()
+  return MFO_WritCrafting and MFO_WritCrafting.Enabled() and craftMarket==market and craftView
+    and craftOwner==MFO_WritTracking.CharacterKey() and craftView or market.shopping
+end
+function AH.ShoppingCraftEstimate()
+  if MFO_WritCrafting and MFO_WritCrafting.Enabled() and craftMarket==db()
+    and craftOwner==MFO_WritTracking.CharacterKey() then return craftEstimate end
 end
 function AH.RemoveShoppingItem(id)
-  if type(id)~="number" or not db().shopping[id] then return false end
+  if type(id)~="number" or not AH.Shopping()[id] then return false end
   local market=db()
-  market.shopping[id]=nil
-  for _,entry in ipairs(market.shoppingCratePlan or {}) do
-    if entry.crateID==id or entry.materialID==id then market.shoppingCratePlan=nil;break end
+  local ingredients={}
+  local estimate=AH.ShoppingCraftEstimate()
+  local optimised=estimate and estimate.procurement
+  if optimised then
+    for _, step in ipairs(estimate.crafting.steps) do ingredients[step.id]=step.recipe.reagents end
   end
+  local function requires(itemID)
+    if itemID==id then return true end
+    for reagent in pairs(ingredients[itemID] or {}) do
+      if requires(reagent) then return true end
+    end
+    return false
+  end
+  local function subtract(itemID,qty)
+    local entry=market.shopping[itemID]
+    if entry and entry.requiredQty then
+      entry.requiredQty=entry.requiredQty-qty
+      entry.qty=math.max(0,entry.qty-qty)
+      if entry.legacyNetQty then
+        entry.legacyStockReserve=math.max(0,entry.legacyStockBaseline-(entry.requiredQty-entry.legacyNetQty))
+      end
+      if entry.requiredQty<=0 then market.shopping[itemID]=nil end
+    end
+  end
+  market.shopping[id]=nil
+  local crates={}
+  for _,entry in ipairs(market.shoppingCratePlan or {}) do
+    if requires(entry.crateID) or requires(entry.materialID) then
+      if optimised then
+        subtract(entry.crateID,entry.quantity)
+        subtract(entry.materialID,entry.quantity*entry.materialQty)
+      else
+        crates={}
+        break
+      end
+    else
+      crates[#crates+1]=entry
+    end
+  end
+  market.shoppingCratePlan=#crates>0 and crates or nil
+  if not market.shoppingCratePlan then market.shoppingCraftPlan=nil end
   if market.shoppingWritIDs then
     local _,_,_,writs=MFO_WritCalculations.selectionRequirements(market.shoppingWritIDs,writFaction())
     local remaining,removed={},{}
     for _,writ in ipairs(writs or {}) do
-      local affected=writ.id==id
+      local affected=requires(writ.id)
       for _,item in ipairs(writ.items) do
-        if item.id==id then affected=true;break end
+        if requires(item.id) then affected=true;break end
       end
       local list=affected and removed or remaining
       list[#list+1]=writ.id
     end
     local requirements=MFO_WritCalculations.selectionRequirements(removed,writFaction())
-    for itemID,qty in pairs(requirements or {}) do
-      local entry=market.shopping[itemID]
-      if entry and entry.requiredQty then
-        entry.requiredQty=entry.requiredQty-qty
-        entry.qty=math.max(0,entry.qty-qty)
-        if entry.legacyNetQty then
-          entry.legacyStockReserve=math.max(0,entry.legacyStockBaseline-(entry.requiredQty-entry.legacyNetQty))
-        end
-        if entry.requiredQty<=0 then market.shopping[itemID]=nil end
-      end
-    end
+    for itemID,qty in pairs(requirements or {}) do subtract(itemID,qty) end
     market.shoppingWritIDs=#remaining>0 and remaining or nil
-    AH.RecalculateShopping()
   end
+  AH.RecalculateShopping()
   return true
 end
 function AH.ClearShopping()
   db().shopping={}
   db().shoppingCratePlan=nil
   db().shoppingWritIDs=nil
+  db().shoppingCraft=nil
+  db().shoppingCraftPlan=nil
+  craftMarket,craftView,craftEstimate=nil,nil,nil
 end
 function AH.Progress()
   return math.floor(math.min(100,(position-1)/math.max(1,scanTotal)*100)),busy,priced,scanTotal,completed
@@ -436,7 +570,7 @@ local function nextQuery()
   end
   local entry=queue[position]
   if not entry.name then
-    entry.name=GetItemInfo and GetItemInfo(entry.id)
+    entry.name=getItemName(entry.id)
     if not entry.name then waitForItem(entry);return end
   end
   if type(CanSendAuctionQuery)=="function" then
@@ -458,11 +592,15 @@ local function prepareScan(items,mode)
   end
   if mode~="Crates" then
     local function add(id)
-      if names[id]==nil then names[id]=(GetItemInfo and GetItemInfo(id)) or false end
+      if names[id]==nil then names[id]=getItemName(id) or false end
     end
+    local visited, crafting={}, MFO_WritCrafting and MFO_WritCrafting.Enabled()
     for _,writ in ipairs(MFO_WritCalculations.available(faction)) do
       add(writ.id)
-      for _,item in ipairs(writ.items) do add(item.id) end
+      for _,item in ipairs(writ.items) do
+        add(item.id)
+        if crafting then MFO_WritCrafting.AddScanMaterials(item.id,add,visited) end
+      end
     end
   end
   queue={}
@@ -496,7 +634,7 @@ local function modernNext()
     activeItemKey=key
   end
   if C_AuctionHouse.GetItemKeyInfo and not C_AuctionHouse.GetItemKeyInfo(key) then
-    if type(GetItemInfo)=="function" then GetItemInfo(entry.id) end
+    getItemName(entry.id)
     if not waitForItem(entry) then activeItemKey=nil end
     return
   end
@@ -558,7 +696,7 @@ modernEvents:SetScript("OnEvent",function(_,event,arg)
     scanMarket.prices[entry.id]={price=price,updated=time()}
     priced=priced+1
   else
-    if not entry.name and GetItemInfo then entry.name=GetItemInfo(entry.id) end
+    if not entry.name then entry.name=getItemName(entry.id) end
     recordMissing(entry)
   end
   attempts=0

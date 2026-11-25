@@ -83,11 +83,18 @@ end
 
 Writ.costRequirements = cost
 
-function Writ.calculate(writ, getPrice, getOwned)
+function Writ.estimate(requirements, acquisitions, reputation, getPrice, getOwned, recipes, totalOnly)
+  if recipes then
+    return MFO_WritCrafting.Solve(requirements, acquisitions, reputation, getPrice, getOwned, recipes, totalOnly)
+  end
+  return cost(requirements, acquisitions, reputation, getPrice, getOwned)
+end
+
+function Writ.calculate(writ, getPrice, getOwned, recipes)
   local requirements = {}
   local valid, reason = addRequirements(writ, requirements)
   if not valid then return nil, reason end
-  return cost(requirements, {[writ.id] = 1}, writ.reputation, getPrice, getOwned)
+  return Writ.estimate(requirements, {[writ.id] = 1}, writ.reputation, getPrice, getOwned, recipes)
 end
 
 local function eligible(writ, faction)
@@ -135,8 +142,8 @@ function Writ.selectionRequirements(writIDs, faction)
   return requirements, acquisitions, reputation, selected
 end
 
-function Writ.calculateSelection(writIDs, faction, getPrice, getOwned)
+function Writ.calculateSelection(writIDs, faction, getPrice, getOwned, recipes)
   local requirements, acquisitions, reputation = Writ.selectionRequirements(writIDs, faction)
   if not requirements then return nil, acquisitions, reputation end
-  return cost(requirements, acquisitions, reputation, getPrice, getOwned)
+  return Writ.estimate(requirements, acquisitions, reputation, getPrice, getOwned, recipes)
 end

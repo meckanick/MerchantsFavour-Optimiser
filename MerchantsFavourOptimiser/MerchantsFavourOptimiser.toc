@@ -8,6 +8,8 @@ Data.lua
 Calculations.lua
 WritData.lua
 WritCalculations.lua
+WritRecipes.lua
+WritCrafting.lua
 WritTracking.lua
 WritLocations.lua
 WritDelivery.lua

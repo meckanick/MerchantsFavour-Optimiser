@@ -94,3 +94,30 @@ Only factual identifiers, names, reactions and coordinates are bundled.
   coordinates and seven have unresolved or hostile recipient reactions. The
   20 Writs previously excluded on faction evidence remain outside the verified
   quest database.
+
+## Crafting recipes
+
+The [pinned WoW Forever profession extract](https://raw.githubusercontent.com/peligwen/peligaming/2dbb0010e54e1c4436a4691d61315b4ee3faafdb/public/tools/wow-forever/data/professions/professions.json)
+contains facts derived from build `1.60.1.70888` (`wowf`). Its
+[extraction script](https://github.com/peligwen/peligaming/blob/2dbb0010e54e1c4436a4691d61315b4ee3faafdb/scripts/fetch-wow-forever-professions.mjs)
+reads the profession, output, reagent, focus, tool and cooldown tables. MFO
+uses 180 item recipes reachable from the verified Writ objectives, including
+129 direct outputs. Gordok Ogre Suit has multiple crafting spells in the
+extract and remains buy-only. The generator also excludes partial records and
+long-cooldown recipes with unaudited availability. The
+[Arcanite transmute](https://wow-forever.gg/db/spells/17187-transmute-arcanite/)
+can be planned once per shopping estimate when the spell is ready. Borrowed
+and estimated Classic trainer thresholds are omitted.
+
+MFO cross-checks each candidate with Forever's
+[client API export](https://raw.githubusercontent.com/Atraeau/WoW-Addons/main/types/WowForeverAPI.lua)
+for the current character's learned recipe, profession rank, schematic,
+requirements and spell cooldown. Exact output and reagent counts must agree.
+Unknown or unsupported recipe data leaves the finished purchase available.
+Only a verified workstation can be planned as a future visit. Unmet tool and
+other restrictions block crafting estimates.
+
+To verify the generated Lua, download the pinned JSON above and run
+`python tools/generate_writ_recipes.py professions.json --check`. The generator
+checks the snapshot's SHA-256 and uses only recipe facts reachable from the
+checked-in Writ objectives.

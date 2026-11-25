@@ -61,3 +61,36 @@ owned selection requires zero expenditure.
 The calculator accepts the same item-count callback pattern as the crate
 calculator, including counts from `MFO_InventoryProvider.TotalCount`. The Writ
 calculator and database still need live-client validation.
+
+## Delivery locations
+
+The 2026-11-25 [delivery audit](research/writ-delivery-audit.tsv) joins the 130
+verified quest IDs above to Forever quest and recipient records. It identifies
+the source pages per quest and the corroborating publications for each accepted
+location. The runtime includes 97 Writs at 73 destinations across 28 zone maps.
+Only factual identifiers, names, reactions and coordinates are bundled.
+
+- The [Out of Games Forever database](https://outof.games/realms/forever/quest/94214-craftsmans-writ-shadow-protection-potion/)
+  gives the endpoint type and ID, zone and map coordinates. The linked
+  [recipient page](https://outof.games/realms/forever/npc/3134-kzixx/) gives the
+  spawn and NPC faction reaction. The [AzerDex zone index](https://azerdex.com/zones)
+  supplies the Forever `uiMapID` for each zone.
+- An included endpoint also agrees with the same quest's hand-in position
+  on [BindOnForever](https://bindonforever.com/quest/94214) or the pinned
+  CraftmansHelper [quest-to-recipient](https://github.com/emsw0rth/craftmanshelper/blob/b3379665bae02912bafdbfa064e4224c7777679a/CraftmansHelper/Data/Writs.lua)
+  and [recipient-to-map](https://github.com/emsw0rth/craftmanshelper/blob/b3379665bae02912bafdbfa064e4224c7777679a/CraftmansHelper/Data/TurnIns.lua)
+  references. Replace the numeric quest ID in the BindOnForever URL to reproduce
+  its check for a row. The publications can share upstream data. The check
+  allows up to 0.25 percentage points per coordinate for reported position
+  differences. Map IDs and known recipient IDs must agree.
+- Quest `94223` ends at object `642320`, Battered Trunk, on Duskwood map
+  `1431` at `26.3, 36.2`. Both factions are listed for the quest. The object
+  ID and coordinates agree with the linked object and quest records.
+  [Object record](https://outof.games/realms/forever/object/642320-battered-trunk/) ·
+  [Quest map](https://bindonforever.com/quest/94223) ·
+  [In-game logger](https://www.warcraftforever.wiki/wiki/Battered_Trunk_%28Object%29)
+- Of the 33 omissions, 23 lack an identified endpoint in the checked quest
+  records, one lacks coordinates on its quest record, two have conflicting
+  coordinates and seven have unresolved or hostile recipient reactions. The
+  20 Writs previously excluded on faction evidence remain outside the verified
+  quest database.

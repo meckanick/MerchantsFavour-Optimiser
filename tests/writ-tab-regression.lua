@@ -1,5 +1,6 @@
 dofile("MerchantsFavourOptimiser/WritCalculations.lua")
 dofile("MerchantsFavourOptimiser/WritTracking.lua")
+dofile("MerchantsFavourOptimiser/WritDelivery.lua")
 dofile("MerchantsFavourOptimiser/WritTab.lua")
 
 local function writ(id, tier, reputation, faction, professions)
@@ -205,4 +206,17 @@ assert(writRow(1).cells[10].text=="Completed Today" and find(panel,"Button","Add
 C_QuestLog=nil
 panel:Refresh()
 assert(writRow(1).cells[10].text=="Unknown")
-print("PASS: Writ tab filters, rankings, costs, tooltips, cache and refresh")
+local point={id=3134,kind="npc",name="Kzixx",mapID=1431,zone="Duskwood",x=.818,y=.198}
+local stop={point=point,order=1,writs={1}}
+MFO_WritDelivery.Route=function() return {stop},{2} end
+click(panel,"Delivery Route")
+assert(rows[1].stop==stop and rows[1].cells[1].text:find("Duskwood (81.8, 19.8)",1,true))
+assert(rows[2].cells[1].text=="No verified delivery location" and rows[3].itemID==2)
+assert(not search.shown and status.text:find("Approximate order",1,true))
+rows[1]:OnClick()
+assert(status.text:find("World map unavailable",1,true))
+click(panel,"Map Markers: On")
+assert(MFO_DB.writDeliveryMarkers==false and MFO_DB.useOwned)
+click(panel,"Writ Prices")
+assert(search.shown and rows[1].isWrit and not rows[1].stop)
+print("PASS: Writ tab filters, rankings, costs, tooltips, cache, refresh and delivery controls")

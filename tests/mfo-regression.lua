@@ -627,7 +627,7 @@ check(coreSource:find("bagCounts={}",1,true)==coreSource:find("local bagCounts={
 check(coreSource:find("local function refresh(inventoryFresh)",1,true)~=nil and
       coreSource:find("if not inventoryFresh then learnBagItems();scanBags() end",1,true)~=nil,
   "rankings refresh must reuse fresh inventory when supplied")
-check(coreSource:find("learnBagItems();scanBags()\n   local bank=BankFrame",1,true)~=nil and
+check(coreSource:find("learnBagItems();scanBags()\n   delivery.Refresh(bagCounts)",1,true)~=nil and
       coreSource:find("if frame:IsShown() then refresh(true) end",1,true)~=nil,
   "bag update must scan inventory once and refresh using that snapshot")
 

@@ -57,6 +57,13 @@ Prices are estimates based on saved scans and available listings. Auction House 
 - Return to the planner and enter **Writs Left Today**. Enter an optional gold budget, then click **Calculate**. The budget covers purchases before any crate turn-in rewards. The result shows the best plan found within the budget, including partial progress when the target cannot be reached.
 - **Shop Planned Items** replaces the current MFO Shop list. Use Owned allocates bag and cached bank stock once across all turn-ins. Combined, Writs and budgeted Crates exclude missing or stale prices for anything the plan needs to buy. The owned-stock search is bounded and may show an estimate.
 
+### Delivering Writs
+
+- Open **Writs → Delivery Route**. Ready Writs share a stop when they have the same recipient. Hover a stop to see its Writs. Click it to open its zone map.
+- The numbered order starts in your current zone and uses approximate straight-line distance within each zone. It includes no verified roads, flight connections or other travel paths.
+- **Map Markers** toggles the numbered zone-map markers and nearby minimap pins. With a compatible TomTom installed and markers enabled, Shift-click a stop to set its arrow.
+- Quest and bag changes update the route automatically. Writs without a verified delivery location appear below the route without a pin.
+
 ### Shopping progress versus crate readiness
 
 **Shopping progress** tracks the quantity of items available, recorded as purchased, or still outstanding. It is not a completed-crate counter. A purchase can count towards shopping progress before it reaches your bags.

@@ -90,12 +90,36 @@ in bags. Turn it in, reload, switch characters, and check again after the server
 reset. Check that the planner and new Shop lists exclude completed and unknown
 Writs throughout.
 
+## Writ delivery navigation
+
+The [delivery audit](research/writ-delivery-audit.tsv) records the 97 mapped Writs
+and omissions. [Writ sources](WRIT_SOURCES.md#delivery-locations) documents how
+the quest, recipient, spawn, faction and map evidence was checked.
+
+The [Forever Map API export](https://github.com/Ketho/wow-ui-source-forever/blob/bebcb6bf309cf41b41bd74f8ca651e6a105b2676/Interface/AddOns/Blizzard_APIDocumentationGenerated/MapDocumentation.lua)
+defines the player position and world-coordinate conversions. The
+[MapCanvas source](https://github.com/Ketho/wow-ui-source-forever/blob/bebcb6bf309cf41b41bd74f8ca651e6a105b2676/Interface/AddOns/Blizzard_MapCanvas/Blizzard_MapCanvas.lua)
+defines the normalized canvas placement, map change and canvas resize hooks.
+The [Minimap API export](https://github.com/Ketho/wow-ui-source-forever/blob/bebcb6bf309cf41b41bd74f8ca651e6a105b2676/Interface/AddOns/Blizzard_APIDocumentationGenerated/MinimapDocumentation.lua)
+defines the live view radius in yards. The [TomTom v4.3.12 release](https://www.curseforge.com/wow/addons/tomtom/files/9082779)
+was inspected for Interface `16001`, normalized coordinates, waypoint lookup,
+creation and cleanup.
+
+Check in the Forever client with an objectives-complete Kzixx Writ and the
+Silver Skeleton Key Writ for Battered Trunk. Open Duskwood and another zone,
+resize and zoom the map, approach a stop with rotating minimap on and off, and
+toggle Map Markers. Move a required item to the bank and turn in one of multiple
+Writs at the same stop. Verify that the route and pins update even while MFO is
+closed. Repeat a turn-in with a Shift-click TomTom arrow and check that MFO
+clears its own arrow when the stop disappears or markers are disabled.
+
 ## Source map
 
 - `Data.lua` — crate definitions and material requirements
 - `Calculations.lua` — cost and Favour calculations
 - `CrateTracking.lua` — readiness and shared allocation
 - `WritTracking.lua` — character-specific quest status and server reset tracking
+- `WritLocations.lua` and `WritDelivery.lua` — sourced destinations, delivery order and map pins
 - `InventoryProvider.lua` — optional Syndicator bank counts and native fallback
 - `StandaloneAH.lua` — Auction House and shopping data
 - `Core.lua` — main UI, planner and inventory

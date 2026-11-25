@@ -3,12 +3,14 @@
 ## Notes: WoW Forever standalone AH scanning and crate gold-per-favour ranking
 ## Version: 0.1.179
 ## SavedVariables: MFO_DB
-## OptionalDeps: Syndicator
+## OptionalDeps: Syndicator, TomTom
 Data.lua
 Calculations.lua
 WritData.lua
 WritCalculations.lua
 WritTracking.lua
+WritLocations.lua
+WritDelivery.lua
 ReputationPlanner.lua
 CrateTracking.lua
 InventoryProvider.lua

@@ -22,6 +22,15 @@ local function addRequirements(writ, requirements)
   return true
 end
 
+function Writ.BagRequirementsMet(writ, getBagCount)
+  local requirements = {}
+  if not addRequirements(writ, requirements) then return end
+  for id, qty in pairs(requirements) do
+    if getBagCount(id) < qty then return end
+  end
+  return requirements
+end
+
 -- getPrice returns a unit price and optionally a true stale flag.
 -- Unpriced owned stock still reduces the shopping quantity.
 local function cost(requirements, acquisitions, reputation, getPrice, getOwned)

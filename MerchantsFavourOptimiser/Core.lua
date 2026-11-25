@@ -1415,6 +1415,7 @@ SlashCmdList.MFO=function(msg)
   else if frame:IsShown() then frame:Hide() else refresh();frame:Show() end end
 end
 local events=CreateFrame("Frame")
+local delivery=MFO_WritDelivery
 local function registerSupportedEvent(eventName)
   -- Some retail events do not exist in WoW Forever. Never let one optional
   -- registration failure prevent the addon from loading.
@@ -1428,6 +1429,9 @@ registerSupportedEvent("BAG_UPDATE_DELAYED")
 registerSupportedEvent("BANKFRAME_OPENED")
 registerSupportedEvent("PLAYERBANKSLOTS_CHANGED")
 registerSupportedEvent("GET_ITEM_INFO_RECEIVED")
+registerSupportedEvent("ZONE_CHANGED")
+registerSupportedEvent("ZONE_CHANGED_INDOORS")
+registerSupportedEvent("ZONE_CHANGED_NEW_AREA")
 local questEvents={
   QUEST_DETAIL=true, QUEST_ACCEPTED=true, QUEST_REMOVED=true, QUEST_TURNED_IN=true,
   QUEST_LOG_UPDATE=true, QUEST_DATA_LOAD_RESULT=true, QUEST_LOG_CRITERIA_UPDATE=true,
@@ -1435,6 +1439,7 @@ local questEvents={
 }
 for eventName in pairs(questEvents) do registerSupportedEvent(eventName) end
 local function refreshQuestDisplays()
+  delivery.Refresh(bagCounts)
   if frame:IsVisible() then
     if writPanel:IsShown() then
       writPanel:Refresh()
@@ -1458,8 +1463,17 @@ events:SetScript("OnUpdate",function(_,elapsed)
 end)
 events:SetScript("OnEvent",function(_,event,name,success)
  if questEvents[event] then
+  if event=="PLAYER_ENTERING_WORLD" and MFO_DB then scanBags() end
   if MFO_DB and (event=="QUEST_LOG_UPDATE" or event=="PLAYER_ENTERING_WORLD"
+    or event=="QUEST_LOG_CRITERIA_UPDATE"
     or MFO_WritTracking.OnEvent(event,name)) then refreshQuestDisplays() end
+  return
+ end
+ if event=="ZONE_CHANGED" or event=="ZONE_CHANGED_INDOORS" or event=="ZONE_CHANGED_NEW_AREA" then
+  if MFO_DB then
+   delivery.Refresh(bagCounts)
+   writPanel:RefreshDelivery()
+  end
   return
  end
  if event=="GET_ITEM_INFO_RECEIVED" then writPanel:ItemInfoReceived(name,success);return end
@@ -1474,12 +1488,14 @@ events:SetScript("OnEvent",function(_,event,name,success)
  if event=="BAG_UPDATE_DELAYED" then
   if MFO_DB then
    learnBagItems();scanBags()
+   delivery.Refresh(bagCounts)
    local bank=BankFrame or _G.BankFrame
    if bank and bank.IsShown and bank:IsShown() then scanBank() end
    if frame:IsShown() then refresh(true) end
   end
   return
  end
+ if event=="ADDON_LOADED" and name=="Blizzard_UIPanels_Game" then delivery.RefreshMarkers();return end
  if name~=ADDON then return end
  MFO_DB=MFO_DB or {};MFO_DB.ids=MFO_DB.ids or {}
  ownedCheck:SetChecked(MFO_DB.useOwned or false)

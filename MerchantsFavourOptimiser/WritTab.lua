@@ -1,5 +1,6 @@
 -- Compare verified Writs and add a selection to MFO Shop.
 function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock, setUseOwned, status)
+  local delivery=MFO_WritDelivery
   local panel=CreateFrame("Frame",nil,parent)
   panel:SetPoint("TOPLEFT",parent,"TOPLEFT",12,-76)
   panel:SetPoint("BOTTOMRIGHT",parent,"BOTTOMRIGHT",-12,38)
@@ -54,6 +55,7 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock
   local tierIndex, allFactions=1,false
   local expandedID
   local selectedWrits={}
+  local showRoute=false
   local rowPool, names, unresolved={},{},{}
 
   local nameReader=GetItemInfo or (C_Item and C_Item.GetItemInfo)
@@ -120,9 +122,29 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock
 
   local shopOne=button(panel,"Add Open Writ",112,22,0,-27)
   local shopMany=button(panel,"Add Selected (0)",124,22,118,-27)
+  local routeButton=button(panel,"Delivery Route",108,22,623,-27)
+  local markerButton=button(panel,"",112,22,737,-27)
+  markerButton:SetScript("OnClick",function()
+    MFO_DB.writDeliveryMarkers=not delivery.MarkersEnabled()
+    delivery.RefreshMarkers()
+    panel:Refresh()
+  end)
   local selectionHint=panel:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
   selectionHint:SetPoint("TOPLEFT",248,-32)
   selectionHint:SetText("Click to open a Writ  |  Shift-click to select multiple")
+  local catalogControls={header,shopOne,shopMany,selectionHint,searchLabel,search,tier,faction,stock}
+  for _,control in pairs(professionButtons) do catalogControls[#catalogControls+1]=control end
+  routeButton:SetScript("OnClick",function(self)
+    showRoute=not showRoute
+    self:SetText(showRoute and "Writ Prices" or "Delivery Route")
+    search:ClearFocus()
+    GameTooltip:Hide()
+    for _,control in ipairs(catalogControls) do
+      if showRoute then control:Hide() else control:Show() end
+    end
+    scroll:SetPoint("TOPLEFT",0,showRoute and -54 or -83)
+    applyFilter()
+  end)
   local function selectedIDs()
     local ids={}
     for id in pairs(selectedWrits) do ids[#ids+1]=id end
@@ -171,9 +193,30 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock
       cell:SetWordWrap(false)
       line.cells[i]=cell
     end
-    line:SetScript("OnEnter",itemTooltip)
+    line:SetScript("OnEnter",function(self)
+      if self.stop then
+        GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
+        GameTooltip:AddLine(delivery.Description(self.stop.point),1,.82,.2)
+        for _,id in ipairs(self.stop.writs) do GameTooltip:AddLine(itemName(id) or ("Item #"..id),1,1,1) end
+        GameTooltip:AddLine("Click to open zone map",1,.82,.2)
+        if delivery.HasTomTom() and delivery.MarkersEnabled() then
+          GameTooltip:AddLine("Shift-click to set TomTom arrow",1,.82,.2)
+        end
+        GameTooltip:Show()
+      elseif self.itemID then
+        itemTooltip(self)
+      end
+    end)
     line:SetScript("OnLeave",function() GameTooltip:Hide() end)
     line:SetScript("OnClick",function(self)
+      if self.stop then
+        if IsShiftKeyDown and IsShiftKeyDown() and delivery.HasTomTom() and delivery.MarkersEnabled() then
+          if not delivery.SendToTomTom(self.stop.point) then status:SetText("TomTom waypoint unavailable.") end
+        elseif not delivery.OpenMap(self.stop.point) then
+          status:SetText("World map unavailable. Use the listed zone and coordinates.")
+        end
+        return
+      end
       if not self.isWrit then return end
       if IsShiftKeyDown and IsShiftKeyDown() then
         if self.eligible then selectedWrits[self.itemID]=not selectedWrits[self.itemID] or nil end
@@ -186,6 +229,54 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock
     return line
   end
 
+  local function renderLine(index,id,description,isWrit,values,stop)
+    local line=getLine(index)
+    line.itemID,line.description,line.isWrit,line.stop=id,description,isWrit,stop
+    line:ClearAllPoints()
+    line:SetPoint("TOPLEFT",0,-(index-1)*22)
+    line.shade:SetColorTexture(.40,.33,.27,isWrit and (index%2==0 and .22 or .13) or .45)
+    line.cells[1]:SetWidth(showRoute and 839 or columns[1][3]-9)
+    for i,cell in ipairs(line.cells) do cell:SetText(values[i] or "") end
+    line.cells[9]:SetTextColor(isWrit and 1 or .95,isWrit and .76 or .95,.65)
+    line:Show()
+  end
+
+  local function finishLines(index)
+    for i=index+1,#rowPool do rowPool[i]:Hide() end
+    content:SetHeight(math.max(1,index*22))
+    scroll:UpdateScrollChildRect()
+    local maximum=scroll:GetVerticalScrollRange()
+    if scroll:GetVerticalScroll()>maximum then scroll:SetVerticalScroll(maximum) end
+  end
+
+  local function renderRoute()
+    local route,missing=delivery.Route()
+    local index=0
+    for _,stop in ipairs(route) do
+      index=index+1
+      local writCount=#stop.writs
+      renderLine(index,nil,nil,false,{("%d. %s | %d ready"):format(stop.order,
+        delivery.Description(stop.point),writCount)},stop)
+    end
+    if #missing>0 then
+      index=index+1
+      renderLine(index,nil,nil,false,{"No verified delivery location"})
+      for _,id in ipairs(missing) do
+        index=index+1
+        renderLine(index,id,nil,false,{"    "..(itemName(id) or ("Item #"..id))})
+      end
+    elseif #route==0 then
+      index=1
+      renderLine(index,nil,nil,false,{"No Writs ready for delivery"})
+    end
+    finishLines(index)
+    status:SetText("Approximate order | Current zone first | No verified travel paths")
+  end
+
+  function panel:RefreshDelivery()
+    if showRoute and self:IsVisible() then renderRoute() end
+  end
+
   local function matches(id, query)
     local name=itemName(id)
     return (name and name:lower():find(query,1,true)) or tostring(id):find(query,1,true)
@@ -193,6 +284,8 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock
 
   function panel:Refresh()
     if not self:IsVisible() then return end
+    markerButton:SetText(delivery.MarkersEnabled() and "Map Markers: On" or "Map Markers: Off")
+    if showRoute then renderRoute();return end
     local now=time()
     local useOwned=MFO_DB and MFO_DB.useOwned
     stock:SetText(useOwned and "Use Owned: On" or "Use Owned: Off")
@@ -258,14 +351,8 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock
             result.owned=result.owned+math.min(count(item.id),item.qty)
           end
           local state=states[writ.id]
-          local bagsReady=false
-          if state=="objectives_complete" then
-            local demand=MFO_WritCalculations.selectionRequirements({writ.id},playerFaction)
-            bagsReady=demand~=nil
-            for id,qty in pairs(demand or {}) do
-              if counts[id][1]<qty then bagsReady=false;break end
-            end
-          end
+          local bagsReady=state=="objectives_complete"
+            and MFO_WritCalculations.BagRequirementsMet(writ,function(id) return counts[id][1] end)
           result.questLabel=factionEligible[writ.id] and MFO_WritTracking.Label(state,bagsReady) or "Faction Restricted"
           results[#results+1]=result
         end
@@ -288,14 +375,7 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock
     local index=0
     local function addLine(id,description,isWrit,values)
       index=index+1
-      local line=getLine(index)
-      line.itemID,line.description,line.isWrit=id,description,isWrit
-      line:ClearAllPoints()
-      line:SetPoint("TOPLEFT",0,-(index-1)*22)
-      line.shade:SetColorTexture(.40,.33,.27,isWrit and (index%2==0 and .22 or .13) or .45)
-      for i,cell in ipairs(line.cells) do cell:SetText(values[i] or "") end
-      line.cells[9]:SetTextColor(isWrit and 1 or .95,isWrit and .76 or .95,.65)
-      line:Show()
+      renderLine(index,id,description,isWrit,values)
     end
     local function addDetail(id,qty)
       count(id)
@@ -334,11 +414,7 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock
         for _,item in ipairs(writ.items) do addDetail(item.id,item.qty) end
       end
     end
-    for i=index+1,#rowPool do rowPool[i]:Hide() end
-    content:SetHeight(math.max(1,index*22))
-    scroll:UpdateScrollChildRect()
-    local maximum=scroll:GetVerticalScrollRange()
-    if scroll:GetVerticalScroll()>maximum then scroll:SetVerticalScroll(maximum) end
+    finishLines(index)
     status:SetText(MFO_AH.Market().." | "..valid.."/"..#results.." Writs priced"..
       (#results==0 and " | No matching Writs" or " | Prices expire after 7 days"))
   end

@@ -8,6 +8,7 @@ Data.lua
 Calculations.lua
 WritData.lua
 WritCalculations.lua
+ReputationPlanner.lua
 CrateTracking.lua
 InventoryProvider.lua
 StandaloneAH.lua

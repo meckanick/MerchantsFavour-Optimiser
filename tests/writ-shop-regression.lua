@@ -75,4 +75,18 @@ assert(AH.RemoveShoppingItem(10))
 assert(AH.Shopping()[100].qty==4,"removing a Writ preserves legacy net demand")
 assert(AH.ReplaceShopping({[100]={qty=1,requiredQty=1}}))
 assert(not next(readiness()),"crate replacement clears Writ metadata")
+-- A complete planner transfer replaces quantities and retains both kinds of readiness.
+local replacement={[1]={qty=0,requiredQty=1},[10]={qty=0,requiredQty=1},
+ [100]={qty=0,requiredQty=6}}
+assert(not AH.ReplaceShopping(replacement,{12}),"restricted plan cannot erase the previous list")
+assert(AH.Shopping()[100].requiredQty==1)
+assert(not AH.ReplaceShopping({[10]={qty=1}},{10}),"partial demand cannot erase the previous list")
+assert(AH.Shopping()[100].requiredQty==1)
+local selection={10}
+assert(AH.ReplaceShopping(replacement,selection))
+selection[1]=12
+assert(AH.SetShoppingCratePlan(crates))
+assert(AH.Shopping()[100].requiredQty==6 and AH.Shopping()[100].qty==0)
+assert(readiness()[10] and AH.ShoppingCratePlan()[1].materialQty==3)
+assert(AH.RemoveShoppingItem(10) and AH.Shopping()[100].requiredQty==3)
 print("PASS: mixed Writ shopping, aggregation, shared readiness, partial purchases and faction isolation")

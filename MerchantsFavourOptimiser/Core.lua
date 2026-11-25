@@ -716,16 +716,171 @@ local plannerShop=CreateFrame("Button",nil,planner)
 plannerShop:SetSize(165,24);plannerShop:SetPoint("BOTTOMRIGHT",-12,9)
 plannerShop:SetText("Shop Planned Items");SkinWoodButton(plannerShop)
 local plannerShopping=nil
-planFavour=function(inventoryFresh)
+local advancedPlanner={mode="Crates", availability={}}
+do
+  local mode=CreateFrame("Button",nil,frame)
+  mode:SetSize(126,22);mode:SetPoint("TOPLEFT",frame,"TOPLEFT",394,-44)
+  mode:SetText("Plan: Crates");SkinWoodButton(mode)
+  advancedPlanner.modeButton=mode
+  mode:SetScript("OnClick",function(self)
+    local current=advancedPlanner.mode
+    advancedPlanner.mode=current=="Crates" and "Writs" or current=="Writs" and "Combined" or "Crates"
+    self:SetText("Plan: "..advancedPlanner.mode)
+    planFavour()
+  end)
+
+  local function input(label, x, width, numeric, length)
+    local caption=planner:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+    caption:SetPoint("TOPLEFT",x,-7);caption:SetText(label)
+    local box=CreateFrame("EditBox",nil,planner,"InputBoxTemplate")
+    box:SetSize(width,21);box:SetPoint("LEFT",caption,"RIGHT",10,0)
+    box:SetAutoFocus(false);box:SetNumeric(numeric);box:SetMaxLetters(length)
+    box:SetScript("OnEscapePressed",function(self) self:ClearFocus() end)
+    return box,caption
+  end
+  local budget=input("Gold Budget (Optional)",235,68,false,14)
+  local daily,dailyLabel=input("Writs Left Today",450,37,true,3)
+  daily:SetText("0")
+  local calculate=CreateFrame("Button",nil,planner)
+  calculate:SetSize(92,22);calculate:SetPoint("TOPLEFT",605,0)
+  calculate:SetText("Calculate");SkinWoodButton(calculate)
+  advancedPlanner.budget=budget
+
+  local scroll=CreateFrame("ScrollFrame","MFOPlanScrollFrame",planner,"UIPanelScrollFrameTemplate")
+  scroll:SetPoint("TOPLEFT",12,-83);scroll:SetPoint("BOTTOMRIGHT",-34,62)
+  local content=CreateFrame("Frame",nil,scroll)
+  content:SetSize(810,1);scroll:SetScrollChild(content)
+  SkinWoodScroll(scroll,"MFOPlanScrollFrame")
+  scroll:Hide()
+  local lines={}
+  local function showDetails(details, names)
+    for i,entry in ipairs(details) do
+      local option=entry.option
+      local line=lines[i]
+      if not line then
+        line=content:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+        line:SetPoint("TOPLEFT",3,-(i-1)*19);line:SetWidth(800);line:SetJustifyH("LEFT")
+        lines[i]=line
+      end
+      line:SetText(entry.qty.."x "..names[option.id].." ("..option.favour.." Favour Each)"..
+        (option.writ and "" or (" — "..option.bundle.qty.."x "..option.bundle.name.." per Crate")))
+      line:Show()
+    end
+    for i=#details+1,#lines do lines[i]:Hide() end
+    content:SetHeight(math.max(1,#details*19))
+    scroll:UpdateScrollChildRect()
+    scroll:SetVerticalScroll(0)
+  end
+
+  function advancedPlanner.update(target, run)
+    local current=advancedPlanner.mode
+    local usesWrits=current~="Crates"
+    if usesWrits then daily:Show();dailyLabel:Show() else daily:Hide();dailyLabel:Hide() end
+    local raw=budget:GetText()
+    local advanced=usesWrits or raw~=""
+    if advanced then
+      calculate:Show();scroll:Show()
+    else
+      calculate:Hide();scroll:Hide()
+    end
+    plannerTitle:SetText(advanced and (current.." Favour Plan") or "Cheapest Crate Combination")
+    for _,line in ipairs(plannerRows) do
+      if advanced then line:Hide() else line:Show() end
+    end
+    if not advanced then return false end
+
+    local notice=usesWrits and
+      "Daily Status Is Unknown. Confirm Available Quests on the Writs Tab." or
+      "Budget Covers Purchases Before Turn-In Rewards."
+    plannerWarning:SetText(notice)
+    plannerSummary:SetText("")
+    if not run or not target then
+      showDetails({}, {})
+      plannerInfo:SetText("Enter a Favour Target and Click Calculate.")
+      return true
+    end
+    local copper=MFO_ReputationPlanner.goldBudget(raw)
+    if raw~="" and not copper then
+      showDetails({}, {})
+      plannerInfo:SetText("Enter a Gold Budget With Up to Four Decimal Places.")
+      return true
+    end
+    local crates={}
+    if current~="Writs" then
+      for _,crate in ipairs(rows) do
+        local crateID=crate.id or resolve(crate.name)
+        for _,bundle in ipairs(crate.bundles) do
+          crates[#crates+1]={id=crateID,materialID=resolve(bundle.name),bundle=bundle,
+            name=crate.name,favour=crate.favour,turnIn=crate.turnInCopper}
+        end
+      end
+    end
+    local now=time()
+    local function quote(id) return MFO_AH.PriceQuote(id,7*86400-1,now) end
+    local faction=UnitFactionGroup and UnitFactionGroup("player")
+    local result,reason=MFO_ReputationPlanner.plan(current,target,copper,tonumber(daily:GetText()),
+      faction,advancedPlanner.availability,crates,quote,ownedCount)
+    if not result then
+      showDetails({}, {})
+      plannerInfo:SetText(reason)
+      return true
+    end
+    local names={}
+    local itemName=GetItemInfo or (C_Item and C_Item.GetItemInfo)
+    for id in pairs(result.required) do names[id]=(itemName and itemName(id)) or ("Item #"..id) end
+    for _,entry in ipairs(result.details) do
+      local option=entry.option
+      if not option.writ then
+        names[option.id]=option.name
+        names[option.materialID]=option.bundle.name
+      end
+    end
+    showDetails(result.details,names)
+    plannerInfo:SetText("Gained: "..result.reputation.." / "..target.." | Remaining: "..result.remaining..
+      " | Overfill: "..result.overfill.." | Budget Left: "..(copper and money(result.budgetLeft) or "No Limit"))
+    plannerSummary:SetText("Acquisition: "..money(result.writCost).." | Required Items: "..money(result.itemCost)..
+      " | Total Spend: "..money(result.total).." | Crate Turn-In Rewards: "..money(result.turnIn))
+    if usesWrits then
+      notice=#result.writIDs.." Writs Planned | "..result.confirmed.." Confirmed | "..
+        result.unknown.." Unknown (Excluded)"
+    end
+    if result.pruned then notice=notice.." | Owned-Stock Optimisation Is an Estimate" end
+    if result.remaining>0 then notice=notice.." | Target Not Reached" end
+    plannerWarning:SetText(notice)
+    if #result.details>0 then
+      plannerShopping={items=result.shopping,details=result.details,required=result.required,
+        writIDs=result.writIDs,names=names}
+    end
+    return true
+  end
+
+  local function run()
+    budget:ClearFocus();daily:ClearFocus();targetInput:ClearFocus()
+    planFavour(false,true)
+  end
+  calculate:SetScript("OnClick",run)
+  for _,box in ipairs({daily,budget}) do
+    box:SetScript("OnTextChanged",function(_,userInput) if userInput then planFavour(true) end end)
+    box:SetScript("OnEnterPressed",run)
+  end
+end
+planFavour=function(inventoryFresh,runAdvanced)
   -- A previous shopping plan is invalid as soon as its target or prices change.
   plannerShopping=nil
   local raw=targetInput:GetText()
-  if raw=="" then
+  if raw=="" and advancedPlanner.mode=="Crates" then
     planner:Hide();subheader:Show();scrollFrame:Show()
     return
   end
   planner:Show();subheader:Hide();scrollFrame:Hide()
-  local target=tonumber(targetInput:GetText())
+  local target=tonumber(raw)
+  if advancedPlanner.mode~="Crates" or advancedPlanner.budget:GetText()~="" then
+    if MFO_Calculations.validTarget(target) then MFO_DB.plannerTarget=target end
+    if runAdvanced and not inventoryFresh then learnBagItems();scanBags() end
+    advancedPlanner.update(target,runAdvanced)
+    return
+  end
+  advancedPlanner.update(target,false)
   if not target or target<1 or target>1000 or target~=math.floor(target) then
     plannerInfo:SetText("Enter a Whole-Number Favour Target Between 1 and 1000.")
     plannerSummary:SetText("")
@@ -758,7 +913,7 @@ planFavour=function(inventoryFresh)
   local solution,err=MFO_Calculations.plan(target,options)
   if not solution then
     plannerInfo:SetText(err or "No Priced Combination Available.")
-    plannerSummary:SetText("")
+    plannerSummary:SetText("Gained: 0 / "..target.." | Remaining: "..target)
     for _,line in ipairs(plannerRows) do line:SetText("") end
     plannerShopping=nil
     return
@@ -810,9 +965,8 @@ planFavour=function(inventoryFresh)
     for _,line in ipairs(plannerRows) do line:SetText("") end
     return
   end
-  plannerInfo:SetText("Cheapest Priced Combination"..(MFO_DB.useOwned and " (Owned-Stock Estimate)" or "")..":")
-  plannerSummary:SetText("Target: "..target.." | Favour: "..solution.favour..
-    " | Net Cost: "..money(bestCost).." | "..#bestDetails.." Crate Types")
+  plannerInfo:SetText("Gained: "..solution.favour.." / "..target.." | Remaining: 0 | Overfill: "..
+    (solution.favour-target).." | Budget Left: No Limit | Net Cost: "..money(bestCost))
   for i,line in ipairs(plannerRows) do
     local entry=bestDetails[i]
     if entry then
@@ -823,30 +977,30 @@ planFavour=function(inventoryFresh)
       line:SetText("Additional Crate Types Not Shown")
     else line:SetText("") end
   end
-  local fullDemand={}
+  local fullDemand,acquisitions,names={},{},{}
   for _,entry in ipairs(bestDetails) do
     local o=entry.option
+    acquisitions[o.id]=(acquisitions[o.id] or 0)+entry.qty
+    names[o.id],names[o.materialID]=o.name,o.bundle.name
     fullDemand[o.id]=(fullDemand[o.id] or 0)+entry.qty
     fullDemand[o.materialID]=(fullDemand[o.materialID] or 0)+entry.qty*o.bundle.qty
   end
-  plannerShopping={items=bestShopping,details=bestDetails,required=fullDemand}
+  local costs=MFO_WritCalculations.costRequirements(fullDemand,acquisitions,solution.favour,price,ownedCount)
+  plannerSummary:SetText("Acquisition: "..money(costs.writCost).." | Required Items: "..money(costs.itemCost)..
+    " | Total Spend: "..money(costs.total).." | Crate Turn-In Rewards: "..money(costs.total and costs.total-bestCost))
+  plannerShopping={items=bestShopping,details=bestDetails,required=fullDemand,names=names}
   plannerWarning:SetText(MFO_DB.useOwned and
     "Owned Items Counted Once; Mixed-Stock Optimisation Is an Estimate. Coin Rewards Are Beta-Reported." or
     "Minimum Net Cost at Current Prices; Turn-In Coin Rewards Are Beta-Reported.")
 end
 targetInput:SetScript("OnTextChanged",function(self,userInput)if userInput then planFavour() end end)
-targetInput:SetScript("OnEnterPressed",function(self)self:ClearFocus();planFavour()end)
+targetInput:SetScript("OnEnterPressed",function(self)self:ClearFocus();planFavour(false,true)end)
 targetInput:SetScript("OnEscapePressed",function(self)self:ClearFocus()end)
 plannerShop:SetScript("OnEnter",function(self)
   if not plannerShopping then return end
   GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
   GameTooltip:AddLine("Planned Shopping Quantities",1,.82,.2)
-  local items={}
-  for _,entry in ipairs(plannerShopping.details) do
-    local o=entry.option
-    items[o.id]=o.name
-    items[o.materialID]=o.bundle.name
-  end
+  local items=plannerShopping.names
   local sorted={}
   for id,qty in pairs(plannerShopping.items) do sorted[#sorted+1]={id=id,qty=qty,name=items[id] or tostring(id)} end
   table.sort(sorted,function(a,b)return a.name<b.name end)
@@ -856,28 +1010,28 @@ plannerShop:SetScript("OnEnter",function(self)
 end)
 plannerShop:SetScript("OnLeave",function()GameTooltip:Hide()end)
 plannerShop:SetScript("OnClick",function()
-  if not plannerShopping then plannerInfo:SetText("Calculate a Plan First.");return end
+  if not plannerShopping then status:SetText("Calculate a Plan First.");return end
   local items={}
-  local names={}
-  for _,entry in ipairs(plannerShopping.details) do
-    local o=entry.option
-    names[o.id]=o.name
-    names[o.materialID]=o.bundle.name
-  end
+  local names=plannerShopping.names
   for id,required in pairs(plannerShopping.required) do
     items[id]={name=names[id] or tostring(id),qty=plannerShopping.items[id] or 0,requiredQty=required}
   end
-  local ok,reason=MFO_AH.ReplaceShopping(items)
+  local ok,reason=MFO_AH.ReplaceShopping(items,plannerShopping.writIDs)
   if ok and MFO_AH.SetShoppingCratePlan then
     local cratePlan={}
     for _,entry in ipairs(plannerShopping.details) do
       local o=entry.option
-      cratePlan[#cratePlan+1]={crateID=o.id,materialID=o.materialID,
-        quantity=entry.qty,materialQty=o.bundle.qty}
+      if not o.writ then
+        cratePlan[#cratePlan+1]={crateID=o.id,materialID=o.materialID,
+          quantity=entry.qty,materialQty=o.bundle.qty}
+      end
     end
     MFO_AH.SetShoppingCratePlan(cratePlan)
   end
-  plannerInfo:SetText(ok and "Shopping List Replaced. Open MFO Shop at the Auction House." or (reason or "Unable to create shopping list."))
+  if not ok then status:SetText(reason or "Unable to Create Shopping List.");return end
+  local opened=MFO_AH.OpenShop and MFO_AH.OpenShop()
+  status:SetText(opened and "Plan Sent to MFO Shop." or "Plan Saved. Open MFO Shop at the Auction House.")
+  if opened then frame:Hide() end
 end)
 local ownedCheck=CreateFrame("CheckButton",nil,subheader,"UICheckButtonTemplate")
 -- Align the checkbox at the right edge of the first column, before its divider.
@@ -1194,7 +1348,15 @@ end
 do
   local writScroll
   writPanel,writScroll=MFO_CreateWritTab(frame,SkinWoodButton,SkinWoodScroll,money,MFO_ART,
-    MFO_AH.ShoppingItemStock,updateOwnedSetting,status)
+    MFO_AH.ShoppingItemStock,updateOwnedSetting,status,function(ids)
+      local faction=UnitFactionGroup and UnitFactionGroup("player")
+      local demand,reason=MFO_WritCalculations.selectionRequirements(ids,faction)
+      if not demand then status:SetText(reason);return end
+      local available={}
+      for _,id in ipairs(ids) do available[id]=true end
+      advancedPlanner.availability=available
+      status:SetText(#ids.." Writs Confirmed Available for the Favour Planner.")
+    end)
   local crateTab,writTab
   local inactiveScanMode="Writs"
   local function selectTab(showWrits)
@@ -1202,12 +1364,12 @@ do
     GameTooltip:Hide()
     if showWrits then
       targetInput:ClearFocus()
-      targetInput:Hide();targetLabel:Hide();clearButton:Hide()
+      targetInput:Hide();targetLabel:Hide();clearButton:Hide();advancedPlanner.modeButton:Hide()
       planner:Hide();subheader:Hide();scrollFrame:Hide()
       writPanel:Show()
     else
       writPanel:Hide()
-      targetInput:Show();targetLabel:Show();clearButton:Show()
+      targetInput:Show();targetLabel:Show();clearButton:Show();advancedPlanner.modeButton:Show()
     end
     local activeScroll=showWrits and writScroll or scrollFrame
     scanMode,inactiveScanMode=inactiveScanMode,scanMode
@@ -1262,7 +1424,15 @@ registerSupportedEvent("BAG_UPDATE_DELAYED")
 registerSupportedEvent("BANKFRAME_OPENED")
 registerSupportedEvent("PLAYERBANKSLOTS_CHANGED")
 registerSupportedEvent("GET_ITEM_INFO_RECEIVED")
+registerSupportedEvent("QUEST_TURNED_IN")
+registerSupportedEvent("QUEST_COMPLETE")
 events:SetScript("OnEvent",function(_,event,name,success)
+ if event=="QUEST_TURNED_IN" or event=="QUEST_COMPLETE" then
+  -- The legacy completion dialog may omit the quest ID. Reconfirm availability.
+  advancedPlanner.availability={}
+  if frame:IsShown() then refresh() end
+  return
+ end
  if event=="GET_ITEM_INFO_RECEIVED" then writPanel:ItemInfoReceived(name,success);return end
  if event=="BANKFRAME_OPENED" then scanBank();if frame:IsShown() then refresh() end;return end
  if event=="PLAYERBANKSLOTS_CHANGED" then

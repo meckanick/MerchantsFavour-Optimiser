@@ -1,5 +1,5 @@
 -- Compare verified Writs and add a selection to MFO Shop.
-function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock, setUseOwned, status)
+function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock, setUseOwned, status, confirmPlannerWrits)
   local panel=CreateFrame("Frame",nil,parent)
   panel:SetPoint("TOPLEFT",parent,"TOPLEFT",12,-76)
   panel:SetPoint("BOTTOMRIGHT",parent,"BOTTOMRIGHT",-12,38)
@@ -122,6 +122,27 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock
   local selectionHint=panel:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
   selectionHint:SetPoint("TOPLEFT",248,-32)
   selectionHint:SetText("Click to open a Writ  |  Shift-click to select multiple")
+  local function selectedIDs()
+    local ids={}
+    for id in pairs(selectedWrits) do ids[#ids+1]=id end
+    table.sort(ids)
+    return ids
+  end
+  if confirmPlannerWrits then
+    local confirm=button(panel,"Confirm Daily Availability",168,22,620,-27)
+    confirm:SetScript("OnEnter",function(self)
+      GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
+      GameTooltip:AddLine("Confirm Writs for the Favour Planner",1,.82,.2)
+      GameTooltip:AddLine("Select only Writ quests you can still turn in today. This replaces the planner's confirmations. With nothing selected or open, it clears them.",1,1,1,true)
+      GameTooltip:Show()
+    end)
+    confirm:SetScript("OnLeave",function() GameTooltip:Hide() end)
+    confirm:SetScript("OnClick",function()
+      local ids=selectedIDs()
+      if #ids==0 and expandedID then ids[1]=expandedID end
+      confirmPlannerWrits(ids)
+    end)
+  end
   local function addToShop(ids)
     if #ids==0 then status:SetText("Choose a Writ first.");return end
     if MFO_AH.RefreshShoppingInventory then MFO_AH.RefreshShoppingInventory() end
@@ -133,12 +154,7 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock
     status:SetText(ok and "Writs added. Open MFO Shop at the Auction House." or reason)
   end
   shopOne:SetScript("OnClick",function() addToShop({expandedID}) end)
-  shopMany:SetScript("OnClick",function()
-    local ids={}
-    for id in pairs(selectedWrits) do ids[#ids+1]=id end
-    table.sort(ids)
-    addToShop(ids)
-  end)
+  shopMany:SetScript("OnClick",function() addToShop(selectedIDs()) end)
 
   x=0
   for _,column in ipairs(columns) do

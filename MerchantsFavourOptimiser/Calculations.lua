@@ -33,11 +33,15 @@ function MFO_Calculations.calculate(crate, getPrice, getOwnedCount, resolveItemI
   return rate, effectiveCrateCost, bundleName, bundleCost, missingQty, ownedQty, crateOwned
 end
 
+function MFO_Calculations.validTarget(target)
+  return type(target)=="number" and target>=1 and target<=1000 and target==math.floor(target)
+end
+
 -- Unbounded minimum-cost combination, with the last reward allowed to exceed
 -- the target. Each option must have a fully priced crate and bundle.
 -- An optional forced first option lets callers compare owned-stock scenarios.
 function MFO_Calculations.plan(target, options, forced)
-  if type(target)~="number" or target<1 or target~=math.floor(target) or target>1000 then
+  if not MFO_Calculations.validTarget(target) then
     return nil, "Enter a Favour Target Between 1 and 1000."
   end
   -- Validate options once so malformed prices/rewards cannot enter the DP.

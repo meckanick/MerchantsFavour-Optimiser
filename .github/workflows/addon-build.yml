@@ -38,6 +38,7 @@ jobs:
           lua5.1 tests/writ-scan-regression.lua
           lua5.1 tests/writ-tab-regression.lua
           lua5.1 tests/writ-shop-regression.lua
+          lua5.1 tests/reputation-planner-regression.lua
           python3 -B -m unittest discover -s tests -p 'test_verify_writs.py'
       - name: Validate addon structure, manifest version and referenced assets
         shell: bash

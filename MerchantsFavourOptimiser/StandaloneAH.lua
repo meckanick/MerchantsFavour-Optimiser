@@ -137,8 +137,12 @@ function AH.Shop(items)
   end
   return true
 end
+local function writFaction()
+  return UnitFactionGroup and UnitFactionGroup("player")
+end
+
 -- Replace atomically; an invalid or empty request must not erase a valid list.
-function AH.ReplaceShopping(items)
+function AH.ReplaceShopping(items, writIDs)
   if type(items)~="table" then return false,"Invalid shopping items" end
   local replacement={}
   for id,entry in pairs(items) do
@@ -146,9 +150,22 @@ function AH.ReplaceShopping(items)
     if item then replacement[id]=item end
   end
   if not next(replacement) then return false,"No valid items to shop for" end
-  db().shopping=replacement
-  db().shoppingCratePlan=nil
-  db().shoppingWritIDs=nil
+  local selection
+  if writIDs and #writIDs>0 then
+    local demand,reason=MFO_WritCalculations.selectionRequirements(writIDs,writFaction())
+    if not demand then return false,reason end
+    for id,qty in pairs(demand) do
+      if not replacement[id] or replacement[id].requiredQty<qty then
+        return false,"Incomplete Writ shopping requirements"
+      end
+    end
+    selection={}
+    for i,id in ipairs(writIDs) do selection[i]=id end
+  end
+  local market=db()
+  market.shopping=replacement
+  market.shoppingCratePlan=nil
+  market.shoppingWritIDs=selection
   return true
 end
 -- Confirmed purchases are credited immediately, even before the bag update.
@@ -199,10 +216,6 @@ function AH.RecalculateShopping()
   end
   return true
 end
-local function writFaction()
-  return UnitFactionGroup and UnitFactionGroup("player")
-end
-
 function AH.AddShoppingWrits(ids, itemName)
   local market=db()
   local selection, added={},{}

@@ -1318,6 +1318,11 @@ local function attach(parent)
   update()
   refreshOffers()
  end
+ function AH.OpenShop()
+  if not parent:IsVisible() then return false end
+  activate()
+  return true
+ end
  -- Match the native AH tab click sound, using the client sound kit when
  -- available and the legacy WoW tab-switch sound ID as a fallback.
  local function playTabClick()

@@ -72,6 +72,8 @@ local function cost(requirements, acquisitions, reputation, getPrice, getOwned)
   return result
 end
 
+Writ.costRequirements = cost
+
 function Writ.calculate(writ, getPrice, getOwned)
   local requirements = {}
   local valid, reason = addRequirements(writ, requirements)

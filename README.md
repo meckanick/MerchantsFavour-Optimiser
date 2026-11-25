@@ -12,7 +12,7 @@ MFO helps answer three questions: **Which crate offers the best value? How can I
 ## Features
 
 - **Crate cost comparison:** compares supported crate prices, material bundle costs, Favour rewards and estimated net cost per Favour. Currently displays 22 verified crate entries; eight additional unverified Artisan entries remain hidden.
-- **Favour Planner:** enter a target Favour amount to generate a cost-conscious crate plan, allowing overfill where it is cheaper. Planned shopping items can be sent directly to MFO Shop.
+- **Favour Planner:** plan Crates, Writs or a combination for a Favour target. The planner shows turn-ins, purchase costs, remaining Favour and overfill, and can transfer the plan to MFO Shop.
 - **Built-in Auction House scanner:** searches supported crates and materials, saves market prices and scan timestamps, and provides live scan progress and missing-price details.
 - **MFO Shop:** a dedicated, themed Auction House shopping panel with saved item quantities, live listings, purchase controls, remaining cost, and a final purchase confirmation.
 - **Shopping progress:** an in-header bar displays progress as quantities available in bags/bank, confirmed purchases tracked by MFO, and quantities still to buy. Purchased items may still need collecting from the mailbox.
@@ -49,6 +49,13 @@ Prices are estimates based on saved scans and available listings. Auction House 
 4. **Create a shopping list:** use **Shop** for a single crate or **Shop Planned Items** for the planner result.
 5. **Buy items:** open **MFO Shop** at the Auction House or enter `/mfo shop`. Review item listings and the purchase confirmation before buying.
 6. **Collect your purchases:** Auction House purchases are delivered through in-game mail. Collect them before expecting bag-based crate readiness to update. The shopping progress bar distinguishes available stock from purchases recorded by MFO.
+
+### Planning Writs and Crates
+
+- On the Crates tab, cycle **Plan** to select **Crates**, **Writs** or **Combined**. Enter the Favour you still need. Crates with a blank budget use the original minimum-net-cost planner.
+- For Writs, open or shift-click verified Writs on the Writs tab and click **Confirm Daily Availability**. Confirm only quests you can still turn in today. Confirmations replace the previous selection. Reloading or opening a quest turn-in clears them. Unknown Writs are excluded.
+- Return to the planner and enter **Writs Left Today**. Enter an optional gold budget, then click **Calculate**. The budget covers purchases before any crate turn-in rewards. The result shows the best plan found within the budget, including partial progress when the target cannot be reached.
+- **Shop Planned Items** replaces the current MFO Shop list. Use Owned allocates bag and cached bank stock once across all turn-ins. Combined, Writs and budgeted Crates exclude missing or stale prices for anything the plan needs to buy. The owned-stock search is bounded and may show an estimate.
 
 ### Shopping progress versus crate readiness
 

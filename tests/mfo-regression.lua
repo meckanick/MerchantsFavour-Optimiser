@@ -362,9 +362,9 @@ check(ahTab:find('playTabClick()',1,true)~=nil,"MFO tab click must trigger tab s
 
 -- Replacing a shopping list must be explicit, atomic and scoped to the market.
 local ahSource=assert(io.open("MerchantsFavourOptimiser/StandaloneAH.lua","r")):read("*a")
-check(ahSource:find("function AH.ReplaceShopping(items)",1,true)~=nil,"AH must provide explicit replacement")
+check(ahSource:find("function AH.ReplaceShopping(items, writIDs)",1,true)~=nil,"AH must provide explicit replacement")
 check(ahSource:find('if not next(replacement) then return false',1,true)~=nil,"Empty replacement must preserve existing list")
-check(ahSource:find("db().shopping=replacement",1,true)~=nil,"Replacement must overwrite current market list")
+check(ahSource:find("market.shopping=replacement",1,true)~=nil,"Replacement must overwrite current market list")
 check(coreSource:find("MFO_AH.ReplaceShopping(items)",1,true)~=nil,"Main Shop buttons must replace list")
 check(not coreSource:find("MFO_AH.Shop(items)",1,true),"Main Shop buttons must not append")
 
@@ -633,7 +633,7 @@ check(coreSource:find("learnBagItems();scanBags()\n   local bank=BankFrame",1,tr
 
 -- Planner refresh reuses inventory freshly scanned by the main rankings refresh.
 check(coreSource:find('if planFavour then planFavour(true) end',1,true)~=nil,"Rankings refresh should pass fresh-inventory hint")
-check(coreSource:find('planFavour=function(inventoryFresh)',1,true)~=nil,"Planner should accept fresh-inventory hint")
+check(coreSource:find('planFavour=function(inventoryFresh,runAdvanced)',1,true)~=nil,"Planner should accept fresh-inventory hint")
 check(coreSource:find('if not inventoryFresh then learnBagItems();scanBags() end',1,true)~=nil,"Independent planner changes must still rescan bags")
 
 -- Interrupted AH scans must not claim completion or leave the overlay running.
@@ -649,7 +649,7 @@ check(ahSource:find('stopScan("Modern AH query failed; scan not saved")',1,true)
   "query failures and timeouts must report the stopped scan")
 
 -- Invalid planner targets and missing AH prices must not reuse an old shopping plan.
-check(coreSource:find('planFavour=function(inventoryFresh)\n  -- A previous shopping plan is invalid as soon as its target or prices change.\n  plannerShopping=nil',1,true)~=nil,
+check(coreSource:find('planFavour=function(inventoryFresh,runAdvanced)\n  -- A previous shopping plan is invalid as soon as its target or prices change.\n  plannerShopping=nil',1,true)~=nil,
   "planner must invalidate previous shopping quantities before recalculation")
 check(coreSource:find('plannerInfo:SetText("Enter a Whole-Number Favour Target Between 1 and 1000.")\n    plannerSummary:SetText("")\n    for _,line in ipairs(plannerRows) do line:SetText("") end',1,true)~=nil,
   "invalid favour targets must clear previously displayed plan results")
@@ -804,7 +804,7 @@ check(coreSource:find("requiredQty=r.b.qty",1,true)~=nil and
       coreSource:find("for id,required in pairs(plannerShopping.required) do",1,true)~=nil and
       coreSource:find("qty=plannerShopping.items[id] or 0,requiredQty=required",1,true)~=nil,
   "crate and planner shopping must preserve full material requirements")
-check(coreSource:find("plannerShopping={items=bestShopping,details=bestDetails,required=fullDemand}",1,true)~=nil,
+check(coreSource:find("plannerShopping={items=bestShopping,details=bestDetails,required=fullDemand,names=names}",1,true)~=nil,
   "planner must consolidate original requirements before owned deductions")
 check(ahTab:find("if AH.RecalculateShopping then AH.RecalculateShopping() end",1,true)~=nil and
       ahTab:find('Favour: "..favourLabel',1,true)~=nil and

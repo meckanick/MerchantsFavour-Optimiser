@@ -106,9 +106,9 @@ function Writ.available(faction, professions, includeIneligible)
 end
 
 -- Price a selection of distinct verified Writ IDs against one stock snapshot.
-function Writ.calculateSelection(writIDs, faction, getPrice, getOwned)
+function Writ.selectionRequirements(writIDs, faction)
   local byID, requirements, acquisitions = {}, {}, {}
-  local reputation = 0
+  local reputation, selected = 0, {}
   for _, writ in ipairs(MFO_WritData) do byID[writ.id] = writ end
   for _, id in ipairs(writIDs) do
     local writ = byID[id]
@@ -117,8 +117,15 @@ function Writ.calculateSelection(writIDs, faction, getPrice, getOwned)
     if acquisitions[id] then return nil, "Duplicate Writ", id end
     local valid, reason = addRequirements(writ, requirements)
     if not valid then return nil, reason, id end
+    selected[#selected + 1] = writ
     acquisitions[id] = 1
     reputation = reputation + writ.reputation
   end
+  return requirements, acquisitions, reputation, selected
+end
+
+function Writ.calculateSelection(writIDs, faction, getPrice, getOwned)
+  local requirements, acquisitions, reputation = Writ.selectionRequirements(writIDs, faction)
+  if not requirements then return nil, acquisitions, reputation end
   return cost(requirements, acquisitions, reputation, getPrice, getOwned)
 end

@@ -930,7 +930,7 @@ check(ahTab:find('api.StartCommoditiesPurchase(selected,qty)',1,true)~=nil and
   "manual quantity must reach the AH purchase API and success receipt")
 
 -- v0.1.167: retain price totals but move them to the shopping-list footer.
-check(ahTab:find('panel.total:SetText(#items.." Items | Favour: "..favourLabel)',1,true)~=nil,
+check(ahTab:find('panel.total:SetText(#items.." Items | Favour: "..favourLabel',1,true)~=nil,
   "top summary should retain items and Favour without duplicate cost")
 check(ahTab:find('panel.remainingCost=left:CreateFontString',1,true)~=nil and
       ahTab:find('panel.remainingCost:SetPoint("BOTTOMLEFT",left,"BOTTOMLEFT",14,51)',1,true)~=nil,

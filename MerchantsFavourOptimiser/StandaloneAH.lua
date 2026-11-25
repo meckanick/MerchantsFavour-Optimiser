@@ -129,7 +129,11 @@ function AH.Shop(items)
   local shopping=db().shopping
   for id,entry in pairs(items) do
     local item=shoppingEntry(id,entry)
-    if item then shopping[id]=item; db().shoppingCratePlan=nil end
+    if item then
+      shopping[id]=item
+      db().shoppingCratePlan=nil
+      db().shoppingWritIDs=nil
+    end
   end
   return true
 end
@@ -144,6 +148,7 @@ function AH.ReplaceShopping(items)
   if not next(replacement) then return false,"No valid items to shop for" end
   db().shopping=replacement
   db().shoppingCratePlan=nil
+  db().shoppingWritIDs=nil
   return true
 end
 -- Confirmed purchases are credited immediately, even before the bag update.
@@ -173,32 +178,18 @@ function AH.RecalculateShopping()
     if item.requiredQty then
       local required=math.max(0,math.floor(tonumber(item.requiredQty) or 0))
       local useOwned=MFO_DB and MFO_DB.useOwned
-      local owned=useOwned and tonumber(ownedReader(id)) or 0
-      owned=math.max(0,math.floor(owned or 0))
+      local owned=math.max(0,math.floor(tonumber(ownedReader(id)) or 0))
+      local pending=item.pendingPurchaseQty or 0
+      if pending>0 then
+        local baseline=math.min(owned,item.purchaseBaseline or 0)
+        -- Lower the baseline when stock is used between partial deliveries.
+        local received=math.min(pending,owned-baseline)
+        pending=pending-received
+        item.pendingPurchaseQty=pending
+        item.purchaseBaseline=pending>0 and owned or nil
+      end
       if useOwned then
-        local pending=item.pendingPurchaseQty or 0
-        if pending>0 then
-          local baseline=item.purchaseBaseline or 0
-          -- Materials may be used or removed between partial deliveries.
-          -- Lower the inventory baseline when observed stock falls, so a
-          -- subsequent arrival is not mistaken for previously credited stock.
-          if owned<baseline then baseline=owned;item.purchaseBaseline=owned end
-          local delivered=math.max(0,owned-baseline)
-          -- Reconcile observed deliveries incrementally. Do not count the
-          -- same bag increase again after a subsequent stock decrease.
-          local received=math.min(pending,delivered)
-          if received>0 then
-            pending=pending-received
-            item.pendingPurchaseQty=pending
-            item.purchaseBaseline=owned
-          end
-          if pending==0 then
-            item.purchaseBaseline=nil
-          else
-            owned=owned+pending
-          end
-        end
-        item.qty=math.max(0,required-owned)
+        item.qty=math.max(0,required-math.max(0,owned+pending-(item.legacyStockReserve or 0)))
       else
         -- Owned stock is intentionally ignored, but purchases made from
         -- this list must still reduce the outstanding shopping quantity.
@@ -208,6 +199,99 @@ function AH.RecalculateShopping()
   end
   return true
 end
+local function writFaction()
+  return UnitFactionGroup and UnitFactionGroup("player")
+end
+
+function AH.AddShoppingWrits(ids, itemName)
+  local market=db()
+  local selection, added={},{}
+  for _,id in ipairs(market.shoppingWritIDs or {}) do
+    selection[#selection+1]=id
+    added[id]=true
+  end
+  local newIDs={}
+  for _,id in ipairs(ids) do
+    if type(id)~="number" or id~=id then return false,"Unknown Writ" end
+    if not added[id] then
+      selection[#selection+1]=id
+      newIDs[#newIDs+1]=id
+      added[id]=true
+    end
+  end
+  if #newIDs==0 then return false,"Selected Writs are already on the shopping list." end
+  local requirements,reason=MFO_WritCalculations.selectionRequirements(newIDs,writFaction())
+  if not requirements then return false,reason end
+
+  for id,qty in pairs(requirements) do
+    local entry=market.shopping[id]
+    if entry then
+      if not entry.requiredQty then
+        -- Legacy rows store net demand. Reserve stock already implied by that demand.
+        entry.legacyNetQty=entry.qty
+        entry.legacyStockBaseline=ownedReader and tonumber(ownedReader(id)) or 0
+      end
+      entry.requiredQty=(entry.requiredQty or entry.qty)+qty
+      if entry.legacyNetQty then
+        entry.legacyStockReserve=math.max(0,entry.legacyStockBaseline-(entry.requiredQty-entry.legacyNetQty))
+      end
+      entry.qty=entry.qty+qty
+    else
+      market.shopping[id]={name=itemName(id) or ("Item #"..id),qty=qty,requiredQty=qty}
+    end
+  end
+  market.shoppingWritIDs=selection
+  AH.RecalculateShopping()
+  return true
+end
+
+-- Crates retain their existing allocation priority. Use the remaining physical
+-- stock once across the selected Writs, in the order they were added.
+function AH.ShoppingWritReadiness(crateAllocations)
+  local output={}
+  local ids=db().shoppingWritIDs
+  if not ids or not AH.ShoppingItemStock then return output end
+  local _,_,_,writs=MFO_WritCalculations.selectionRequirements(ids,writFaction())
+  if not writs then return output end
+  local bags,bank={},{}
+  local function loadStock(id)
+    if bags[id]==nil then
+      local inBags,inBank,stamp,source=AH.ShoppingItemStock(id)
+      bags[id]=inBags
+      bank[id]=(source=="syndicator" or (stamp and stamp>0)) and inBank or 0
+    end
+  end
+  local function take(id,qty)
+    loadStock(id)
+    local bagUsed=math.min(qty,bags[id])
+    local bankUsed=math.min(qty-bagUsed,bank[id])
+    bags[id]=bags[id]-bagUsed
+    bank[id]=bank[id]-bankUsed
+    return bagUsed,bankUsed
+  end
+  for _,allocation in ipairs(crateAllocations or {}) do
+    for _,stock in ipairs({
+      {allocation.crateID,allocation.crateInBags,allocation.crateInBank},
+      {allocation.materialID,allocation.materialsInBags,allocation.materialsInBank},
+    }) do
+      loadStock(stock[1])
+      bags[stock[1]]=math.max(0,bags[stock[1]]-stock[2])
+      bank[stock[1]]=math.max(0,bank[stock[1]]-stock[3])
+    end
+  end
+  for _,writ in ipairs(writs) do
+    local bagWrit,bankWrit=take(writ.id,1)
+    local missing,withdraw=1-bagWrit-bankWrit,bankWrit
+    for _,item in ipairs(writ.items) do
+      local bagUsed,bankUsed=take(item.id,item.qty)
+      missing=missing+item.qty-bagUsed-bankUsed
+      withdraw=withdraw+bankUsed
+    end
+    output[writ.id]={missing=missing,withdraw=withdraw}
+  end
+  return output
+end
+
 function AH.SetShoppingCratePlan(entries)
   local copy={}
   for _,entry in ipairs(entries or {}) do
@@ -234,13 +318,43 @@ function AH.Shopping()
 end
 function AH.RemoveShoppingItem(id)
   if type(id)~="number" or not db().shopping[id] then return false end
-  db().shopping[id]=nil
-  db().shoppingCratePlan=nil
+  local market=db()
+  market.shopping[id]=nil
+  for _,entry in ipairs(market.shoppingCratePlan or {}) do
+    if entry.crateID==id or entry.materialID==id then market.shoppingCratePlan=nil;break end
+  end
+  if market.shoppingWritIDs then
+    local _,_,_,writs=MFO_WritCalculations.selectionRequirements(market.shoppingWritIDs,writFaction())
+    local remaining,removed={},{}
+    for _,writ in ipairs(writs or {}) do
+      local affected=writ.id==id
+      for _,item in ipairs(writ.items) do
+        if item.id==id then affected=true;break end
+      end
+      local list=affected and removed or remaining
+      list[#list+1]=writ.id
+    end
+    local requirements=MFO_WritCalculations.selectionRequirements(removed,writFaction())
+    for itemID,qty in pairs(requirements or {}) do
+      local entry=market.shopping[itemID]
+      if entry and entry.requiredQty then
+        entry.requiredQty=entry.requiredQty-qty
+        entry.qty=math.max(0,entry.qty-qty)
+        if entry.legacyNetQty then
+          entry.legacyStockReserve=math.max(0,entry.legacyStockBaseline-(entry.requiredQty-entry.legacyNetQty))
+        end
+        if entry.requiredQty<=0 then market.shopping[itemID]=nil end
+      end
+    end
+    market.shoppingWritIDs=#remaining>0 and remaining or nil
+    AH.RecalculateShopping()
+  end
   return true
 end
 function AH.ClearShopping()
   db().shopping={}
   db().shoppingCratePlan=nil
+  db().shoppingWritIDs=nil
 end
 function AH.Progress()
   return math.floor(math.min(100,(position-1)/math.max(1,scanTotal)*100)),busy,priced,scanTotal,completed

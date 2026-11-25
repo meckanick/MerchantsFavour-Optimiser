@@ -1,4 +1,4 @@
--- Read-only comparison of the verified Writ catalogue.
+-- Compare verified Writs and add a selection to MFO Shop.
 function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock, setUseOwned, status)
   local panel=CreateFrame("Frame",nil,parent)
   panel:SetPoint("TOPLEFT",parent,"TOPLEFT",12,-76)
@@ -6,7 +6,7 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock
   panel:Hide()
 
   local scroll=CreateFrame("ScrollFrame","MFOWritScrollFrame",panel,"UIPanelScrollFrameTemplate")
-  scroll:SetPoint("TOPLEFT",0,-58)
+  scroll:SetPoint("TOPLEFT",0,-83)
   scroll:SetPoint("BOTTOMRIGHT",-28,7)
   local content=CreateFrame("Frame",nil,scroll)
   content:SetSize(866,1)
@@ -14,8 +14,8 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock
   skinScroll(scroll,"MFOWritScrollFrame")
 
   local header=CreateFrame("Frame",nil,panel,"BackdropTemplate")
-  header:SetPoint("TOPLEFT",0,-29)
-  header:SetPoint("TOPRIGHT",-28,-29)
+  header:SetPoint("TOPLEFT",0,-54)
+  header:SetPoint("TOPRIGHT",-28,-54)
   header:SetHeight(26)
   header:SetBackdrop({bgFile=art.."WTP_ProfessionRow"})
 
@@ -52,6 +52,7 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock
   local tiers={"All Tiers","Journeyman","Expert","Artisan"}
   local tierIndex, allFactions=1,false
   local expandedID
+  local selectedWrits={}
   local rowPool, names, unresolved={},{},{}
 
   local nameReader=GetItemInfo or (C_Item and C_Item.GetItemInfo)
@@ -116,6 +117,29 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock
   local stock=button(panel,"",100,22,x+212,-2)
   stock:SetScript("OnClick",function() setUseOwned(not MFO_DB.useOwned) end)
 
+  local shopOne=button(panel,"Add Open Writ",112,22,0,-27)
+  local shopMany=button(panel,"Add Selected (0)",124,22,118,-27)
+  local selectionHint=panel:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+  selectionHint:SetPoint("TOPLEFT",248,-32)
+  selectionHint:SetText("Click to open a Writ  |  Shift-click to select multiple")
+  local function addToShop(ids)
+    if #ids==0 then status:SetText("Choose a Writ first.");return end
+    if MFO_AH.RefreshShoppingInventory then MFO_AH.RefreshShoppingInventory() end
+    local ok,reason=MFO_AH.AddShoppingWrits(ids,itemName)
+    if ok then
+      for _,id in ipairs(ids) do selectedWrits[id]=nil end
+      panel:Refresh()
+    end
+    status:SetText(ok and "Writs added. Open MFO Shop at the Auction House." or reason)
+  end
+  shopOne:SetScript("OnClick",function() addToShop({expandedID}) end)
+  shopMany:SetScript("OnClick",function()
+    local ids={}
+    for id in pairs(selectedWrits) do ids[#ids+1]=id end
+    table.sort(ids)
+    addToShop(ids)
+  end)
+
   x=0
   for _,column in ipairs(columns) do
     local key=column[1]
@@ -149,7 +173,11 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock
     line:SetScript("OnLeave",function() GameTooltip:Hide() end)
     line:SetScript("OnClick",function(self)
       if not self.isWrit then return end
-      expandedID=expandedID~=self.itemID and self.itemID or nil
+      if IsShiftKeyDown and IsShiftKeyDown() then
+        if self.eligible then selectedWrits[self.itemID]=not selectedWrits[self.itemID] or nil end
+      else
+        expandedID=expandedID~=self.itemID and self.itemID or nil
+      end
       panel:Refresh()
     end)
     rowPool[index]=line
@@ -197,6 +225,13 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock
 
     local query=search:GetText():lower():match("^%s*(.-)%s*$")
     local playerFaction=UnitFactionGroup and UnitFactionGroup("player")
+    local eligible={}
+    for _,writ in ipairs(MFO_WritCalculations.available(playerFaction)) do eligible[writ.id]=true end
+    local selectedCount=0
+    for id in pairs(selectedWrits) do
+      if eligible[id] then selectedCount=selectedCount+1 else selectedWrits[id]=nil end
+    end
+    shopMany:SetText("Add Selected ("..selectedCount..")")
     local results={}
     for _,writ in ipairs(MFO_WritCalculations.available(playerFaction,filter,allFactions)) do
       if tierIndex==1 or writ.tier==tiers[tierIndex] then
@@ -269,8 +304,11 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock
       if result.costPerRep then
         description=description..("\nCost per reputation point: %.3f copper"):format(result.costPerRep)
       end
-      addLine(writ.id,description,true,{(expanded and "- " or "+ ")..result.name,result.professions,
+      if not eligible[writ.id] then description=description.."\nFaction restricted." end
+      local prefix=selectedWrits[writ.id] and "[x] " or (expanded and "- " or "+ ")
+      addLine(writ.id,description,true,{prefix..result.name,result.professions,
         writ.tier,result.reputation,money(result.writCost),money(result.itemCost),money(result.total),result.owned,rate})
+      rowPool[index].eligible=eligible[writ.id]
       if expanded then
         addDetail(writ.id,1)
         for _,item in ipairs(writ.items) do addDetail(item.id,item.qty) end

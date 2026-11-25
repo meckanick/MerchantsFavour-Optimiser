@@ -911,6 +911,7 @@ local function updateOwnedSetting(checked)
   MFO_DB.useOwned=checked and true or false
   ownedCheck:SetChecked(MFO_DB.useOwned)
   plannerStockToggle:SetChecked(MFO_DB.useOwned)
+  MFO_AH.RecalculateShopping()
   refresh()
 end
 local function showOwnedTooltip(self)

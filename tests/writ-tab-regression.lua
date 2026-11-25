@@ -18,11 +18,19 @@ local prices={[1]=50,[2]=75,[3]=200,[4]=100,[5]=100,[101]=50,[102]=25,[103]=100}
 local updated={[2]=true,[5]=true}
 local stock={[1]={1,0},[101]={0,3}}
 local currentTime=700000
+local added,shift
+IsShiftKeyDown=function() return shift end
 GetItemInfo=function(id) return names[id] end
 UnitFactionGroup=function() return "Alliance" end
 time=function() return currentTime end
 MFO_DB={}
 MFO_AH={
+  AddShoppingWrits=function(ids,name)
+    if ids[1]==3 then return false,"Faction restricted" end
+    added=table.concat(ids,",")
+    assert(name(ids[1])==names[ids[1]])
+    return true
+  end,
   Market=function() return "Test Market" end,
   PriceQuote=function(id,maxAge,now)
     assert(maxAge==7*86400-1 and now==currentTime)
@@ -152,4 +160,29 @@ assert(rows[1].cells[1].text=="+ Writ: Trigger")
 prices[105],updated[5]=100,nil
 panel:Refresh()
 assert(rows[1].cells[9].text==1.5)
+search:SetText("")
+search:OnTextChanged(true)
+click(panel,"Artisan")
+click(panel,"+ Engineering")
+click(panel,"+ Alchemy")
+local function writRow(id)
+  for _,row in ipairs(rows) do
+    if row.shown and row.isWrit and row.itemID==id then return row end
+  end
+  error("Missing Writ "..id)
+end
+writRow(3):OnClick()
+click(panel,"Add Open Writ")
+assert(added==nil and status.text=="Faction restricted")
+writRow(1):OnClick()
+click(panel,"Add Open Writ")
+assert(added=="1")
+shift=true
+writRow(3):OnClick()
+writRow(2):OnClick()
+writRow(5):OnClick()
+assert(writRow(2).cells[1].text=="[x] Writ: Tube")
+click(panel,"Add Selected (2)")
+assert(added=="2,5")
+assert(find(panel,"Button","Add Selected (0)"))
 print("PASS: Writ tab filters, rankings, costs, tooltips, cache and refresh")

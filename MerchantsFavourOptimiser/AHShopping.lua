@@ -308,8 +308,11 @@ update=function()
   if type(id)=="number" and type(v)=="table" and ((v.qty or 0)>0 or (v.requiredQty or 0)>0) then
    local required=math.max(0,math.floor(tonumber(v.requiredQty) or tonumber(v.qty) or 0))
    local toBuy=math.max(0,math.floor(tonumber(v.qty) or 0))
-   local owned=v.requiredQty and math.max(0,required-toBuy) or nil
-   items[#items+1]={id=id,name=v.name or tostring(id),qty=toBuy,required=required,owned=owned}
+   local bags,bank=0,0
+   if AH.ShoppingItemStock then bags,bank=AH.ShoppingItemStock(id) end
+   local owned=math.max(0,bags+bank)
+   items[#items+1]={id=id,name=v.name or tostring(id),qty=toBuy,required=required,
+    owned=owned,purchased=v.purchasedQty or 0}
   end
  end
  -- Always list Waylaid Crates before their required materials.
@@ -326,9 +329,10 @@ update=function()
  end)
  -- Stage 2: evaluate all planned crates together so materials are allocated once.
  local readinessByCrate={}
+ local allocations={}
  local plan=AH.ShoppingCratePlan and AH.ShoppingCratePlan()
  if plan and AH.CrateReadiness then
-  local allocations=AH.CrateReadiness(plan)
+  allocations=AH.CrateReadiness(plan)
   for _,allocation in ipairs(allocations) do
    local bucket=readinessByCrate[allocation.crateID]
    if not bucket then bucket={records={},ready=0,total=0};readinessByCrate[allocation.crateID]=bucket end
@@ -337,23 +341,28 @@ update=function()
    bucket.records[#bucket.records+1]=allocation
   end
  end
- for _,item in ipairs(items) do item.readiness=readinessByCrate[item.id] end
+ local writReadiness=AH.ShoppingWritReadiness(allocations)
+ local writTotal,writReady=0,0
+ for _,item in ipairs(items) do
+  item.readiness=readinessByCrate[item.id]
+  item.writReadiness=writReadiness[item.id]
+  if item.writReadiness then
+   writTotal=writTotal+1
+   if item.writReadiness.missing==0 and item.writReadiness.withdraw==0 then writReady=writReady+1 end
+  end
+ end
  -- Separate physical inventory from confirmed purchases still awaiting collection.
  local requiredTotal,availableTotal,purchasedTotal=0,0,0
  for _,item in ipairs(items) do
   if item.required>0 then
    local entry=shopping[item.id]
-   local bags,bank=0,0
-   if AH.ShoppingItemStock then bags,bank=AH.ShoppingItemStock(item.id) end
-   local available=math.min(item.required,math.max(0,bags+bank))
-   local pending=math.max(0,math.floor(tonumber(entry and entry.pendingPurchaseQty) or 0))
-   local baseline=math.max(0,math.floor(tonumber(entry and entry.purchaseBaseline) or 0))
-   if pending>0 and MFO_DB and MFO_DB.useOwned then
-    pending=math.max(0,pending-math.max(0,bags+bank-baseline))
-   end
+   local credited=math.max(0,item.required-item.qty)
+   local useOwned=MFO_DB and MFO_DB.useOwned
+   local available=useOwned and math.min(credited,math.max(0,item.owned-(entry.legacyStockReserve or 0))) or 0
+   local purchases=useOwned and (entry.pendingPurchaseQty or 0) or item.purchased
    requiredTotal=requiredTotal+item.required
    availableTotal=availableTotal+available
-   purchasedTotal=purchasedTotal+math.min(item.required-available,pending)
+   purchasedTotal=purchasedTotal+math.min(credited-available,purchases)
   end
  end
  if panel.progressBar then
@@ -390,7 +399,8 @@ update=function()
   end
  end
  local favourLabel=unknownFavour>0 and (favour.." + Unknown Favour") or tostring(favour)
- panel.total:SetText(#items.." Items | Favour: "..favourLabel)
+ panel.total:SetText(#items.." Items | Favour: "..favourLabel..
+  (writTotal>0 and (" | Writs Ready: "..writReady.."/"..writTotal) or ""))
  if panel.remainingCost then
   panel.remainingCost:SetText((unpriced>0 and "Known Remaining Cost: " or "Remaining Cost: ")..gold(total)..
    (unpriced>0 and (" | Incomplete - "..unpriced.." "..(unpriced==1 and "Price" or "Prices").." Missing") or ""))
@@ -400,8 +410,14 @@ update=function()
  if panel.detail then
   local selectedPrice=current and prices[selected]
   local required=current and (current.requiredQty or current.qty) or 0
-  local owned=current and current.requiredQty and math.max(0,required-current.qty) or nil
-  panel.detail:SetText(current and (current.name.."\nRequired: "..required.."   Owned: "..(owned or "?").."   To buy: "..current.qty.."\nCached Unit Price: "..(selectedPrice and gold(selectedPrice) or "No AH Price").."\nEstimated Remaining Cost: "..(selectedPrice and gold(selectedPrice*current.qty) or "Unknown")) or "")
+  local owned=0
+  if current and AH.ShoppingItemStock then
+   local bags,bank=AH.ShoppingItemStock(selected)
+   owned=bags+bank
+  end
+  panel.detail:SetText(current and (current.name.."\nRequired: "..required.."   Owned: "..owned.."   To buy: "..current.qty..
+   "   Purchased: "..(current.purchasedQty or 0)..
+   "\nCached Unit Price: "..(selectedPrice and gold(selectedPrice) or "No AH Price").."\nEstimated Remaining Cost: "..(selectedPrice and gold(selectedPrice*current.qty) or "Unknown")) or "")
  end
  if panel.itemIcon then
   if current then
@@ -421,6 +437,11 @@ update=function()
      local state=bucket.ready==bucket.total and "ready_to_fill" or bucket.records[1].status
      marker=MFO_CrateTracking.Symbol(state).." "
     end
+   if item.writReadiness then
+    local state=item.writReadiness.missing>0 and "needs_materials" or
+     (item.writReadiness.withdraw>0 and "bank_stock" or "ready_to_fill")
+    marker=MFO_CrateTracking.Symbol(state).." "
+   end
     row.label:SetText((selected==item.id and "|cffffd45a> |r" or "")..marker..item.name)
    row.need:SetText(tostring(item.required))
    row.owned:SetText(item.owned and tostring(item.owned) or "?")
@@ -1184,7 +1205,16 @@ local function attach(parent)
       end
      end
     end
-    GameTooltip:AddLine("Cached Unit Price: "..gold(AH.Price(self.item.id)),1,1,1)
+    GameTooltip:AddLine("Recorded Purchases: "..self.item.purchased,1,1,1)
+    local unit=AH.Price(self.item.id)
+    local writ=self.item.writReadiness
+    GameTooltip:AddLine((writ and "Writ Acquisition Price: " or "Cached Unit Price: ")..
+     (unit and gold(unit) or "No AH Price"),1,1,1)
+    if writ then
+     local readiness=writ.missing>0 and ("More items needed: "..writ.missing) or
+      (writ.withdraw>0 and ("Bank withdrawal needed: "..writ.withdraw) or "Ready to deliver - items in bags")
+     GameTooltip:AddLine(readiness,1,.82,.2)
+    end
     if self.item.readiness then
      local bucket=self.item.readiness
      GameTooltip:AddLine(" ",1,1,1)

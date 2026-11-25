@@ -348,7 +348,7 @@ update=function()
   item.writReadiness=writReadiness[item.id]
   if item.writReadiness then
    writTotal=writTotal+1
-   if item.writReadiness.missing==0 and item.writReadiness.withdraw==0 then writReady=writReady+1 end
+   if item.writReadiness.ready then writReady=writReady+1 end
   end
  end
  -- Separate physical inventory from confirmed purchases still awaiting collection.
@@ -438,9 +438,12 @@ update=function()
      marker=MFO_CrateTracking.Symbol(state).." "
     end
    if item.writReadiness then
-    local state=item.writReadiness.missing>0 and "needs_materials" or
-     (item.writReadiness.withdraw>0 and "bank_stock" or "ready_to_fill")
-    marker=MFO_CrateTracking.Symbol(state).." "
+    local writ=item.writReadiness
+    if writ.ready then marker=MFO_CrateTracking.Symbol("ready_to_fill").." "
+    elseif writ.state=="completed" then marker="|cffaaa499[Done]|r "
+    elseif not writ.state then marker="|cffaaa499[?]|r "
+    elseif writ.missing>0 then marker=MFO_CrateTracking.Symbol("needs_materials").." "
+    elseif writ.withdraw>0 then marker=MFO_CrateTracking.Symbol("bank_stock").." " end
    end
     row.label:SetText((selected==item.id and "|cffffd45a> |r" or "")..marker..item.name)
    row.need:SetText(tostring(item.required))
@@ -1193,7 +1196,7 @@ local function attach(parent)
     -- Shopping quantities and inventory belong to the crate, not its materials.
     GameTooltip:AddLine("Required: "..self.item.required.."   Owned: "..(self.item.owned or "Unknown").."   To buy: "..self.item.qty,1,1,1)
     if AH.ShoppingItemStock then
-     local bags,bank,bankScan,bankSource=AH.ShoppingItemStock(self.item.id)
+     local bags,bank,bankScan,bankSource=AH.ShoppingItemStock(self.item.id,self.item.writReadiness~=nil)
      GameTooltip:AddLine("In bags: "..bags.."   In bank: "..bank,1,1,1)
      if bank>0 then
       if bankSource=="syndicator" then
@@ -1211,9 +1214,13 @@ local function attach(parent)
     GameTooltip:AddLine((writ and "Writ Acquisition Price: " or "Cached Unit Price: ")..
      (unit and gold(unit) or "No AH Price"),1,1,1)
     if writ then
-     local readiness=writ.missing>0 and ("More items needed: "..writ.missing) or
-      (writ.withdraw>0 and ("Bank withdrawal needed: "..writ.withdraw) or "Ready to deliver - items in bags")
-     GameTooltip:AddLine(readiness,1,.82,.2)
+     GameTooltip:AddLine("Quest Status: "..MFO_WritTracking.Label(writ.state,writ.ready),1,.82,.2)
+     if writ.missing and writ.missing>0 then
+      GameTooltip:AddLine("More items needed: "..writ.missing,1,.82,.2)
+     end
+     if writ.withdraw and writ.withdraw>0 then
+      GameTooltip:AddLine("Bank withdrawal needed: "..writ.withdraw,1,.82,.2)
+     end
     end
     if self.item.readiness then
      local bucket=self.item.readiness
@@ -1322,6 +1329,9 @@ local function attach(parent)
   if not parent:IsVisible() then return false end
   activate()
   return true
+ end
+ function AH.RefreshWritShop()
+  if panel:IsVisible() then update() end
  end
  -- Match the native AH tab click sound, using the client sound kit when
  -- available and the legacy WoW tab-switch sound ID as a fallback.

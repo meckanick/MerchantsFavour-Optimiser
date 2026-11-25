@@ -141,6 +141,17 @@ local function writFaction()
   return UnitFactionGroup and UnitFactionGroup("player")
 end
 
+local function checkWritEligibility(ids)
+  local states=MFO_WritTracking.Snapshot()
+  for _,id in ipairs(ids) do
+    local state=states[id]
+    if not MFO_WritTracking.Eligible(state) then
+      return false,state=="completed" and "Writ completed today." or "Writ eligibility is unknown."
+    end
+  end
+  return true
+end
+
 -- Replace atomically; an invalid or empty request must not erase a valid list.
 function AH.ReplaceShopping(items, writIDs)
   if type(items)~="table" then return false,"Invalid shopping items" end
@@ -154,6 +165,8 @@ function AH.ReplaceShopping(items, writIDs)
   if writIDs and #writIDs>0 then
     local demand,reason=MFO_WritCalculations.selectionRequirements(writIDs,writFaction())
     if not demand then return false,reason end
+    local eligible,why=checkWritEligibility(writIDs)
+    if not eligible then return false,why end
     for id,qty in pairs(demand) do
       if not replacement[id] or replacement[id].requiredQty<qty then
         return false,"Incomplete Writ shopping requirements"
@@ -235,6 +248,8 @@ function AH.AddShoppingWrits(ids, itemName)
   if #newIDs==0 then return false,"Selected Writs are already on the shopping list." end
   local requirements,reason=MFO_WritCalculations.selectionRequirements(newIDs,writFaction())
   if not requirements then return false,reason end
+  local eligible,why=checkWritEligibility(newIDs)
+  if not eligible then return false,why end
 
   for id,qty in pairs(requirements) do
     local entry=market.shopping[id]
@@ -266,10 +281,11 @@ function AH.ShoppingWritReadiness(crateAllocations)
   if not ids or not AH.ShoppingItemStock then return output end
   local _,_,_,writs=MFO_WritCalculations.selectionRequirements(ids,writFaction())
   if not writs then return output end
+  local states=MFO_WritTracking.Snapshot()
   local bags,bank={},{}
   local function loadStock(id)
     if bags[id]==nil then
-      local inBags,inBank,stamp,source=AH.ShoppingItemStock(id)
+      local inBags,inBank,stamp,source=AH.ShoppingItemStock(id,true)
       bags[id]=inBags
       bank[id]=(source=="syndicator" or (stamp and stamp>0)) and inBank or 0
     end
@@ -293,14 +309,19 @@ function AH.ShoppingWritReadiness(crateAllocations)
     end
   end
   for _,writ in ipairs(writs) do
-    local bagWrit,bankWrit=take(writ.id,1)
-    local missing,withdraw=1-bagWrit-bankWrit,bankWrit
-    for _,item in ipairs(writ.items) do
-      local bagUsed,bankUsed=take(item.id,item.qty)
-      missing=missing+item.qty-bagUsed-bankUsed
-      withdraw=withdraw+bankUsed
+    local state=states[writ.id]
+    local record={state=state}
+    if MFO_WritTracking.Eligible(state) then
+      local bagWrit,bankWrit=take(writ.id,1)
+      record.missing,record.withdraw=1-bagWrit-bankWrit,bankWrit
+      for _,item in ipairs(writ.items) do
+        local bagUsed,bankUsed=take(item.id,item.qty)
+        record.missing=record.missing+item.qty-bagUsed-bankUsed
+        record.withdraw=record.withdraw+bankUsed
+      end
     end
-    output[writ.id]={missing=missing,withdraw=withdraw}
+    record.ready=state=="objectives_complete" and record.missing==0 and record.withdraw==0
+    output[writ.id]=record
   end
   return output
 end

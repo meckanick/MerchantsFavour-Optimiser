@@ -72,11 +72,30 @@ The addon is still safe to run without Syndicator. If either API changes,
 the provider returns native bank counts rather than accessing undocumented
 Syndicator saved variables.
 
+## Writ quest tracking
+
+Forever's quest-log API exposes active quests, turn-in readiness, completion
+flags and quest event payloads. The tracker uses quest IDs from the verified Writ
+data, reads item-start offers through `GetQuestID` on `QUEST_DETAIL`, and records
+`QUEST_TURNED_IN` until the deadline from `GetServerTime` and
+`C_DateAndTime.GetSecondsUntilDailyReset`. Sources include the
+[Forever quest-log export](https://github.com/Ketho/wow-ui-source-forever/blob/forever/Interface/AddOns/Blizzard_APIDocumentationGenerated/QuestLogDocumentation.lua),
+[client API export for interface 16001](https://raw.githubusercontent.com/Atraeau/WoW-Addons/main/types/WowForeverAPI.lua)
+and [CraftmansHelper's Forever tracker](https://github.com/emsw0rth/craftmanshelper/blob/main/CraftmansHelper/Tracker.lua).
+
+For an in-game check, open a Writ from your bags, accept it, then move the
+requested materials between bags and bank. Verify the Writ tab and Shop show
+Ready for Delivery only when the quest is eligible and the required items are
+in bags. Turn it in, reload, switch characters, and check again after the server
+reset. Check that the planner and new Shop lists exclude completed and unknown
+Writs throughout.
+
 ## Source map
 
 - `Data.lua` — crate definitions and material requirements
 - `Calculations.lua` — cost and Favour calculations
 - `CrateTracking.lua` — readiness and shared allocation
+- `WritTracking.lua` — character-specific quest status and server reset tracking
 - `InventoryProvider.lua` — optional Syndicator bank counts and native fallback
 - `StandaloneAH.lua` — Auction House and shopping data
 - `Core.lua` — main UI, planner and inventory

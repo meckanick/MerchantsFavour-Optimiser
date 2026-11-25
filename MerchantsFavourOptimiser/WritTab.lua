@@ -1,5 +1,5 @@
 -- Compare verified Writs and add a selection to MFO Shop.
-function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock, setUseOwned, status, confirmPlannerWrits)
+function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock, setUseOwned, status)
   local panel=CreateFrame("Frame",nil,parent)
   panel:SetPoint("TOPLEFT",parent,"TOPLEFT",12,-76)
   panel:SetPoint("BOTTOMRIGHT",parent,"BOTTOMRIGHT",-12,38)
@@ -43,9 +43,10 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock
   end
 
   local columns={
-    {"name","Writ",215}, {"professions","Profession(s)",124}, {"tierRank","Tier",58},
-    {"reputation","Rep",40}, {"writCost","Writ Cost",82}, {"itemCost","Item Cost",82},
-    {"total","Total",82}, {"owned","Owned",48}, {"costPerRep","Cost / Rep",117},
+    {"name","Writ",179}, {"professions","Profession(s)",96}, {"tierRank","Tier",58},
+    {"reputation","Rep",40}, {"writCost","Writ Cost",78}, {"itemCost","Item Cost",78},
+    {"total","Total",72}, {"owned","Owned",48}, {"costPerRep","Cost / Rep",95},
+    {"questLabel","Quest Status",104},
   }
   local sortKey, descending="costPerRep",false
   local selectedProfessions, professionButtons={},{}
@@ -127,21 +128,6 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock
     for id in pairs(selectedWrits) do ids[#ids+1]=id end
     table.sort(ids)
     return ids
-  end
-  if confirmPlannerWrits then
-    local confirm=button(panel,"Confirm Daily Availability",168,22,620,-27)
-    confirm:SetScript("OnEnter",function(self)
-      GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
-      GameTooltip:AddLine("Confirm Writs for the Favour Planner",1,.82,.2)
-      GameTooltip:AddLine("Select only Writ quests you can still turn in today. This replaces the planner's confirmations. With nothing selected or open, it clears them.",1,1,1,true)
-      GameTooltip:Show()
-    end)
-    confirm:SetScript("OnLeave",function() GameTooltip:Hide() end)
-    confirm:SetScript("OnClick",function()
-      local ids=selectedIDs()
-      if #ids==0 and expandedID then ids[1]=expandedID end
-      confirmPlannerWrits(ids)
-    end)
   end
   local function addToShop(ids)
     if #ids==0 then status:SetText("Choose a Writ first.");return end
@@ -233,7 +219,7 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock
     end
     local function count(id)
       if not counts[id] then
-        local bags,bank=readStock(id)
+        local bags,bank=readStock(id,true)
         counts[id]={bags,bank}
       end
       return counts[id][1]+counts[id][2]
@@ -241,8 +227,12 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock
 
     local query=search:GetText():lower():match("^%s*(.-)%s*$")
     local playerFaction=UnitFactionGroup and UnitFactionGroup("player")
-    local eligible={}
-    for _,writ in ipairs(MFO_WritCalculations.available(playerFaction)) do eligible[writ.id]=true end
+    local states=MFO_WritTracking.Snapshot()
+    local factionEligible,eligible={},{}
+    for _,writ in ipairs(MFO_WritCalculations.available(playerFaction)) do
+      factionEligible[writ.id]=true
+      eligible[writ.id]=MFO_WritTracking.Eligible(states[writ.id])
+    end
     local selectedCount=0
     for id in pairs(selectedWrits) do
       if eligible[id] then selectedCount=selectedCount+1 else selectedWrits[id]=nil end
@@ -267,11 +257,25 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock
           for _,item in ipairs(writ.items) do
             result.owned=result.owned+math.min(count(item.id),item.qty)
           end
+          local state=states[writ.id]
+          local bagsReady=false
+          if state=="objectives_complete" then
+            local demand=MFO_WritCalculations.selectionRequirements({writ.id},playerFaction)
+            bagsReady=demand~=nil
+            for id,qty in pairs(demand or {}) do
+              if counts[id][1]<qty then bagsReady=false;break end
+            end
+          end
+          result.questLabel=factionEligible[writ.id] and MFO_WritTracking.Label(state,bagsReady) or "Faction Restricted"
           results[#results+1]=result
         end
       end
     end
     table.sort(results,function(a,b)
+      if sortKey=="costPerRep" then
+        local aDone,bDone=states[a.writ.id]=="completed",states[b.writ.id]=="completed"
+        if aDone~=bDone then return bDone end
+      end
       local left,right=a[sortKey],b[sortKey]
       if left==right then return a.writ.id<b.writ.id end
       -- Unavailable costs stay below priced rows in both directions.
@@ -320,10 +324,10 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock
       if result.costPerRep then
         description=description..("\nCost per reputation point: %.3f copper"):format(result.costPerRep)
       end
-      if not eligible[writ.id] then description=description.."\nFaction restricted." end
+      description=description.."\nQuest status: "..result.questLabel
       local prefix=selectedWrits[writ.id] and "[x] " or (expanded and "- " or "+ ")
       addLine(writ.id,description,true,{prefix..result.name,result.professions,
-        writ.tier,result.reputation,money(result.writCost),money(result.itemCost),money(result.total),result.owned,rate})
+        writ.tier,result.reputation,money(result.writCost),money(result.itemCost),money(result.total),result.owned,rate,result.questLabel})
       rowPool[index].eligible=eligible[writ.id]
       if expanded then
         addDetail(writ.id,1)

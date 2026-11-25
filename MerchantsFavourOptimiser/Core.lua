@@ -205,6 +205,7 @@ local function scanBank()
   if readable==0 then return end
   MFO_DB.bankCounts=counts
   MFO_DB.bankScanTime=time()
+  MFO_DB.writBankOwner=MFO_WritTracking.CharacterKey()
   MFO_InventoryProvider.ResetCache()
 end
 -- Independent of Use Owned: completion readiness always reflects actual inventory.
@@ -243,10 +244,16 @@ MFO_AH.RefreshShoppingInventory=function()
   learnBagItems();scanBags();MFO_InventoryProvider.ResetCache()
 end
 -- Read-only stock details for MFO Shop tooltips, independent of Use Owned.
-MFO_AH.ShoppingItemStock=function(id)
+MFO_AH.ShoppingItemStock=function(id,writ)
  if type(id)~="number" then return 0,0,nil end
  local bank,source=MFO_InventoryProvider.BankCount(id,MFO_DB and MFO_DB.bankCounts,
    MFO_InventoryProvider.Mode(MFO_DB))
+ if writ and source=="native" then
+   local owner=MFO_WritTracking.CharacterKey()
+   if not owner or not MFO_DB or MFO_DB.writBankOwner~=owner then
+     return bagCounts[id] or 0,0,nil,source
+   end
+ end
  return bagCounts[id] or 0,bank,
    source=="native" and MFO_DB and MFO_DB.bankScanTime or nil,source
 end
@@ -716,7 +723,7 @@ local plannerShop=CreateFrame("Button",nil,planner)
 plannerShop:SetSize(165,24);plannerShop:SetPoint("BOTTOMRIGHT",-12,9)
 plannerShop:SetText("Shop Planned Items");SkinWoodButton(plannerShop)
 local plannerShopping=nil
-local advancedPlanner={mode="Crates", availability={}}
+local advancedPlanner={mode="Crates"}
 do
   local mode=CreateFrame("Button",nil,frame)
   mode:SetSize(126,22);mode:SetPoint("TOPLEFT",frame,"TOPLEFT",394,-44)
@@ -790,7 +797,7 @@ do
     if not advanced then return false end
 
     local notice=usesWrits and
-      "Daily Status Is Unknown. Confirm Available Quests on the Writs Tab." or
+      "Open or Accept a Writ Quest in Game to Confirm Eligibility." or
       "Budget Covers Purchases Before Turn-In Rewards."
     plannerWarning:SetText(notice)
     plannerSummary:SetText("")
@@ -818,8 +825,13 @@ do
     local now=time()
     local function quote(id) return MFO_AH.PriceQuote(id,7*86400-1,now) end
     local faction=UnitFactionGroup and UnitFactionGroup("player")
+    local function writOwned(id)
+      if not MFO_DB.useOwned then return 0 end
+      local bags,bank=MFO_AH.ShoppingItemStock(id,true)
+      return bags+bank
+    end
     local result,reason=MFO_ReputationPlanner.plan(current,target,copper,tonumber(daily:GetText()),
-      faction,advancedPlanner.availability,crates,quote,ownedCount)
+      faction,usesWrits and MFO_WritTracking.Snapshot() or {},crates,quote,usesWrits and writOwned or ownedCount)
     if not result then
       showDetails({}, {})
       plannerInfo:SetText(reason)
@@ -1348,15 +1360,7 @@ end
 do
   local writScroll
   writPanel,writScroll=MFO_CreateWritTab(frame,SkinWoodButton,SkinWoodScroll,money,MFO_ART,
-    MFO_AH.ShoppingItemStock,updateOwnedSetting,status,function(ids)
-      local faction=UnitFactionGroup and UnitFactionGroup("player")
-      local demand,reason=MFO_WritCalculations.selectionRequirements(ids,faction)
-      if not demand then status:SetText(reason);return end
-      local available={}
-      for _,id in ipairs(ids) do available[id]=true end
-      advancedPlanner.availability=available
-      status:SetText(#ids.." Writs Confirmed Available for the Favour Planner.")
-    end)
+    MFO_AH.ShoppingItemStock,updateOwnedSetting,status)
   local crateTab,writTab
   local inactiveScanMode="Writs"
   local function selectTab(showWrits)
@@ -1424,13 +1428,38 @@ registerSupportedEvent("BAG_UPDATE_DELAYED")
 registerSupportedEvent("BANKFRAME_OPENED")
 registerSupportedEvent("PLAYERBANKSLOTS_CHANGED")
 registerSupportedEvent("GET_ITEM_INFO_RECEIVED")
-registerSupportedEvent("QUEST_TURNED_IN")
-registerSupportedEvent("QUEST_COMPLETE")
+local questEvents={
+  QUEST_DETAIL=true, QUEST_ACCEPTED=true, QUEST_REMOVED=true, QUEST_TURNED_IN=true,
+  QUEST_LOG_UPDATE=true, QUEST_DATA_LOAD_RESULT=true, QUEST_LOG_CRITERIA_UPDATE=true,
+  PLAYER_ENTERING_WORLD=true,
+}
+for eventName in pairs(questEvents) do registerSupportedEvent(eventName) end
+local function refreshQuestDisplays()
+  if frame:IsVisible() then
+    if writPanel:IsShown() then
+      writPanel:Refresh()
+    elseif advancedPlanner.mode~="Crates" and planner:IsShown() then
+      planFavour(true,plannerShopping~=nil)
+    end
+  end
+  if MFO_AH.RefreshWritShop then MFO_AH.RefreshWritShop() end
+end
+local resetPollElapsed,resetRevision=0,nil
+events:SetScript("OnUpdate",function(_,elapsed)
+  resetPollElapsed=resetPollElapsed+elapsed
+  if resetPollElapsed<5 then return end
+  resetPollElapsed=0
+  if not MFO_DB then return end
+  local revision=MFO_WritTracking.PollReset()
+  if revision~=resetRevision then
+    resetRevision=revision
+    refreshQuestDisplays()
+  end
+end)
 events:SetScript("OnEvent",function(_,event,name,success)
- if event=="QUEST_TURNED_IN" or event=="QUEST_COMPLETE" then
-  -- The legacy completion dialog may omit the quest ID. Reconfirm availability.
-  advancedPlanner.availability={}
-  if frame:IsShown() then refresh() end
+ if questEvents[event] then
+  if MFO_DB and (event=="QUEST_LOG_UPDATE" or event=="PLAYER_ENTERING_WORLD"
+    or MFO_WritTracking.OnEvent(event,name)) then refreshQuestDisplays() end
   return
  end
  if event=="GET_ITEM_INFO_RECEIVED" then writPanel:ItemInfoReceived(name,success);return end

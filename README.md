@@ -53,7 +53,7 @@ Prices are estimates based on saved scans and available listings. Auction House 
 ### Planning Writs and Crates
 
 - On the Crates tab, cycle **Plan** to select **Crates**, **Writs** or **Combined**. Enter the Favour you still need. Crates with a blank budget use the original minimum-net-cost planner.
-- For Writs, open or shift-click verified Writs on the Writs tab and click **Confirm Daily Availability**. Confirm only quests you can still turn in today. Confirmations replace the previous selection. Reloading or opening a quest turn-in clears them. Unknown Writs are excluded.
+- Open a Writ quest from your bags or accept it in game. The **Quest Status** column shows Available, Active, Ready for Delivery, Completed Today or Unknown for your character. The planner and new shopping plans require a confirmed offer or an active quest.
 - Return to the planner and enter **Writs Left Today**. Enter an optional gold budget, then click **Calculate**. The budget covers purchases before any crate turn-in rewards. The result shows the best plan found within the budget, including partial progress when the target cannot be reached.
 - **Shop Planned Items** replaces the current MFO Shop list. Use Owned allocates bag and cached bank stock once across all turn-ins. Combined, Writs and budgeted Crates exclude missing or stale prices for anything the plan needs to buy. The owned-stock search is bounded and may show an estimate.
 
@@ -62,6 +62,8 @@ Prices are estimates based on saved scans and available listings. Auction House 
 **Shopping progress** tracks the quantity of items available, recorded as purchased, or still outstanding. It is not a completed-crate counter. A purchase can count towards shopping progress before it reaches your bags.
 
 **Crate readiness** checks whether the crate and required materials are actually available in bags or cached bank inventory. Bank quantities are snapshots and may be outdated. Open the bank to refresh them. Filling and handing in crates is not automatically verified.
+
+**Writ readiness** requires an active quest with completed objectives and all required items in your bags. MFO Shop shows bank withdrawals and recorded purchases separately. Completed Writs are marked in saved lists. Observed turn-ins persist for the character, realm and faction until the server's daily reset.
 
 ## Cost calculations
 

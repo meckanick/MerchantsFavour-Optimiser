@@ -1,14 +1,22 @@
 local root="MerchantsFavourOptimiser/"
 dofile(root.."WritCalculations.lua")
+dofile(root.."WritTracking.lua")
 dofile(root.."CrateTracking.lua")
 CreateFrame=function() return {RegisterEvent=function() end,SetScript=function() end} end
 GetRealmName=function() return "Test" end
+UnitName=function() return "Tester" end
 local faction="Alliance"
 UnitFactionGroup=function() return faction end
 MFO_WritData={
- {id=10,reputation=75,faction="Both",items={{id=100,qty=2},{id=100,qty=1}}},
- {id=11,reputation=75,faction="Alliance",items={{id=100,qty=2},{id=101,qty=1}}},
- {id=12,reputation=75,faction="Horde",items={{id=100,qty=20}}},
+ {id=10,questID=910,daily=true,reputation=75,faction="Both",items={{id=100,qty=2},{id=100,qty=1}}},
+ {id=11,questID=911,daily=true,reputation=75,faction="Alliance",items={{id=100,qty=2},{id=101,qty=1}}},
+ {id=12,questID=912,daily=true,reputation=75,faction="Horde",items={{id=100,qty=20}}},
+}
+local completed,active={},true
+C_QuestLog={
+ GetLogIndexForQuestID=function(id) return active and id or nil end,
+ IsComplete=function() return true end,
+ IsQuestFlaggedCompleted=function(id) return completed[id]==true end,
 }
 MFO_DB={useOwned=true}
 dofile(root.."StandaloneAH.lua")
@@ -48,11 +56,13 @@ bank[100],bank[101]=1,1
 AH.RecalculateShopping()
 assert(items[100].qty==0 and items[100].purchasedQty==2 and items[100].pendingPurchaseQty==0)
 assert(readiness()[11].missing==0 and readiness()[11].withdraw==2)
+assert(not readiness()[11].ready,"bank stock cannot make a Writ deliverable")
 bankStamp=nil
 assert(readiness()[11].missing==2,"unverified cached bank cannot satisfy readiness")
 bags[100],bags[101],bank[100],bank[101]=8,1,0,0
 AH.RecalculateShopping()
 assert(readiness()[11].missing==0 and readiness()[11].withdraw==0)
+assert(readiness()[11].ready,"the quest is complete and allocated supplies are in bags")
 bags[100]=7
 AH.RecalculateShopping()
 assert(items[100].qty==1 and readiness()[11].missing==1)
@@ -89,4 +99,15 @@ assert(AH.SetShoppingCratePlan(crates))
 assert(AH.Shopping()[100].requiredQty==6 and AH.Shopping()[100].qty==0)
 assert(readiness()[10] and AH.ShoppingCratePlan()[1].materialQty==3)
 assert(AH.RemoveShoppingItem(10) and AH.Shopping()[100].requiredQty==3)
+completed[910]=true
+assert(not AH.AddShoppingWrits({10},name))
+assert(not AH.ReplaceShopping(replacement,{10}) and AH.Shopping()[100].requiredQty==3)
+completed[910]=nil
+active=false
+assert(not AH.AddShoppingWrits({10},name),"unknown Writ cannot be newly added")
+active=true
+assert(AH.AddShoppingWrits({10},name))
+completed[910]=true
+assert(readiness()[10].state=="completed" and not readiness()[10].ready)
+assert(AH.Shopping()[10],"existing plan can be kept or removed by the player")
 print("PASS: mixed Writ shopping, aggregation, shared readiness, partial purchases and faction isolation")

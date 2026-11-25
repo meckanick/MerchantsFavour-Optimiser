@@ -10,7 +10,7 @@ function Planner.goldBudget(text)
   return tonumber(whole)*10000 + tonumber(decimals..string.rep("0",4-#decimals))
 end
 
-function Planner.plan(mode, target, budget, dailyLimit, faction, availability, crates, getPrice, getOwned)
+function Planner.plan(mode, target, budget, dailyLimit, faction, questStates, crates, getPrice, getOwned)
   if not MFO_Calculations.validTarget(target) then
     return nil, "Enter a Whole-Number Favour Target Between 1 and 1000."
   end
@@ -52,9 +52,9 @@ function Planner.plan(mode, target, budget, dailyLimit, faction, availability, c
 
   if mode ~= "Crates" then
     for _, writ in ipairs(Writ.available(faction)) do
-      local available = availability[writ.id]
-      if available == nil then unknown = unknown + 1 end
-      if writ.daily == true and available == true then
+      local state = questStates[writ.id]
+      if state == nil then unknown = unknown + 1 end
+      if writ.daily == true and MFO_WritTracking.Eligible(state) then
         confirmed = confirmed + 1
         if dailyLimit > 0 then
           local demand = Writ.selectionRequirements({writ.id}, faction)

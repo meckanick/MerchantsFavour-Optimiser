@@ -1,8 +1,9 @@
 dofile("MerchantsFavourOptimiser/WritCalculations.lua")
+dofile("MerchantsFavourOptimiser/WritTracking.lua")
 dofile("MerchantsFavourOptimiser/WritTab.lua")
 
 local function writ(id, tier, reputation, faction, professions)
-  return {id=id,tier=tier,reputation=reputation,faction=faction,professions=professions,
+  return {id=id,questID=900+id,daily=true,tier=tier,reputation=reputation,faction=faction,professions=professions,
     items={{id=id+100,qty=2}}}
 end
 MFO_WritData={
@@ -18,10 +19,18 @@ local prices={[1]=50,[2]=75,[3]=200,[4]=100,[5]=100,[101]=50,[102]=25,[103]=100}
 local updated={[2]=true,[5]=true}
 local stock={[1]={1,0},[101]={0,3}}
 local currentTime=700000
-local added,shift,confirmed
+local added,shift
 IsShiftKeyDown=function() return shift end
 GetItemInfo=function(id) return names[id] end
 UnitFactionGroup=function() return "Alliance" end
+UnitName=function() return "Tester" end
+GetRealmName=function() return "Test" end
+local completed={}
+C_QuestLog={
+  GetLogIndexForQuestID=function(id) return id end,
+  IsComplete=function() return true end,
+  IsQuestFlaggedCompleted=function(id) return completed[id]==true end,
+}
 time=function() return currentTime end
 MFO_DB={}
 MFO_AH={
@@ -75,7 +84,7 @@ panel,scroll=MFO_CreateWritTab(parent,noop,noop,function(copper) return copper o
     local counts=stock[id] or {0,0}
     return counts[1],counts[2]
   end,
-  function(value) MFO_DB.useOwned=value;panel:Refresh() end,status,function(ids) confirmed=table.concat(ids,",") end)
+  function(value) MFO_DB.useOwned=value;panel:Refresh() end,status)
 local function find(owner,kind,text)
   for _,child in ipairs(owner.children) do
     if child.kind==kind and (text==nil or child.text==text) then return child end
@@ -182,16 +191,18 @@ writRow(3):OnClick()
 writRow(2):OnClick()
 writRow(5):OnClick()
 assert(writRow(2).cells[1].text=="[x] Writ: Tube")
-click(panel,"Confirm Daily Availability")
-assert(confirmed=="2,5" and added=="1","explicit planner confirmation uses selection without adding to Shop")
 click(panel,"Add Selected (2)")
 assert(added=="2,5")
 assert(find(panel,"Button","Add Selected (0)"))
-shift=false
+assert(writRow(1).cells[10].text=="Active","bank stock does not make a Writ deliverable")
+stock[101]={2,1}
+panel:Refresh()
+assert(writRow(1).cells[10].text=="Ready for Delivery")
 writRow(1):OnClick()
-click(panel,"Confirm Daily Availability")
-assert(confirmed=="","empty confirmation can clear the planner selection")
-writRow(1):OnClick()
-click(panel,"Confirm Daily Availability")
-assert(confirmed=="1","an open Writ can be confirmed individually")
+completed[901]=true
+panel:Refresh()
+assert(writRow(1).cells[10].text=="Completed Today" and find(panel,"Button","Add Selected (0)"))
+C_QuestLog=nil
+panel:Refresh()
+assert(writRow(1).cells[10].text=="Unknown")
 print("PASS: Writ tab filters, rankings, costs, tooltips, cache and refresh")

@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main, development]
   push:
-    branches: [main, development]
+    branches: [main, development, feature/writ-optimisation]
   workflow_dispatch:
 
 permissions:
@@ -30,6 +30,7 @@ jobs:
               luac5.1 -p "$file"
             done
       - name: Run addon regression tests
+        shell: bash
         run: |
           lua5.1 tests/mfo-regression.lua
           lua5.1 tests/mfo-syndicator.lua
@@ -98,6 +99,7 @@ jobs:
           addon="MerchantsFavourOptimiser"
           version="$(sed -n 's/^## Version:[[:space:]]*//p' "$addon/MerchantsFavourOptimiser.toc" | head -n1)"
           mkdir -p dist
+          cp LICENSE "$addon/LICENSE"
           zip -q -r "dist/MerchantsFavourOptimiser_v${version}_Forever.zip" "$addon" \
             -x '*/.DS_Store' '*/Thumbs.db'
           archive="dist/MerchantsFavourOptimiser_v${version}_Forever.zip"
@@ -118,6 +120,8 @@ jobs:
                   "MerchantsFavourOptimiser/Data.lua",
                   "MerchantsFavourOptimiser/Calculations.lua",
                   "MerchantsFavourOptimiser/Core.lua",
+                  "MerchantsFavourOptimiser/LICENSE",
+                  "MerchantsFavourOptimiser/README.txt",
               }
               missing = sorted(required - set(files))
               if missing:

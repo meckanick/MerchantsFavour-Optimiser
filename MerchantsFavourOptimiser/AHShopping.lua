@@ -304,6 +304,7 @@ update=function()
  if not panel or not panel:IsShown() then return end
  local shopping=AH.Shopping()
  local craftEstimate=AH.ShoppingCraftEstimate()
+ local writStock=AH.ShoppingUsesWritStock()
  if panel.crafting then
   panel.crafting:SetShown(craftEstimate and (craftEstimate.crafting or craftEstimate.craftLimited) and true or false)
  end
@@ -313,7 +314,7 @@ update=function()
    local required=math.max(0,math.floor(tonumber(v.requiredQty) or tonumber(v.qty) or 0))
    local toBuy=math.max(0,math.floor(tonumber(v.qty) or 0))
    local bags,bank=0,0
-   if AH.ShoppingItemStock then bags,bank=AH.ShoppingItemStock(id) end
+   if AH.ShoppingItemStock then bags,bank=AH.ShoppingItemStock(id,writStock) end
    local owned=math.max(0,bags+bank)
    items[#items+1]={id=id,name=v.name or tostring(id),qty=toBuy,required=required,
     owned=owned,purchased=v.purchasedQty or 0}
@@ -336,7 +337,7 @@ update=function()
  local allocations={}
  local plan=AH.ShoppingCratePlan and AH.ShoppingCratePlan()
  if plan and AH.CrateReadiness then
-  allocations=AH.CrateReadiness(plan)
+  allocations=AH.CrateReadiness(plan,writStock)
   for _,allocation in ipairs(allocations) do
    local bucket=readinessByCrate[allocation.crateID]
    if not bucket then bucket={records={},ready=0,total=0};readinessByCrate[allocation.crateID]=bucket end
@@ -387,10 +388,10 @@ update=function()
  panel.offset=math.min(panel.offset,math.max(0,#items-#rows))
  local total,unpriced=0,0
  local prices={}
- local now=craftEstimate and time()
+ local now=(writStock or craftEstimate) and time()
  for _,v in ipairs(items) do
   local price
-  if craftEstimate then
+  if now then
    local stale
    price,stale=AH.PriceQuote(v.id,7*86400-1,now)
    if stale then price=nil end
@@ -415,7 +416,7 @@ update=function()
   end
  end
  local favourLabel=unknownFavour>0 and (favour.." + Unknown Favour") or tostring(favour)
- panel.total:SetText(#items.." Items | Favour: "..favourLabel..
+ panel.total:SetText(#items.." Items | "..(writTotal>0 and "Crate Favour: " or "Favour: ")..favourLabel..
   (writTotal>0 and (" | Writs Ready: "..writReady.."/"..writTotal) or ""))
  if panel.remainingCost then
   panel.remainingCost:SetText((unpriced>0 and "Known Remaining Cost: " or "Remaining Cost: ")..gold(total)..
@@ -428,7 +429,7 @@ update=function()
   local required=current and (current.requiredQty or current.qty) or 0
   local owned=0
   if current and AH.ShoppingItemStock then
-   local bags,bank=AH.ShoppingItemStock(selected)
+   local bags,bank=AH.ShoppingItemStock(selected,writStock)
    owned=bags+bank
   end
   panel.detail:SetText(current and (current.name.."\nRequired: "..required.."   Owned: "..owned.."   To buy: "..current.qty..
@@ -1223,7 +1224,7 @@ local function attach(parent)
     -- Shopping quantities and inventory belong to the crate, not its materials.
     GameTooltip:AddLine("Required: "..self.item.required.."   Owned: "..(self.item.owned or "Unknown").."   To buy: "..self.item.qty,1,1,1)
     if AH.ShoppingItemStock then
-     local bags,bank,bankScan,bankSource=AH.ShoppingItemStock(self.item.id,self.item.writReadiness~=nil)
+     local bags,bank,bankScan,bankSource=AH.ShoppingItemStock(self.item.id,AH.ShoppingUsesWritStock())
      GameTooltip:AddLine("In bags: "..bags.."   In bank: "..bank,1,1,1)
      if bank>0 then
       if bankSource=="syndicator" then

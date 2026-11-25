@@ -807,7 +807,7 @@ check(coreSource:find("requiredQty=r.b.qty",1,true)~=nil and
 check(coreSource:find("plannerShopping={items=bestShopping,details=bestDetails,required=fullDemand,names=names}",1,true)~=nil,
   "planner must consolidate original requirements before owned deductions")
 check(ahTab:find("if AH.RecalculateShopping then AH.RecalculateShopping() end",1,true)~=nil and
-      ahTab:find('Favour: "..favourLabel',1,true)~=nil and
+      ahTab:find('"Crate Favour: " or "Favour: ")..favourLabel',1,true)~=nil and
       ahTab:find('panel.remainingCost:SetText(',1,true)~=nil and
       ahTab:find('Incomplete - ',1,true)~=nil,
   "shopping tab must refresh quantities and flag incomplete cost totals")
@@ -930,7 +930,7 @@ check(ahTab:find('api.StartCommoditiesPurchase(selected,qty)',1,true)~=nil and
   "manual quantity must reach the AH purchase API and success receipt")
 
 -- v0.1.167: retain price totals but move them to the shopping-list footer.
-check(ahTab:find('panel.total:SetText(#items.." Items | Favour: "..favourLabel',1,true)~=nil,
+check(ahTab:find('panel.total:SetText(#items.." Items | "..',1,true)~=nil,
   "top summary should retain items and Favour without duplicate cost")
 check(ahTab:find('panel.remainingCost=left:CreateFontString',1,true)~=nil and
       ahTab:find('panel.remainingCost:SetPoint("BOTTOMLEFT",left,"BOTTOMLEFT",14,51)',1,true)~=nil,
@@ -1018,7 +1018,7 @@ local tooltip={AddLine=function(_,line)tooltipLines[#tooltipLines+1]=line end}
 track.AddTooltip(tooltip,track.Evaluate(sample,{[9001]=2,[101]=5},{[101]=15},12345)[1])
 check(#tooltipLines>=5,"readiness tooltip must explain allocated materials")
 local shopUI=assert(io.open("MerchantsFavourOptimiser/AHShopping.lua","r")):read("*a")
-check(shopUI:find("AH.CrateReadiness(plan)",1,true)~=nil,"shop must evaluate whole plan once")
+check(shopUI:find("AH.CrateReadiness(plan,writStock)",1,true)~=nil,"shop must evaluate whole plan once with scoped stock")
 check(shopUI:find("Crate readiness:",1,true)~=nil,"shop tooltip must display aggregate ready count")
 check(shopUI:find("MFO_CrateTracking.Symbol(state)",1,true)~=nil,"shop must render compact status")
 check(coreSource:find("Crate Readiness - Individual Estimate",1,true)~=nil,
@@ -1039,7 +1039,7 @@ check(shopUI:find("item.materialReadiness",1,true)==nil,"material rows must not 
 -- v0.1.171: shopping hover tooltip shows separate bags and cached bank stock.
 check(coreSource:find("MFO_AH.ShoppingItemStock=function(id,writ)",1,true)~=nil,
  "shopping inventory must expose bag and bank quantities independently of Use Owned")
-check(shopUI:find("AH.ShoppingItemStock(self.item.id,self.item.writReadiness~=nil)",1,true)~=nil,
+check(shopUI:find("AH.ShoppingItemStock(self.item.id,AH.ShoppingUsesWritStock())",1,true)~=nil,
  "shopping tooltip must read stock for hovered item")
 check(shopUI:find("In bags: ",1,true)~=nil and shopUI:find("In bank: ",1,true)~=nil,
  "shopping tooltip must label bag and bank counts")

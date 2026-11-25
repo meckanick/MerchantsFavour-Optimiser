@@ -141,3 +141,5 @@ that unconfirmed recipe evidence is excluded and saved buy-only lists still work
 - `tests/mfo-regression.lua` — automated checks
 
 See [README.md](README.md) for installation and user instructions.
+
+For the Writ feature branch, see the [Phase 10 audit](docs/WRIT_PHASE_10_AUDIT.md) for coverage, profiling and the release-candidate checklist. The validation workflow builds test ZIPs on feature-branch pushes.

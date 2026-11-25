@@ -12,6 +12,8 @@ The 2026-11-24 audit reviewed 150 Writs. The generated table contains 130 verifi
 
 Data from [Efficient Games](https://efficient.games), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). MFO filters and combines the numeric quest fields with the candidate comparisons and derived tags. The logistics Writ TSV is [separately attributed as CC BY 4.0](https://github.com/buildthehomelab/wow-mod-supply-logistics/blob/178d06486e6e74c64c034b93392474c22d89fc2e/README.md). The generated table and audit omit upstream code, game text, names, and optional NPC and zone labels. MFO's code license is MIT.
 
+The two Writ data sources share Efficient Games upstream data. The test ZIP carries their attribution in its bundled README alongside MFO's MIT license.
+
 ## Four Writs absent from the logistics TSV
 
 Each has two item objectives with quantity one, an explicit daily flag and all-races mask, and matching rewards in all three pinned Forever builds.
@@ -121,3 +123,5 @@ To verify the generated Lua, download the pinned JSON above and run
 `python tools/generate_writ_recipes.py professions.json --check`. The generator
 checks the snapshot's SHA-256 and uses only recipe facts reachable from the
 checked-in Writ objectives.
+
+MFO's recipe table carries output counts, reagents, profession IDs, workstation and tool requirements, and cooldown facts derived from the Forever client tables. See the [upstream license and game-content notices](https://github.com/peligwen/peligaming/blob/2dbb0010e54e1c4436a4691d61315b4ee3faafdb/LICENSE).

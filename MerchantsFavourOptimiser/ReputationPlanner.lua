@@ -2,6 +2,7 @@
 MFO_ReputationPlanner = {}
 local Planner = MFO_ReputationPlanner
 local Writ = MFO_WritCalculations
+local MAX_CRAFT_EXTENSIONS = 512
 
 function Planner.goldBudget(text)
   local whole, decimals = text:match("^(%d+)%.(%d*)$")
@@ -107,6 +108,10 @@ function Planner.plan(mode, target, budget, dailyLimit, faction, questStates, cr
   local noStates = {}
   local states, best = {[0]={[0]={empty}}}, empty
   local bestRep = 0
+  local craftExtensions = 0
+  local function craftSearchFull()
+    return recipes and craftExtensions >= MAX_CRAFT_EXTENSIONS
+  end
   local function better(rep, total)
     if rep >= target then
       return bestRep < target or total < best.total or (total == best.total and rep < bestRep)
@@ -114,18 +119,20 @@ function Planner.plan(mode, target, budget, dailyLimit, faction, questStates, cr
     return bestRep < target and (rep > bestRep or (rep == bestRep and total < best.total))
   end
   for _, option in ipairs(options) do
-    if bestRep == firstPossible and best.total == 0 then break end
+    if craftSearchFull() or (bestRep == firstPossible and best.total == 0) then break end
     local step = option.writ and -stride or stride
     local first, last = 0, firstPossible-stride
     if option.writ then first, last = last, first end
     for rep=first,last,step do
-      if bestRep == firstPossible and best.total == 0 then break end
+      if craftSearchFull() or (bestRep == firstPossible and best.total == 0) then break end
       for count, bucket in pairs(states[rep] or noStates) do
         local nextCount = count + (option.writ and 1 or 0)
         if not option.writ or nextCount <= dailyLimit then
           for _, state in ipairs(bucket) do
             local total, demand, acquired
             if recipes then
+              if craftSearchFull() then break end
+              craftExtensions = craftExtensions + 1
               demand, acquired = {}, {}
               for id, qty in pairs(state.used) do demand[id] = qty end
               for id, qty in pairs(option.demand) do demand[id] = (demand[id] or 0) + qty end
@@ -191,6 +198,16 @@ function Planner.plan(mode, target, budget, dailyLimit, faction, questStates, cr
           end
         end
       end
+    end
+  end
+
+  if craftSearchFull() then
+    pruned = true
+    -- Later options may still offer a better buy-only plan.
+    local buy = Planner.plan(mode, target, budget, dailyLimit, faction, questStates, crates, getPrice, getOwned)
+    if better(buy.reputation, buy.total) then
+      buy.pruned = true
+      return buy
     end
   end
 

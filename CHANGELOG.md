@@ -2,6 +2,15 @@
 
 ## v0.1.179 — Development (unreleased)
 
+- Added cost and quest-status comparisons for 130 supported daily Writs, including separate Writ and requested-item prices.
+- Added Crates, Writs and Full scans, Writ shopping lists, and budgeted Writ and Combined Favour planning with shared inventory.
+- Added optional, manually executed crafting plans based on current-character profession evidence and 180 catalogued recipes.
+- Added delivery routes and map markers for 97 Writs, with optional TomTom waypoints.
+- Scoped mixed shopping quantities and readiness to the current character's bank stock. Removing a crate from a mixed list also removes its share of required materials.
+- Made modern scans wait for the AH throttle. Unpriced results invalidate older Writ quotes, and scan progress updates avoid rebuilding the main list.
+- Bounded crafting-aware planner work and retained a buy-only fallback when the bound is reached. Quest updates invalidate the current Writ plan so it can be recalculated on demand.
+- Added source attribution to the packaged addon and enabled validation builds on the Writ feature branch.
+
 - Added an optional current-character Syndicator bank inventory source with a Native/Syndicator toggle and `/mfo inventory` commands.
 - Used only Syndicator's public v288-compatible API. No bundled Syndicator code or required dependency.
 - Kept live MFO bag counts as the bag source and retained the native bank snapshot as fallback when Syndicator is absent, pending, hidden or invalid.

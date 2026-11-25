@@ -26,7 +26,7 @@ local function runScanner(modern)
   local handlers,queries={},{}
   local pending,ready,throttle
   local open,clock,now,realm,faction=true,0,10,"Forever","Alliance"
-  MFO_DB={lastAHScan=5,prices={[shared]={price=99,updated=5}}}
+  MFO_DB={lastAHScan=5,prices={[shared]={price=99,updated=5},[missingID]={price=55,updated=5}}}
   function CreateFrame()
     return {
       RegisterEvent=function() end,
@@ -52,6 +52,7 @@ local function runScanner(modern)
   function GetNumAuctionItems() return pending==missingID and 0 or 1,1 end
   function GetAuctionItemInfo() return name(pending),nil,1,nil,nil,nil,nil,nil,42 end
   C_AuctionHouse=modern and {
+    IsThrottledMessageSystemReady=function() return not throttle end,
     GetItemKeyInfo=function(key) return key.itemID~=coldID or ready end,
     SendSearchQuery=function(key) dispatch(key.itemID) end,
     HasSearchResults=function() return true end,
@@ -99,7 +100,9 @@ local function runScanner(modern)
   now=20
   scan("Writs",expected(false,true))
   assert(ah.LastScan()==10 and ah.LastScan("Writs")==20 and ah.LastScan("Full")==nil)
-  assert(ah.Price(missingID)==nil)
+  local lastPrice, unavailable=ah.PriceQuote(missingID,30,20)
+  assert(lastPrice==55 and unavailable,"a new empty search must invalidate an otherwise fresh quote")
+  assert(ah.Price(missingID)==55,"legacy ranking retains the last observed unit price")
   assert(#ah.Missing()==1 and ah.Missing()[1].id==missingID)
   local price,stale=ah.PriceQuote(shared,5,20)
   assert(price==42 and not stale,"Writ scan must refresh the shared cache")
@@ -143,13 +146,11 @@ local function runScanner(modern)
 
   queries={}
   open=true
-  throttle=not modern
+  throttle=true
   assert(ah.Scan(crates,"Full"))
-  if not modern then
-    assert(not pending,"legacy throttle must block the query")
-    throttle=false
-    tick(.2)
-  end
+  assert(not pending,"throttle must block the query")
+  throttle=false
+  tick(.2)
   assert(pending)
   faction="Horde"
   result()
@@ -166,6 +167,13 @@ local function runScanner(modern)
   assert(ah.Scan(crates,"Full"))
   tick(16)
   assert(ah.Status():find("timed out") and ah.LastScan("Full")==30)
+  if modern then
+    pending=nil
+    throttle=true
+    assert(ah.Scan(crates,"Full"))
+    tick(16)
+    assert(ah.Status():find("throttle timed out") and ah.LastScan("Full")==30)
+  end
 end
 
 runScanner(false)

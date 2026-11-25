@@ -116,4 +116,17 @@ local full=assert(Planner.plan("Combined",1000,100000,#MFO_WritData,"Alliance",c
   fullCrates,function(id) return 20+id%17 end,function(id) return id%3==0 and 3 or 0 end))
 equal(full.remaining,0,"maximum target and complete data finish")
 assert(full.total<=100000 and #full.writIDs<=#MFO_WritData)
+local craftCalls=0
+MFO_WritCrafting={Solve=function(requirements,acquisitions,rep,price,owned)
+  craftCalls=craftCalls+1
+  return MFO_WritCalculations.costRequirements(requirements,acquisitions,rep,price,owned)
+end}
+local lastID=MFO_WritData[#MFO_WritData].id
+local function lateBargain(id) return id==lastID and 1 or 100 end
+local function emptyStock() return 0 end
+local bounded=Planner.plan("Writs",1000,nil,12,"Alliance",confirmed,{},lateBargain,emptyStock,{})
+local buyOnly=Planner.plan("Writs",1000,nil,12,"Alliance",confirmed,{},lateBargain,emptyStock)
+assert(bounded.pruned and craftCalls<=#MFO_WritData+513,"bound crafting extensions across the entire plan")
+equal(bounded.reputation,buyOnly.reputation,"bounded search keeps the buy-only fallback")
+equal(bounded.total,buyOnly.total,"fallback still considers later low-cost options")
 print(("PASS: reputation modes, budgets, dailies, shared stock, freshness and partial plans (full-data search %.3fs)"):format(os.clock()-started))

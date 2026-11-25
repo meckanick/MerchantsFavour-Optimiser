@@ -4,8 +4,30 @@ dofile("MerchantsFavourOptimiser/WritCalculations.lua")
 dofile("MerchantsFavourOptimiser/WritDelivery.lua")
 local Delivery = MFO_WritDelivery
 
-local verified, mapped = {}, 0
+local verified, mapped, audited = {}, 0, {}
 for _, writ in ipairs(MFO_WritData) do verified[writ.questID] = true end
+local audit = assert(io.open("research/writ-delivery-audit.tsv"))
+audit:read("*l")
+for line in audit:lines() do
+  local fields = {}
+  for field in (line.."\t"):gmatch("(.-)\t") do fields[#fields+1] = field end
+  local quest = tonumber(fields[1])
+  assert(verified[quest] and not audited[quest], "unexpected or duplicate audited quest")
+  audited[quest] = true
+  local point = MFO_WritLocations[quest]
+  assert((point ~= nil) == (fields[2] == "Included"), "delivery inclusion mismatch for "..quest)
+  if point then
+    local name = fields[5]:match('^"(.*)"$')
+    name = name and name:gsub('""', '"') or fields[5]
+    assert(point.kind == fields[3] and point.id == tonumber(fields[4]) and point.name == name)
+    assert(point.mapID == tonumber(fields[6]) and point.zone == fields[7] and point.faction == fields[10])
+    assert(math.abs(point.x * 100 - tonumber(fields[8])) < 1e-9)
+    assert(math.abs(point.y * 100 - tonumber(fields[9])) < 1e-9)
+    assert(fields[11]:match("^https://") and fields[12]:match("^https://") and fields[13] ~= "")
+  end
+end
+audit:close()
+for quest in pairs(verified) do assert(audited[quest], "missing delivery audit row for "..quest) end
 for quest, point in pairs(MFO_WritLocations) do
   assert(verified[quest] and point.id > 0 and point.mapID > 0)
   assert(point.kind == "npc" or point.kind == "object")

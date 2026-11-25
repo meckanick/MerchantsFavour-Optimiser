@@ -3,7 +3,7 @@
 [![Build and validation](https://github.com/meckanick/MerchantsFavour-Optimiser/actions/workflows/addon-build.yml/badge.svg?branch=main)](https://github.com/meckanick/MerchantsFavour-Optimiser/actions/workflows/addon-build.yml)
 [![Latest release](https://img.shields.io/github/v/release/meckanick/MerchantsFavour-Optimiser?display_name=tag&label=release)](https://github.com/meckanick/MerchantsFavour-Optimiser/releases)
 
-**Merchant's Favour Optimiser** is a standalone World of Warcraft Forever addon for comparing the cost of Waylaid Supply crates, planning Favour targets, and shopping for crates and materials directly through its own Auction House interface.
+**Merchant's Favour Optimiser** is a standalone World of Warcraft Forever addon for comparing the cost of Waylaid Supply crates and Craftsman's Writs, planning Favour targets, and shopping through its own Auction House interface.
 
 MFO helps answer three questions: **Which crate offers the best value? How can I reach my Favour target at the lowest estimated cost? What do I still need to buy or collect?**
 
@@ -13,7 +13,8 @@ MFO helps answer three questions: **Which crate offers the best value? How can I
 
 - **Crate cost comparison:** compares supported crate prices, material bundle costs, Favour rewards and estimated net cost per Favour. Currently displays 22 verified crate entries; eight additional unverified Artisan entries remain hidden.
 - **Favour Planner:** plan Crates, Writs or a combination for a Favour target. The planner shows turn-ins, purchase costs, remaining Favour and overfill, and can transfer the plan to MFO Shop.
-- **Built-in Auction House scanner:** searches supported crates and materials, saves market prices and scan timestamps, and provides live scan progress and missing-price details.
+- **Writ cost comparison:** ranks 130 supported dailies by estimated purchase cost per Favour, including the Writ itself and its requested item. The Writs tab shows character-specific quest status.
+- **Built-in Auction House scanner:** offers Crates, Writs and Full modes, saves prices and scan timestamps by market, and shows live progress and missing items.
 - **MFO Shop:** a dedicated, themed Auction House shopping panel with saved item quantities, live listings, purchase controls, remaining cost, and a final purchase confirmation.
 - **Shopping progress:** an in-header bar displays progress as quantities available in bags/bank, confirmed purchases tracked by MFO, and quantities still to buy. Purchased items may still need collecting from the mailbox.
 - **Crate readiness:** compact indicators and readable tooltips show whether a planned crate is in your bags, needs bank stock, or lacks materials. Shared material quantities are allocated once across the saved crate plan. Readiness is **not** proof a crate has been filled or handed in.
@@ -56,6 +57,8 @@ Prices are estimates based on saved scans and available listings. Auction House 
 - Open a Writ quest from your bags or accept it in game. The **Quest Status** column shows Available, Active, Ready for Delivery, Completed Today or Unknown for your character. The planner and new shopping plans require a confirmed offer or an active quest.
 - Return to the planner and enter **Writs Left Today**. Enter an optional gold budget, then click **Calculate**. The budget covers purchases before any crate turn-in rewards. The result shows the best plan found within the budget, including partial progress when the target cannot be reached.
 - **Shop Planned Items** replaces the current MFO Shop list. Use Owned allocates bag and cached bank stock once across all turn-ins. Combined, Writs and budgeted Crates exclude missing or stale prices for anything the plan needs to buy. The owned-stock search is bounded and may show an estimate.
+- In Writ and Combined lists, native bank stock must come from a bank scan on the current character. Revisit the bank after upgrading if an old snapshot lacks a character.
+- Writ estimates use quotes dated within seven days. A newer AH search that returns no usable listing makes the previous quote unavailable for Writ estimates. Saved lists retain completed Writs until you edit or replace the list.
 
 ### Comparing Writ crafting costs
 
@@ -70,6 +73,7 @@ Prices are estimates based on saved scans and available listings. Auction House 
 - The numbered order starts in your current zone and uses approximate straight-line distance within each zone. It includes no verified roads, flight connections or other travel paths.
 - **Map Markers** toggles the numbered zone-map markers and nearby minimap pins. With a compatible TomTom installed and markers enabled, Shift-click a stop to set its arrow.
 - Quest and bag changes update the route automatically. Writs without a verified delivery location appear below the route without a pin.
+- Delivery coordinates cover 97 of the 130 supported Writs. Twenty additional Writs were excluded from the database because their faction evidence conflicts. See [Writ sources](WRIT_SOURCES.md).
 
 ### Shopping progress versus crate readiness
 
@@ -136,5 +140,7 @@ Development takes place on `development`. Tested changes are merged to `main` be
 ## License and attribution
 
 Original MFO code and assets are subject to the [MIT License](LICENSE), except where third-party rights apply. World of Warcraft and WoW Forever names and game assets belong to their respective owners. Verify rights to bundled third-party artwork before redistributing a release.
+
+Writ quest data comes from Efficient Games and the Supply & Logistics Writ table under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). MFO filters and combines the numeric quest data and derives profession tags. See [Writ data provenance](WRIT_SOURCES.md) for the pinned sources and the recipe and delivery evidence.
 
 Feedback and bug reports are welcome through [GitHub Issues](https://github.com/meckanick/MerchantsFavour-Optimiser/issues).

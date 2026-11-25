@@ -1,28 +1,29 @@
-Merchant's Favour Optimiser v0.1.69 - WoW Forever
+Merchant's Favour Optimiser 0.1.179 for WoW Forever
 
-Standalone Auction House pricing: Auctionator is NOT required.
 Install the MerchantsFavourOptimiser folder in Interface/AddOns.
+Use /mfo to open MFO or /mfo shop at the Auction House. Select Crates,
+Writs or Full before scanning. Prices and shopping are saved by realm
+and faction. Refresh recalculates from cached prices.
 
-Use /mfo to open the addon, /mfo refresh to recalculate, /mfo scan to scan,
-and /mfo shop to view the persistent shopping list.
+The Crates tab compares 22 supported crate entries. The Writs tab
+compares the Writ and requested-item costs for 130 supported dailies.
+Open or accept a Writ in game to confirm its eligibility for planning.
+Use the Favour Planner for Crates, Writs or Combined plans. Review
+and confirm purchases in MFO Shop, then collect them from the mailbox.
 
-Open the Auction House and click Scan AH. Wait for the 0-100% progress bar
-to complete. The compact summary shows the number of items priced and missing.
-Hover the summary to see names and IDs of items without usable auction prices.
-Prices and the last successful scan time are saved between sessions.
+Use Owned can lower purchase requirements. Visit the bank to refresh
+native bank stock for the current character. Optional crafting
+estimates use your learned recipes and require manual crafting. The
+Delivery Route has mapped stops for 97 Writs. Optional TomTom waypoints
+require a matching Forever build.
 
-22 visible crates (30 definitions; eight unverified Artisan crates hidden).
-Compare crate purchase costs, material bundles, total costs, and net gold per Favour.
-The inline Favour Planner accepts a target, allows economical overfill, and
-provides Shop Planned Items for adding aggregate quantities to MFO's shopping list.
-Shop buttons add crate/material quantities; purchases remain manual.
-Use Owned accounts for bags and a saved bank snapshot (refresh by visiting bank).
-Minimap: left-click toggles, right-click refreshes, drag to reposition.
+Writ data from Efficient Games (https://efficient.games), licensed under
+CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). MFO filters and
+combines the quest facts with the CC BY 4.0 Supply & Logistics Writ table
+and derives profession tags. Recipe and delivery tables contain selected
+game facts. See the pinned source records and notices at
+https://github.com/meckanick/MerchantsFavour-Optimiser/blob/feature/writ-optimisation/WRIT_SOURCES.md
+MFO code is MIT-licensed. See LICENSE in this package.
 
-Net C/F subtracts beta-reported turn-in coin rewards. Hover a Net C/F
-value for its full calculation. Missing prices are not treated as zero.
-Refresh recalculates using stored prices; it does not scan the AH.
-
-Development source and installation details:
+Source and installation details:
 https://github.com/meckanick/MerchantsFavour-Optimiser
-\nMarket separation: scanned prices, scan time and shopping list are shared by\nmegarealm and faction (PvE/PvP/RP, Alliance/Horde), not across markets.\nThe active market appears in the main status and Scan AH tooltip.\nLegacy prices are backed up under MFO_DB.legacyAHData and imported into the\nfirst active market only; rescan there because the original market is unknown.\nNeutral Auction Houses are not independently detected in this version.\n

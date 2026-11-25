@@ -23,7 +23,10 @@ dofile(root.."StandaloneAH.lua")
 local AH=MFO_AH
 local bags,bank={[1]=1,[10]=1,[11]=1,[100]=5},{}
 local bankStamp=10
-AH.ShoppingItemStock=function(id) return bags[id] or 0,bank[id] or 0,bankStamp end
+local otherCharacterBank=false
+AH.ShoppingItemStock=function(id,writ)
+ return bags[id] or 0,(not writ or not otherCharacterBank) and bank[id] or 0,bankStamp
+end
 AH.SetOwnedReader(function(id) return (bags[id] or 0)+(bank[id] or 0) end)
 local function name(id) return "Item "..id end
 assert(AH.ReplaceShopping({[1]={qty=0,requiredQty=1},[100]={qty=0,requiredQty=3}}))
@@ -37,6 +40,12 @@ assert(items[101].qty==1 and AH.Price(101)==nil,"missing quotes must not prevent
 assert(not AH.AddShoppingWrits({10},name) and items[100].requiredQty==8)
 assert(not AH.AddShoppingWrits({12},name) and not items[12],"reject restricted selection")
 assert(AH.ShoppingCratePlan()[1].crateID==1)
+otherCharacterBank=true
+bank[100]=3
+AH.RecalculateShopping()
+assert(items[100].qty==3,"mixed quantities exclude another character's bank snapshot")
+otherCharacterBank=false
+bank[100]=nil
 local function readiness()
  return AH.ShoppingWritReadiness(MFO_CrateTracking.Evaluate(crates,bags,bank,bankStamp))
 end
@@ -98,6 +107,10 @@ selection[1]=12
 assert(AH.SetShoppingCratePlan(crates))
 assert(AH.Shopping()[100].requiredQty==6 and AH.Shopping()[100].qty==0)
 assert(readiness()[10] and AH.ShoppingCratePlan()[1].materialQty==3)
+assert(AH.RemoveShoppingItem(1))
+assert(AH.Shopping()[100].requiredQty==3 and readiness()[10],
+ "removing a crate leaves only the Writ's share of its materials")
+assert(AH.ReplaceShopping(replacement,{10}) and AH.SetShoppingCratePlan(crates))
 assert(AH.RemoveShoppingItem(10) and AH.Shopping()[100].requiredQty==3)
 completed[910]=true
 assert(not AH.AddShoppingWrits({10},name))

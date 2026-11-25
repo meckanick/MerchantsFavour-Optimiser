@@ -209,7 +209,7 @@ local function scanBank()
   MFO_InventoryProvider.ResetCache()
 end
 -- Independent of Use Owned: completion readiness always reflects actual inventory.
-MFO_AH.CrateReadiness=function(entries)
+MFO_AH.CrateReadiness=function(entries,writ)
   -- Evaluate a whole plan using one bank snapshot; never reuse alt, mail or guild stock.
   local ids={}
   for _,entry in ipairs(entries or {}) do
@@ -218,10 +218,15 @@ MFO_AH.CrateReadiness=function(entries)
       if type(entry.materialID)=="number" then ids[entry.materialID]=true end
     end
   end
-  local bank,stamp=MFO_InventoryProvider.BankSnapshot(
-    MFO_DB and MFO_DB.bankCounts,ids,MFO_DB and MFO_DB.bankScanTime,
+  local stamp=MFO_DB and MFO_DB.bankScanTime
+  if writ and MFO_DB then
+    local owner=MFO_WritTracking.CharacterKey()
+    if not owner or MFO_DB.writBankOwner~=owner then stamp=nil end
+  end
+  local bank,verifiedStamp=MFO_InventoryProvider.BankSnapshot(
+    MFO_DB and MFO_DB.bankCounts,ids,stamp,
     MFO_InventoryProvider.Mode(MFO_DB))
-  return MFO_CrateTracking.Evaluate(entries,bagCounts,bank,stamp)
+  return MFO_CrateTracking.Evaluate(entries,bagCounts,bank,verifiedStamp)
 end
 MFO_AH.RefreshCrateReadiness=function()
   learnBagItems();scanBags()
@@ -250,7 +255,8 @@ MFO_AH.ShoppingItemStock=function(id,writ)
    MFO_InventoryProvider.Mode(MFO_DB))
  if writ and source=="native" then
    local owner=MFO_WritTracking.CharacterKey()
-   if not owner or not MFO_DB or MFO_DB.writBankOwner~=owner then
+   if not owner or not MFO_DB or MFO_DB.writBankOwner~=owner
+     or type(MFO_DB.bankScanTime)~="number" or MFO_DB.bankScanTime<=0 then
      return bagCounts[id] or 0,0,nil,source
    end
  end
@@ -1364,7 +1370,7 @@ MFO_AH.onUpdate=function()
   -- Progress was already sampled for the scan overlay; reuse its running flag.
   local running=updateScanProgress()
   if not running then status:SetText(MFO_AH.Status()) end
-  if frame:IsShown() then refresh() end
+  if not running and frame:IsShown() then refresh() end
 end
 do
   local writScroll
@@ -1456,7 +1462,7 @@ local function refreshQuestDisplays()
     if writPanel:IsShown() then
       writPanel:Refresh()
     elseif advancedPlanner.mode~="Crates" and planner:IsShown() then
-      planFavour(true,plannerShopping~=nil)
+      planFavour(true)
     end
   end
   if MFO_AH.RefreshWritShop then MFO_AH.RefreshWritShop() end
@@ -1488,7 +1494,9 @@ events:SetScript("OnEvent",function(_,event,name,success)
   if event=="PLAYER_ENTERING_WORLD" and MFO_DB then scanBags() end
   if MFO_DB and (event=="QUEST_LOG_UPDATE" or event=="PLAYER_ENTERING_WORLD"
     or event=="QUEST_LOG_CRITERIA_UPDATE"
-    or MFO_WritTracking.OnEvent(event,name)) then refreshQuestDisplays() end
+    or ((event~="QUEST_DATA_LOAD_RESULT" or success) and MFO_WritTracking.OnEvent(event,name))) then
+    refreshQuestDisplays()
+  end
   return
  end
  if event=="ZONE_CHANGED" or event=="ZONE_CHANGED_INDOORS" or event=="ZONE_CHANGED_NEW_AREA" then

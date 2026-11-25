@@ -101,7 +101,7 @@ function AH.PriceQuote(id,maxAge,now)
   local record=priceRecord(id)
   if not record or not record.price then return nil end
   local updated=record.updated
-  local fresh=type(updated)=="number" and updated>0 and updated<=now and now-updated<=maxAge
+  local fresh=not record.unavailable and type(updated)=="number" and updated>0 and updated<=now and now-updated<=maxAge
   return record.price,not fresh
 end
 function AH.LastScan(mode)
@@ -114,6 +114,16 @@ end
 -- This prevents deducting the same owned stock twice on subsequent refreshes.
 local ownedReader
 local craftMarket, craftView, craftEstimate, craftOwner
+function AH.ShoppingUsesWritStock()
+  return db().shoppingWritIDs~=nil
+end
+local function shoppingOwned(id, writ)
+  if AH.ShoppingItemStock and writ then
+    local bags,bank=AH.ShoppingItemStock(id,true)
+    return bags+bank
+  end
+  return ownedReader(id)
+end
 function AH.SetOwnedReader(reader)
   ownedReader=type(reader)=="function" and reader or nil
 end
@@ -206,7 +216,8 @@ function AH.RecordShoppingPurchase(id,qty)
   if ownedReader then
     if not item.pendingPurchaseQty or item.pendingPurchaseQty==0 then
       item.purchaseBagsOnly=crafting and AH.ShoppingItemStock and true or nil
-      local observed=item.purchaseBagsOnly and AH.ShoppingItemStock(id,true) or ownedReader(id)
+      local observed=item.purchaseBagsOnly and AH.ShoppingItemStock(id,true)
+        or shoppingOwned(id,market.shoppingWritIDs)
       item.purchaseBaseline=math.max(0,math.floor(tonumber(observed) or 0))
     end
     item.pendingPurchaseQty=(item.pendingPurchaseQty or 0)+qty
@@ -285,7 +296,7 @@ function AH.RecalculateShopping()
   local market=db()
   if not ownedReader then return false end
   local function owned(id)
-    return math.max(0,math.floor(tonumber(ownedReader(id)) or 0))
+    return math.max(0,math.floor(tonumber(shoppingOwned(id,market.shoppingWritIDs)) or 0))
   end
   local function recalculate(shopping)
     for id,item in pairs(shopping) do
@@ -350,7 +361,7 @@ function AH.AddShoppingWrits(ids, itemName)
       if not entry.requiredQty then
         -- Legacy rows store net demand. Reserve stock already implied by that demand.
         entry.legacyNetQty=entry.qty
-        entry.legacyStockBaseline=ownedReader and tonumber(ownedReader(id)) or 0
+        entry.legacyStockBaseline=ownedReader and tonumber(shoppingOwned(id,true)) or 0
       end
       entry.requiredQty=(entry.requiredQty or entry.qty)+qty
       if entry.legacyNetQty then
@@ -485,7 +496,7 @@ function AH.RemoveShoppingItem(id)
   local crates={}
   for _,entry in ipairs(market.shoppingCratePlan or {}) do
     if requires(entry.crateID) or requires(entry.materialID) then
-      if optimised then
+      if optimised or market.shoppingWritIDs then
         subtract(entry.crateID,entry.quantity)
         subtract(entry.materialID,entry.quantity*entry.materialQty)
       else
@@ -543,6 +554,11 @@ end
 local function scanMarketMatches()
   local realm,faction=marketIdentity()
   return realm==scanRealm and faction==scanFaction
+end
+local function recordUnpriced(entry)
+  local record=scanMarket.prices[entry.id]
+  if record then record.unavailable=true end
+  recordMissing(entry)
 end
 local function finishScan()
   completed=true
@@ -638,6 +654,13 @@ local function modernNext()
     if not waitForItem(entry) then activeItemKey=nil end
     return
   end
+  if C_AuctionHouse.IsThrottledMessageSystemReady and not C_AuctionHouse.IsThrottledMessageSystemReady() then
+    started=started or (GetTime and GetTime() or 0)
+    if GetTime and GetTime()-started>15 then
+      stopScan("AH throttle timed out; completion time unchanged")
+    end
+    return
+  end
   -- Arm result handling before dispatch; a first query may respond synchronously.
   waiting=true;started=GetTime and GetTime() or 0
   local ok=pcall(C_AuctionHouse.SendSearchQuery,key,{},false)
@@ -697,7 +720,7 @@ modernEvents:SetScript("OnEvent",function(_,event,arg)
     priced=priced+1
   else
     if not entry.name then entry.name=getItemName(entry.id) end
-    recordMissing(entry)
+    recordUnpriced(entry)
   end
   attempts=0
   activeItemKey=nil;started=nil
@@ -752,7 +775,7 @@ events:SetScript("OnEvent",function()
     page=page+1
   else
     if lowest then scanMarket.prices[entry.id]={price=lowest,updated=time()};priced=priced+1
-    else recordMissing(entry) end
+    else recordUnpriced(entry) end
     position=position+1;page=0;lowest=nil;started=nil
   end
   if AH.onUpdate then AH.onUpdate() end

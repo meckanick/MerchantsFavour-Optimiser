@@ -18,6 +18,7 @@ CrateTracking.lua
 InventoryProvider.lua
 StandaloneAH.lua
 Tabs.lua
+TableStyle.lua
 WritTab.lua
 Core.lua
 AHShopping.lua

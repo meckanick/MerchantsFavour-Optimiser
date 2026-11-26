@@ -354,39 +354,23 @@ end
 local labels={"Crate (Cheapest Bundle)", "Crate", "Mats", "Total", "Favour", "Net C/F", "Shop"}
 local xpos={16,390,480,570,660,719,809}
 local columnWidths={374,90,90,90,59,90,57}
-local subheader=CreateFrame("Frame",nil,frame,"BackdropTemplate")
+local tableStyle=MFO_TableStyle
+local rowHeight=tableStyle.rowHeight
+local subheader=tableStyle.Header(frame)
 -- Stretch the subheading texture between the inner gold frame borders.
 -- No separate brown outline: the window's own gold trim defines its edges.
 subheader:SetPoint("TOPLEFT",frame,"TOPLEFT",8,-76)
 subheader:SetPoint("TOPRIGHT",frame,"TOPRIGHT",-8,-76)
-subheader:SetHeight(28)
-subheader:SetBackdrop({bgFile=MFO_ART.."WTP_ProfessionRow"})
-subheader:SetBackdropColor(1,1,1,1)
 for i,label in ipairs(labels) do
-  local textLabel=subheader:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
-  textLabel:SetPoint("LEFT",subheader,"LEFT",xpos[i]-8+(i==1 and 16 or 7),0)
-  textLabel:SetWidth(i==1 and 210 or columnWidths[i]-12)
-  textLabel:SetJustifyH("LEFT")
-  textLabel:SetText(label)
-  -- Keep the headers exactly four font points above the row text.
-  local bodyFont,bodySize,bodyFlags=GameFontHighlightSmall:GetFont()
-  if bodyFont and bodySize then
-    textLabel:SetFont(bodyFont,bodySize+4,bodyFlags)
-  end
-  textLabel:SetTextColor(1,.76,.13)
-  if i>1 then
-    local divider=subheader:CreateTexture(nil,"ARTWORK")
-    divider:SetColorTexture(.42,.27,.11,.75)
-    divider:SetSize(1,15)
-    divider:SetPoint("LEFT",subheader,"LEFT",xpos[i]-8,-1)
-  end
+  tableStyle.Heading(subheader,label,xpos[i]-8+(i==1 and 16 or 7),i==1 and 210 or columnWidths[i]-12)
+  if i>1 then tableStyle.Divider(subheader,xpos[i]-8) end
 end
 -- A fixed-height scrolling viewport supports every crate without enlarging the window.
 local scrollFrame=CreateFrame("ScrollFrame","MFOCompactScrollFrame",frame,"UIPanelScrollFrameTemplate")
 scrollFrame:SetPoint("TOPLEFT",frame,"TOPLEFT",12,-110)
 scrollFrame:SetPoint("BOTTOMRIGHT",frame,"BOTTOMRIGHT",-40,45)
 local scrollChild=CreateFrame("Frame",nil,scrollFrame)
-scrollChild:SetSize(864,#rows*19+4)
+scrollChild:SetSize(864,#rows*rowHeight+4)
 scrollFrame:SetScrollChild(scrollChild)
 -- Preserve Blizzard scrolling mechanics; tint controls to the bronze palette.
 local function SkinWoodScroll(scroll, name)
@@ -511,17 +495,16 @@ local shopButtons={}
 local displayedResults={}
 local readinessButtons={}
 for i=1,#rows do
-  local y=-(i-1)*19
+  local y=-(i-1)*rowHeight
   entries[i]={}
   local hit=CreateFrame("Button",nil,scrollChild)
-  local rowShade=scrollChild:CreateTexture(nil,"BACKGROUND")
-  rowShade:SetTexture(MFO_ART.."WTP_ProfessionRow")
-  rowShade:SetVertexColor(.40,.33,.27,i%2==0 and .22 or .13)
+  local rowShade=tableStyle.RowShade(scrollChild,"BACKGROUND")
+  tableStyle.TintRow(rowShade,i)
   rowShade:SetPoint("TOPLEFT",scrollChild,"TOPLEFT",0,y+2)
-  rowShade:SetSize(861,19)
+  rowShade:SetSize(861,rowHeight)
   hit:SetPoint("TOPLEFT",0,y+2);hit:SetSize(365,18)
-  hit:SetScript("OnEnter",function() rowShade:SetVertexColor(.85,.76,.59,.52) end)
-  hit:SetScript("OnLeave",function() rowShade:SetVertexColor(.40,.33,.27,i%2==0 and .22 or .13) end)
+  hit:SetScript("OnEnter",function() tableStyle.TintRow(rowShade,i,true) end)
+  hit:SetScript("OnLeave",function() tableStyle.TintRow(rowShade,i) end)
   local shop=CreateFrame("Button",nil,scrollChild)
   -- Preserve the full-width wood button, align its center with the Shop
   -- heading, and give it breathing room before the scrollbar.
@@ -649,7 +632,7 @@ local function refresh(inventoryFresh)
     else indicator:Hide() end
     t[1]:SetText(r.crate.name:gsub("Waylaid Crate: ","")..(r.b and (" ("..(MFO_DB.useOwned and ((r.missing or r.b.qty).." to Buy / "..(r.owned or 0).." Owned") or (r.b.qty.."x")).." "..r.b.name..")") or ""))
     t[2]:SetText(money(r.cp));t[3]:SetText(money(r.bc));t[4]:SetText(money(r.cp and r.bc and (r.cp+r.bc) or nil));t[5]:SetText(r.crate.favour or "?");t[6]:SetText(money(r.rate))
-    t[6]:SetTextColor(r.rate and .95 or .6,r.rate and .8 or .6,r.rate and .35 or .6)
+    tableStyle.RateColor(t[6],r.rate)
   end
   local footerParts={MFO_AH.Market(),complete.."/"..#rows.." Crates"}
   if missingIDs>0 then footerParts[#footerParts+1]=missingIDs.." Unknown IDs" end
@@ -1367,7 +1350,7 @@ MFO_AH.onUpdate=function()
 end
 do
   local writScroll
-  writPanel,writScroll=MFO_CreateWritTab(frame,SkinWoodButton,SkinWoodScroll,money,MFO_ART,
+  writPanel,writScroll=MFO_CreateWritTab(frame,SkinWoodButton,SkinWoodScroll,money,
     MFO_AH.ShoppingItemStock,updateOwnedSetting,status)
   local crateTab,setCrateSelected=MFO_CreateWindowTab(frame,"Crates")
   local writTab,setWritSelected=MFO_CreateWindowTab(frame,"Writs")

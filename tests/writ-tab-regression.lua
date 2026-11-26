@@ -1,7 +1,6 @@
 dofile("MerchantsFavourOptimiser/WritCalculations.lua")
 dofile("MerchantsFavourOptimiser/WritTracking.lua")
 dofile("MerchantsFavourOptimiser/WritDelivery.lua")
-dofile("MerchantsFavourOptimiser/TableStyle.lua")
 dofile("MerchantsFavourOptimiser/WritTab.lua")
 
 local function writ(id, tier, reputation, faction, professions)
@@ -53,10 +52,7 @@ local function noop() end
 local methods={}
 for _,name in ipairs({"SetPoint","ClearAllPoints","SetSize","SetAutoFocus","ClearFocus",
   "SetBackdrop","SetAllPoints","SetColorTexture","SetJustifyH","SetWordWrap","SetWidth",
-  "SetFont","UpdateScrollChildRect"}) do methods[name]=noop end
-function methods:SetTexture(texture) self.texture=texture end
-function methods:SetVertexColor(...) self.vertexColor={...} end
-function methods:SetTextColor(...) self.textColor={...} end
+  "SetTextColor","SetHighlightTexture","UpdateScrollChildRect"}) do methods[name]=noop end
 function methods:SetText(value) self.text=value end
 function methods:GetText() return self.text or "" end
 function methods:SetFontString(font) self.font=font end
@@ -78,14 +74,13 @@ end
 function methods:CreateFontString() return object("FontString",self) end
 function methods:CreateTexture() return object("Texture",self) end
 CreateFrame=function(kind,_,parent) return object(kind,parent) end
-GameFontHighlightSmall={GetFont=function() return "Font",10 end}
 
 local tooltipItem
 GameTooltip={SetOwner=noop,SetItemByID=function(_,id) tooltipItem=id end,AddLine=noop,Show=noop,Hide=noop}
 local parent=object("Frame")
 local status=object("FontString")
 local panel,scroll
-panel,scroll=MFO_CreateWritTab(parent,noop,noop,function(copper) return copper or "?" end,
+panel,scroll=MFO_CreateWritTab(parent,noop,noop,function(copper) return copper or "?" end,"",
   function(id)
     local counts=stock[id] or {0,0}
     return counts[1],counts[2]
@@ -120,14 +115,9 @@ assert(rows[1].cells[8].text==3 and rows[1].cells[9].text==2)
 assert(rows[2].cells[9].text=="Stale Prices" and rows[3].cells[9].text=="Missing Prices")
 assert(rows[4].cells[9].text=="Missing / Stale")
 assert(status.text:find("1/4 Writs priced",1,true))
-assert(rows[1].shade.texture:find("WTP_ProfessionRow",1,true))
-assert(rows[1].shade.vertexColor[4]==.13 and rows[2].shade.vertexColor[4]==.22)
-assert(rows[1].cells[9].textColor[1]==.95 and rows[2].cells[9].textColor[1]==.6)
 
 rows[1]:OnEnter()
-assert(tooltipItem==1 and rows[1].shade.vertexColor[4]==.52)
-rows[1]:OnLeave()
-assert(rows[1].shade.vertexColor[4]==.13)
+assert(tooltipItem==1)
 rows[1]:OnClick()
 assert(rows[2].itemID==1 and not rows[2].isWrit and rows[3].itemID==101)
 assert(rows[3].cells[2].text=="2 required" and rows[3].cells[7].text==100)
@@ -202,11 +192,6 @@ writRow(3):OnClick()
 writRow(2):OnClick()
 writRow(5):OnClick()
 assert(writRow(2).cells[1].text=="[x] Writ: Tube")
-local selectedRow=writRow(2)
-assert(selectedRow.shade.vertexColor[4]==.42)
-selectedRow:OnEnter()
-selectedRow:OnLeave()
-assert(selectedRow.shade.vertexColor[4]==.42)
 click(panel,"Add Selected (2)")
 assert(added=="2,5")
 assert(find(panel,"Button","Add Selected (0)"))

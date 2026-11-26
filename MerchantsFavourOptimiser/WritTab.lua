@@ -1,24 +1,24 @@
 -- Compare verified Writs and add a selection to MFO Shop.
-function MFO_CreateWritTab(parent, skinButton, skinScroll, money, readStock, setUseOwned, status)
+function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock, setUseOwned, status)
   local delivery=MFO_WritDelivery
-  local tableStyle=MFO_TableStyle
-  local rowHeight=tableStyle.rowHeight
   local panel=CreateFrame("Frame",nil,parent)
   panel:SetPoint("TOPLEFT",parent,"TOPLEFT",12,-76)
   panel:SetPoint("BOTTOMRIGHT",parent,"BOTTOMRIGHT",-12,38)
   panel:Hide()
 
   local scroll=CreateFrame("ScrollFrame","MFOWritScrollFrame",panel,"UIPanelScrollFrameTemplate")
-  scroll:SetPoint("TOPLEFT",0,-88)
+  scroll:SetPoint("TOPLEFT",0,-83)
   scroll:SetPoint("BOTTOMRIGHT",-28,7)
   local content=CreateFrame("Frame",nil,scroll)
-  content:SetSize(864,1)
+  content:SetSize(866,1)
   scroll:SetScrollChild(content)
   skinScroll(scroll,"MFOWritScrollFrame")
 
-  local header=tableStyle.Header(panel)
-  header:SetPoint("TOPLEFT",-4,-54)
-  header:SetPoint("TOPRIGHT",4,-54)
+  local header=CreateFrame("Frame",nil,panel,"BackdropTemplate")
+  header:SetPoint("TOPLEFT",0,-54)
+  header:SetPoint("TOPRIGHT",-28,-54)
+  header:SetHeight(26)
+  header:SetBackdrop({bgFile=art.."WTP_ProfessionRow"})
 
   local function button(owner, label, width, height, x, y)
     local control=CreateFrame("Button",nil,owner)
@@ -48,10 +48,10 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, readStock, set
   end
 
   local columns={
-    {"name","Writ",194}, {"professions","Profession",104}, {"tierRank","Tier",71},
-    {"reputation","Rep",40}, {"writCost","Writ Cost",75}, {"itemCost","Item Cost",75},
-    {"total","Total",65}, {"owned","Owned",51}, {"costPerRep","Cost / Rep",95},
-    {"questLabel","Status",91},
+    {"name","Writ",179}, {"professions","Profession(s)",96}, {"tierRank","Tier",58},
+    {"reputation","Rep",40}, {"writCost","Writ Cost",78}, {"itemCost","Item Cost",78},
+    {"total","Total",72}, {"owned","Owned",48}, {"costPerRep","Cost / Rep",95},
+    {"questLabel","Quest Status",104},
   }
   local sortKey, descending="costPerRep",false
   local selectedProfessions, professionButtons={},{}
@@ -162,7 +162,7 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, readStock, set
     for _,control in ipairs(catalogControls) do
       if showRoute then control:Hide() else control:Show() end
     end
-    scroll:SetPoint("TOPLEFT",0,showRoute and -54 or -88)
+    scroll:SetPoint("TOPLEFT",0,showRoute and -54 or -83)
     applyFilter()
   end)
   local function selectedIDs()
@@ -188,16 +188,7 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, readStock, set
   for _,column in ipairs(columns) do
     local key=column[1]
     column.x=x
-    if x>0 then tableStyle.Divider(header,x+4) end
-    local control=CreateFrame("Button",nil,header)
-    control:SetSize(column[3],28)
-    control:SetPoint("TOPLEFT",x+4,0)
-    local caption=tableStyle.Heading(control,column[2],5,column[3]-9)
-    control:SetFontString(caption)
-    control:SetText(column[2])
-    control:SetScript("OnEnter",function() caption:SetTextColor(1,.92,.6) end)
-    control:SetScript("OnLeave",function() caption:SetTextColor(1,.76,.13) end)
-    column.button=control
+    column.button=button(header,column[2],column[3]-2,24,x,-1)
     column.button:SetScript("OnClick",function()
       descending=sortKey==key and not descending
       sortKey=key
@@ -209,8 +200,9 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, readStock, set
   local function getLine(index)
     if rowPool[index] then return rowPool[index] end
     local line=CreateFrame("Button",nil,content)
-    line:SetSize(861,rowHeight)
-    line.shade=tableStyle.RowShade(line,"BACKGROUND")
+    line:SetSize(848,22)
+    line:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square","ADD")
+    line.shade=line:CreateTexture(nil,"BACKGROUND")
     line.shade:SetAllPoints()
     line.cells={}
     for i,column in ipairs(columns) do
@@ -222,8 +214,6 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, readStock, set
       line.cells[i]=cell
     end
     line:SetScript("OnEnter",function(self)
-      self.hovered=true
-      tableStyle.TintRow(self.shade,index,true)
       if self.stop then
         GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
         GameTooltip:AddLine(delivery.Description(self.stop.point),1,.82,.2)
@@ -237,12 +227,7 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, readStock, set
         itemTooltip(self)
       end
     end)
-    line:SetScript("OnLeave",function(self)
-      self.hovered=nil
-      tableStyle.TintRow(self.shade,index,false,self.selected)
-      GameTooltip:Hide()
-    end)
-    line:SetScript("OnHide",function(self) self.hovered=nil end)
+    line:SetScript("OnLeave",function() GameTooltip:Hide() end)
     line:SetScript("OnClick",function(self)
       if self.stop then
         if IsShiftKeyDown and IsShiftKeyDown() and delivery.HasTomTom() and delivery.MarkersEnabled() then
@@ -269,17 +254,17 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, readStock, set
     line.itemID,line.description,line.isWrit,line.stop=id,description,isWrit,stop
     line.craftEstimate=nil
     line:ClearAllPoints()
-    line:SetPoint("TOPLEFT",0,-(index-1)*rowHeight)
-    line.selected=isWrit and selectedWrits[id]
-    tableStyle.TintRow(line.shade,index,line.hovered,line.selected)
-    line.cells[1]:SetWidth(showRoute and 852 or columns[1][3]-9)
+    line:SetPoint("TOPLEFT",0,-(index-1)*22)
+    line.shade:SetColorTexture(.40,.33,.27,isWrit and (index%2==0 and .22 or .13) or .45)
+    line.cells[1]:SetWidth(showRoute and 839 or columns[1][3]-9)
     for i,cell in ipairs(line.cells) do cell:SetText(values[i] or "") end
+    line.cells[9]:SetTextColor(isWrit and 1 or .95,isWrit and .76 or .95,.65)
     line:Show()
   end
 
   local function finishLines(index)
     for i=index+1,#rowPool do rowPool[i]:Hide() end
-    content:SetHeight(math.max(1,index*rowHeight))
+    content:SetHeight(math.max(1,index*22))
     scroll:UpdateScrollChildRect()
     local maximum=scroll:GetVerticalScrollRange()
     if scroll:GetVerticalScroll()>maximum then scroll:SetVerticalScroll(maximum) end
@@ -447,7 +432,6 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, readStock, set
       local prefix=selectedWrits[writ.id] and "[x] " or (expanded and "- " or "+ ")
       addLine(writ.id,description,true,{prefix..result.name,result.professions,
         writ.tier,result.reputation,money(result.writCost),money(result.itemCost),money(result.total),result.owned,rate,result.questLabel})
-      tableStyle.RateColor(rowPool[index].cells[9],result.costPerRep)
       rowPool[index].eligible=eligible[writ.id]
       rowPool[index].craftEstimate=(result.crafting or result.craftLimited) and result or nil
       if expanded then

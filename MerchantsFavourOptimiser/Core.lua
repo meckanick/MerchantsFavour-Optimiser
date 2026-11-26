@@ -352,41 +352,35 @@ local function SkinWoodButton(button)
   if font then font:SetFontObject(GameFontNormalSmall);font:SetTextColor(1,.82,.05) end
 end
 local labels={"Crate (Cheapest Bundle)", "Crate", "Mats", "Total", "Favour", "Net C/F", "Shop"}
-local xpos={16,390,480,570,660,719,809}
-local columnWidths={374,90,90,90,59,90,57}
+local xpos={0,373,463,553,643,702,792}
+local columnWidths={373,90,90,90,59,90,56}
+local crateRowHeight=22
 local subheader=CreateFrame("Frame",nil,frame,"BackdropTemplate")
--- Stretch the subheading texture between the inner gold frame borders.
--- No separate brown outline: the window's own gold trim defines its edges.
-subheader:SetPoint("TOPLEFT",frame,"TOPLEFT",8,-76)
-subheader:SetPoint("TOPRIGHT",frame,"TOPRIGHT",-8,-76)
-subheader:SetHeight(28)
+subheader:SetPoint("TOPLEFT",frame,"TOPLEFT",12,-76)
+subheader:SetPoint("TOPRIGHT",frame,"TOPRIGHT",-40,-76)
+subheader:SetHeight(26)
 subheader:SetBackdrop({bgFile=MFO_ART.."WTP_ProfessionRow"})
-subheader:SetBackdropColor(1,1,1,1)
 for i,label in ipairs(labels) do
-  local textLabel=subheader:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
-  textLabel:SetPoint("LEFT",subheader,"LEFT",xpos[i]-8+(i==1 and 16 or 7),0)
-  textLabel:SetWidth(i==1 and 210 or columnWidths[i]-12)
-  textLabel:SetJustifyH("LEFT")
-  textLabel:SetText(label)
-  -- Keep the headers exactly four font points above the row text.
-  local bodyFont,bodySize,bodyFlags=GameFontHighlightSmall:GetFont()
-  if bodyFont and bodySize then
-    textLabel:SetFont(bodyFont,bodySize+4,bodyFlags)
+  local heading=CreateFrame("Button",nil,subheader)
+  heading:SetPoint("TOPLEFT",xpos[i],-1)
+  heading:SetSize(columnWidths[i]-2,24)
+  heading:EnableMouse(false)
+  local textLabel=heading:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+  if i==1 then
+    textLabel:SetPoint("LEFT",heading,"LEFT",10,0)
+  else
+    textLabel:SetPoint("CENTER",heading)
   end
-  textLabel:SetTextColor(1,.76,.13)
-  if i>1 then
-    local divider=subheader:CreateTexture(nil,"ARTWORK")
-    divider:SetColorTexture(.42,.27,.11,.75)
-    divider:SetSize(1,15)
-    divider:SetPoint("LEFT",subheader,"LEFT",xpos[i]-8,-1)
-  end
+  heading:SetFontString(textLabel)
+  heading:SetText(label)
+  SkinWoodButton(heading)
 end
 -- A fixed-height scrolling viewport supports every crate without enlarging the window.
 local scrollFrame=CreateFrame("ScrollFrame","MFOCompactScrollFrame",frame,"UIPanelScrollFrameTemplate")
-scrollFrame:SetPoint("TOPLEFT",frame,"TOPLEFT",12,-110)
+scrollFrame:SetPoint("TOPLEFT",frame,"TOPLEFT",12,-105)
 scrollFrame:SetPoint("BOTTOMRIGHT",frame,"BOTTOMRIGHT",-40,45)
 local scrollChild=CreateFrame("Frame",nil,scrollFrame)
-scrollChild:SetSize(864,#rows*19+4)
+scrollChild:SetSize(866,#rows*crateRowHeight)
 scrollFrame:SetScrollChild(scrollChild)
 -- Preserve Blizzard scrolling mechanics; tint controls to the bronze palette.
 local function SkinWoodScroll(scroll, name)
@@ -511,21 +505,20 @@ local shopButtons={}
 local displayedResults={}
 local readinessButtons={}
 for i=1,#rows do
-  local y=-(i-1)*19
+  local y=-(i-1)*crateRowHeight
   entries[i]={}
-  local hit=CreateFrame("Button",nil,scrollChild)
-  local rowShade=scrollChild:CreateTexture(nil,"BACKGROUND")
-  rowShade:SetTexture(MFO_ART.."WTP_ProfessionRow")
-  rowShade:SetVertexColor(.40,.33,.27,i%2==0 and .22 or .13)
-  rowShade:SetPoint("TOPLEFT",scrollChild,"TOPLEFT",0,y+2)
-  rowShade:SetSize(861,19)
-  hit:SetPoint("TOPLEFT",0,y+2);hit:SetSize(365,18)
-  hit:SetScript("OnEnter",function() rowShade:SetVertexColor(.85,.76,.59,.52) end)
-  hit:SetScript("OnLeave",function() rowShade:SetVertexColor(.40,.33,.27,i%2==0 and .22 or .13) end)
-  local shop=CreateFrame("Button",nil,scrollChild)
+  local row=CreateFrame("Button",nil,scrollChild)
+  row:SetPoint("TOPLEFT",0,y)
+  row:SetSize(848,crateRowHeight)
+  row:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square","ADD")
+  row:SetScript("OnHide",function(self) self:UnlockHighlight() end)
+  local rowShade=row:CreateTexture(nil,"BACKGROUND")
+  rowShade:SetAllPoints()
+  rowShade:SetColorTexture(.40,.33,.27,i%2==0 and .22 or .13)
+  local shop=CreateFrame("Button",nil,row)
   -- Preserve the full-width wood button, align its center with the Shop
   -- heading, and give it breathing room before the scrollbar.
-  shop:SetSize(54,18);shop:SetPoint("TOPLEFT",800,y+3);shop:SetText("Shop");SkinWoodButton(shop)
+  shop:SetSize(54,18);shop:SetPoint("LEFT",row,"LEFT",xpos[7],0);shop:SetText("Shop");SkinWoodButton(shop)
   shop:SetScript("OnClick",function()
     local r=displayedResults[i]
     if not r or not r.b then status:SetText("No Priced Material Bundle for This Crate.");return end
@@ -545,8 +538,8 @@ for i=1,#rows do
     status:SetText(ok and "Shopping List Replaced. Open MFO Shop at the Auction House." or (reason or "Unable to create shopping list."))
   end)
   shopButtons[i]=shop
-  local readiness=CreateFrame("Frame",nil,scrollChild)
-  readiness:SetPoint("TOPLEFT",scrollChild,"TOPLEFT",xpos[1]+1,y+2)
+  local readiness=CreateFrame("Frame",nil,row)
+  readiness:SetPoint("LEFT",row,"LEFT",5,0)
   readiness:SetSize(14,16)
   readiness:EnableMouse(true)
   readiness.icon=readiness:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
@@ -563,9 +556,9 @@ for i=1,#rows do
   readiness:SetScript("OnLeave",function()GameTooltip:Hide()end)
   readinessButtons[i]=readiness
   -- Net C/F has its own hover target; the crate-name column stays tooltip-free.
-  local netHover=CreateFrame("Frame",nil,scrollChild)
-  netHover:SetPoint("TOPLEFT",scrollChild,"TOPLEFT",xpos[6]-5,y+2)
-  netHover:SetSize(76,18)
+  local netHover=CreateFrame("Frame",nil,row)
+  netHover:SetPoint("LEFT",row,"LEFT",xpos[6]+5,0)
+  netHover:SetSize(76,crateRowHeight)
   netHover:EnableMouse(true)
   netHover:SetScript("OnEnter",function(self)
     local r=displayedResults[i]
@@ -592,11 +585,13 @@ for i=1,#rows do
     GameTooltip:Show()
   end)
   netHover:SetScript("OnLeave",function() GameTooltip:Hide() end)
+  for _,control in ipairs({shop,readiness,netHover}) do
+    control:HookScript("OnEnter",function() row:LockHighlight() end)
+    control:HookScript("OnLeave",function() row:UnlockHighlight() end)
+  end
   for j=1,6 do
-    local t=scrollChild:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-    -- Align numeric values under their existing header labels without moving the headers.
-    -- Move only the crate-name text and Shop buttons to match their header labels.
-    t:SetPoint("TOPLEFT",xpos[j]+(j==1 and 22 or -5),y);t:SetWidth(rowWidths[j]);t:SetJustifyH("LEFT");t:SetWordWrap(false)
+    local t=row:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+    t:SetPoint("LEFT",row,"LEFT",xpos[j]+(j==1 and 24 or 5),0);t:SetWidth(rowWidths[j]);t:SetJustifyH("LEFT");t:SetWordWrap(false)
     entries[i][j]=t
   end
 end
@@ -649,7 +644,7 @@ local function refresh(inventoryFresh)
     else indicator:Hide() end
     t[1]:SetText(r.crate.name:gsub("Waylaid Crate: ","")..(r.b and (" ("..(MFO_DB.useOwned and ((r.missing or r.b.qty).." to Buy / "..(r.owned or 0).." Owned") or (r.b.qty.."x")).." "..r.b.name..")") or ""))
     t[2]:SetText(money(r.cp));t[3]:SetText(money(r.bc));t[4]:SetText(money(r.cp and r.bc and (r.cp+r.bc) or nil));t[5]:SetText(r.crate.favour or "?");t[6]:SetText(money(r.rate))
-    t[6]:SetTextColor(r.rate and .95 or .6,r.rate and .8 or .6,r.rate and .35 or .6)
+    t[6]:SetTextColor(r.rate and 1 or .6,r.rate and .76 or .6,r.rate and .65 or .6)
   end
   local footerParts={MFO_AH.Market(),complete.."/"..#rows.." Crates"}
   if missingIDs>0 then footerParts[#footerParts+1]=missingIDs.." Unknown IDs" end
@@ -1063,17 +1058,14 @@ plannerShop:SetScript("OnClick",function()
   if opened then frame:Hide() end
 end)
 local ownedCheck=CreateFrame("CheckButton",nil,subheader,"UICheckButtonTemplate")
--- Align the checkbox at the right edge of the first column, before its divider.
-ownedCheck:SetSize(22,22);ownedCheck:SetPoint("RIGHT",subheader,"LEFT",374,0)
+ownedCheck:SetSize(22,22);ownedCheck:SetPoint("RIGHT",subheader,"LEFT",columnWidths[1]-9,0)
 local ownedLabel=subheader:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
 ownedLabel:SetPoint("RIGHT",ownedCheck,"LEFT",-7,0)
 ownedLabel:SetWidth(105)
 ownedLabel:SetJustifyH("RIGHT")
 ownedLabel:SetText("Use Owned")
--- Match the header labels' font size, flags and gold tint.
 local headerFont,headerSize,headerFlags=GameFontHighlightSmall:GetFont()
-if headerFont and headerSize then ownedLabel:SetFont(headerFont,headerSize+4,headerFlags) end
-ownedLabel:SetTextColor(1,.76,.13)
+ownedLabel:SetTextColor(1,.82,.05)
 ownedCheck:SetScript("OnEnter",function(self)
   GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
   GameTooltip:AddLine("Use Owned Bag / Bank Items",1,.82,.2)

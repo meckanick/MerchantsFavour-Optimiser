@@ -178,4 +178,130 @@ end
 
 runScanner(false)
 runScanner(true)
-print("PASS: legacy and modern Crates, Writs and Full scans, deduplication, missing prices and cancellation")
+
+local function runBrowseScanner()
+  local frames,keys,results={},{},{}
+  local full,open,throttle=true,true,true
+  local clock,now,pages,searches=0,10,0,0
+  local pendingID
+  local function result(id,price)
+    return {itemKey={itemID=id},minPrice=price}
+  end
+  local function emit(event,...)
+    for _,frame in ipairs(frames) do
+      if frame[event] then frame.OnEvent(frame,event,...) end
+    end
+  end
+  local function tick(elapsed)
+    elapsed=elapsed or .2
+    clock=clock+elapsed
+    for _,frame in ipairs(frames) do
+      if frame.OnUpdate then frame:OnUpdate(elapsed) end
+    end
+  end
+  function CreateFrame()
+    local frame={
+      RegisterEvent=function(self,event) self[event]=true end,
+      SetScript=function(self,script,fn) self[script]=fn end,
+    }
+    frames[#frames+1]=frame
+    return frame
+  end
+  function hooksecurefunc(target,name,hook)
+    local original=target[name]
+    target[name]=function(...)
+      original(...)
+      hook(...)
+    end
+  end
+  function GetTime() return clock end
+  function time() return now end
+  AuctionFrame={IsShown=function() return open end}
+  MFO_DB={lastAHScan=5,prices={[2]={price=55,updated=5}}}
+  C_AuctionHouse={
+    SearchForItemKeys=function(batch)
+      assert(not throttle and #batch<=50)
+      keys[#keys+1]=batch
+      results={}
+      for _,key in ipairs(batch) do
+        if key.itemID~=2 then results[#results+1]=result(key.itemID,42) end
+      end
+      full=#keys~=1
+      emit("AUCTION_HOUSE_BROWSE_RESULTS_UPDATED")
+    end,
+    HasFullBrowseResults=function() return full end,
+    GetBrowseResults=function() return results end,
+    RequestMoreBrowseResults=function()
+      assert(not throttle)
+      pages=pages+1
+      results[#results+1]=result(1,23)
+      full=true
+      emit("AUCTION_HOUSE_BROWSE_RESULTS_ADDED")
+    end,
+    IsThrottledMessageSystemReady=function() return not throttle end,
+    SendBrowseQuery=function()
+      results={};full=true
+      emit("AUCTION_HOUSE_BROWSE_RESULTS_UPDATED")
+    end,
+    SendSearchQuery=function(key)
+      searches=searches+1
+      pendingID=key.itemID
+    end,
+    HasSearchResults=function() return true end,
+    HasFullItemSearchResults=function() return true end,
+    GetNumItemSearchResults=function() return 1 end,
+    GetItemSearchResultInfo=function() return {buyoutAmount=81,quantity=2} end,
+  }
+  dofile(addon.."StandaloneAH.lua")
+  local ah=MFO_AH
+  local items={}
+  for id=1,54 do items[id]=name(id) end
+  assert(ah.Scan(items,"Crates"))
+  assert(#keys==0,"throttle must block the initial batch")
+  throttle=false
+  tick()
+  assert(#keys==1 and #keys[1]==50 and ah.Price(1)==nil)
+  throttle=true
+  tick()
+  assert(pages==0 and ah.LastScan()==5,"partial browse results must wait for pagination")
+  throttle=false
+  tick()
+  assert(pages==1)
+  tick()
+  local _,busy,priced,total,complete=ah.Progress()
+  assert(busy and priced==49 and total==54 and not complete)
+  assert(ah.Price(1)==23 and ah.LastScan()==5,"a later page can carry a lower unit price")
+  tick()
+  tick()
+  local percent
+  percent,busy,priced,total,complete=ah.Progress()
+  assert(percent==100 and not busy and priced==53 and total==54 and complete)
+  assert(#keys==2 and #keys[2]==4 and searches==0,"54 items should use two batches")
+  local oldPrice,unavailable=ah.PriceQuote(2,10,now)
+  assert(oldPrice==55 and unavailable and #ah.Missing()==1 and ah.LastScan()==now)
+
+  now=20
+  local oneItem={[1]=name(1)}
+  assert(ah.Scan(oneItem,"Crates"))
+  C_AuctionHouse.SendBrowseQuery()
+  tick()
+  assert(ah.LastScan()==10 and ah.Price(1)==23 and ah.Status():find("search changed"))
+
+  assert(ah.Scan(oneItem,"Crates"))
+  open=false
+  tick()
+  assert(ah.LastScan()==10 and ah.Price(1)==23 and ah.Status():find("AH closed"))
+  open=true
+
+  assert(ah.Scan(oneItem,"Crates"))
+  emit("AUCTION_HOUSE_BROWSE_FAILURE")
+  tick()
+  tick()
+  assert(searches==1 and pendingID==1,"browse failure must fall back to per-item search")
+  emit("ITEM_SEARCH_RESULTS_UPDATED",{itemID=pendingID})
+  tick()
+  assert(ah.LastScan()==20 and ah.Price(1)==41)
+end
+
+runBrowseScanner()
+print("PASS: legacy and modern scan modes, deduplication, missing prices, cancellation, and batched browse scans")

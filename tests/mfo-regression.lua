@@ -184,6 +184,17 @@ equal(mismatchedForced,nil,"forced option must use its actual priced cost")
 local coreFile = assert(io.open("MerchantsFavourOptimiser/Core.lua", "r"))
 local coreSource = coreFile:read("*a")
 coreFile:close()
+local formatMoney=assert(loadstring(assert(coreSource:match("(local MFO_COIN_GOLD.-)\nlocal scanAgeFooter"))..
+  "\nreturn money"))()
+local function coinText(value)
+  return (formatMoney(value):gsub("|T.-|t",""))
+end
+equal(coinText(netRate),"+0 50","negative net cost per Favour must display as a gain")
+equal(coinText(-750),"+7 50","a gain must display the full silver and copper amount")
+equal(coinText(-10250),"+1 2 50","a gain must display the full gold amount")
+equal(coinText(-0.1),"0 0","a gain rounded to zero must display as zero")
+equal(coinText(150),"1 50","a cost must retain its unsigned display")
+equal(coinText(nil),"?","unknown cost must retain its placeholder")
 for _, identifier in ipairs({"ownedCheck", "ownedLabel", "ownedCount"}) do
   check((coreSource:find("local " .. identifier, 1, true) ~= nil or
     coreSource:find("local function " .. identifier, 1, true) ~= nil),
@@ -238,13 +249,15 @@ check(coreSource:find('if missingIDs>0 then footerParts',1,true)~=nil,
 check(coreSource:find('if missingPrices>0 then footerParts',1,true)~=nil,
   "footer should only show missing price warnings when relevant")
 
-check(coreSource:find('local scannedAt=MFO_AH and MFO_AH.LastScan(mode)',1,true)~=nil and
-      coreSource:find('writPanel:IsShown() and "Writs" or scanMode',1,true)~=nil,
-  "scan footer must use Writ completion time in the Writ tab and scan-mode time in Crates")
+check(coreSource:find('local scannedAt=MFO_AH and MFO_AH.LastScan("Full")',1,true)~=nil,
+  "scan footer must use the last completed full scan on both tabs")
 check(not coreSource:find('GetAuctionAgeByItemID',1,true),
   "scan footer must not mistake oldest item price age for last completed scan")
 
-check(coreSource:find('MFO_AH.Scan(items,scanMode)',1,true)~=nil,"MFO must scan without Auctionator")
+check(coreSource:find('scanButton:SetScript("OnClick",scanRelevantItems)',1,true)~=nil and
+      coreSource:find('MFO_AH.Scan(items,"Full")',1,true)~=nil and
+      not coreSource:find("scanModeButton",1,true),
+  "Scan AH must always run a full scan without a mode selector")
 check(coreSource:find('MFO_AH.ReplaceShopping(items)',1,true)~=nil,"MFO must replace its own shopping list")
 check(not coreSource:find('Auctionator.API.v1.MultiSearch',1,true),"MFO shopping must not depend on Auctionator")
 
@@ -286,12 +299,13 @@ check(not coreSource:find('local scanBar=CreateFrame',1,true),
   "old horizontal AH scan progress bar must be removed")
 
 local ahTab=assert(io.open("MerchantsFavourOptimiser/AHShopping.lua","r")):read("*a")
+local tabSource=assert(io.open("MerchantsFavourOptimiser/Tabs.lua","r")):read("*a")
 check(ahTab:find('AH.Shopping()',1,true)~=nil,"AH tab must read MFO shopping list")
 check(ahTab:find('AH.Price(',1,true)~=nil,"AH tab must display stored prices")
 check(ahTab:find('C_AuctionHouse.SendSearchQuery',1,true)~=nil,"AH tab must support modern item search")
 check(ahTab:find('QueryAuctionItems',1,true)~=nil,"AH tab must support legacy item search")
 
-check(ahTab:find('tab=CreateFrame("Button",nil,parent,"BackdropTemplate")',1,true)~=nil,"AH shop must use custom AH tab surface")
+check(tabSource:find('tab=CreateFrame("Button",nil,parent,"BackdropTemplate")',1,true)~=nil,"Shared tab must use custom tab surface")
 check(ahTab:find('tab:SetPoint("TOPLEFT",last,"TOPRIGHT",-7,0)',1,true)~=nil,"AH shop must attach to bottom tab row by top edge")
 check(ahTab:find('panel:SetPoint("TOPLEFT",parent,"TOPLEFT",8,-8)',1,true)~=nil,"AH shop must cover the AH window")
 
@@ -341,21 +355,25 @@ check(ahTab:find('ART.."MFO_WoodBackground"',1,true)~=nil,"Shopping must reuse M
 check(ahTab:find('ART.."MFO_CoinBackground"',1,true)~=nil,"Shopping must reuse MFO coin watermark")
 check(ahTab:find('ART.."WTP_ProfessionRow"',1,true)~=nil,"Shopping section headings must use main addon texture")
 check(ahTab:find('ART.."WTP_FooterButton"',1,true)~=nil,"Shopping buttons must use main addon skin")
-check(ahTab:find('tab=CreateFrame("Button",nil,parent,"BackdropTemplate")',1,true)~=nil,"MFO Shop must use a tab backdrop, not red button")
 
 check(ahTab:find('setTabSelected(true)',1,true)~=nil,"MFO tab must show selected state")
 
-check(ahTab:find('tab=CreateFrame("Button",nil,parent,"BackdropTemplate")',1,true)~=nil,"MFO Shop must not use red button template")
-check(ahTab:find('selectedGlow:Show()',1,true)~=nil,"Selected tab must display rectangular gold glow")
-check(ahTab:find('tab=CreateFrame("Button",nil,parent,"UIPanelButtonTemplate")',1,true)==nil,"MFO Shop tab must not use default red button skin")
+check(tabSource:find('selectedGlow:Show()',1,true)~=nil,"Selected tab must display rectangular gold glow")
 
-check(ahTab:find('tab:SetHeight(active and 35 or 29)',1,true)~=nil,"Selected MFO tab must extend below inactive tabs")
-check(ahTab:find('local grey=.24-.10*t',1,true)~=nil,"Inactive MFO tab must be neutral grey")
-check(ahTab:find('strip:SetColorTexture(.22+.40*t,.16+.23*t,.09+.025*t,1)',1,true)~=nil,"Selected MFO tab must use brown-to-gold gradient")
+check(tabSource:find('tab:SetHeight(active and 35 or 29)',1,true)~=nil,"Selected MFO tab must extend below inactive tabs")
+check(tabSource:find('local grey=.24-.10*t',1,true)~=nil,"Inactive MFO tab must be neutral grey")
+check(tabSource:find('strip:SetColorTexture(.22+.40*t,.16+.23*t,.09+.025*t,1)',1,true)~=nil,"Selected MFO tab must use brown-to-gold gradient")
 
 check(ahTab:find('AuctionHouseFrameDisplayModeTabTemplate',1,true)~=nil,"Forever modern AH tab template must be preferred")
 check(ahTab:find('PanelTemplates_SelectTab(tab)',1,true)~=nil,"Modern tab must use native selected state")
-check(ahTab:find('else\n  tab=CreateFrame("Button",nil,parent,"BackdropTemplate")',1,true)~=nil,"Forever custom fallback must remain")
+check(ahTab:find('else\n  tab,setTabSelected=MFO_CreateWoodTab(parent,"MFO Shop",108)',1,true)~=nil,"Forever custom fallback must use the shared tab")
+check(coreSource:find('MFO_CreateWindowTab(frame,"Crates")',1,true) and
+      coreSource:find('MFO_CreateWindowTab(frame,"Writs")',1,true) and
+      tabSource:find('"PanelTabButtonTemplate"',1,true),
+  "Crates and Writs must use the native bottom-tab style")
+check(coreSource:find('crateTab:SetPoint("TOPLEFT",frame,"BOTTOMLEFT",20,1)',1,true) and
+      coreSource:find('writTab:SetPoint("TOPLEFT",crateTab,"TOPRIGHT",3,0)',1,true),
+  "Crates and Writs must hang from the bottom edge as one tab row")
 
 check(ahTab:find('SOUNDKIT.IG_CHARACTER_INFO_TAB',1,true)~=nil,"MFO tab should use native tab click sound")
 check(ahTab:find('playTabClick()',1,true)~=nil,"MFO tab click must trigger tab sound")
@@ -828,12 +846,10 @@ for _,source in ipairs({coreSource,ahTab}) do
 end
 
 -- Gold is hidden at zero, but both silver and copper always display.
-for _,source in ipairs({coreSource,ahTab}) do
-  check(source:find("if goldAmount",1,true)~=nil and
-        source:find("silverCopper",1,true)~=nil and
-        source:find("return silverCopper",1,true)~=nil,
-    "currency display must omit zero gold and retain zero silver/copper")
-end
+check(ahTab:find("if goldAmount",1,true)~=nil and
+      ahTab:find("silverCopper",1,true)~=nil and
+      ahTab:find("return silverCopper",1,true)~=nil,
+  "shopping currency display must omit zero gold and retain zero silver/copper")
 
 -- Shopping cost column must fit a full gold/silver/copper string on one line.
 check(ahTab:find('costLabel:SetText("Total Cost:")',1,true)~=nil and

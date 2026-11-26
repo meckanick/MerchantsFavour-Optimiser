@@ -15,18 +15,20 @@ local MFO_COIN_SILVER="|TInterface\\MoneyFrame\\UI-SilverIcon:12:12:0:0|t"
 local MFO_COIN_COPPER="|TInterface\\MoneyFrame\\UI-CopperIcon:12:12:0:0|t"
 local function money(v)
   if not v then return "?" end
-  v = math.floor(v + 0.5)
+  local gain = v < 0
+  v = math.floor(math.abs(v) + 0.5)
+  -- Negative costs represent money gained.
+  local prefix = gain and v > 0 and "+" or ""
   local goldAmount = math.floor(v/10000)
   local silverAmount = math.floor(v/100)%100
   local copperAmount = v%100
   local silverCopper = string.format("%d%s %d%s", silverAmount, MFO_COIN_SILVER, copperAmount, MFO_COIN_COPPER)
   if goldAmount > 0 then
-    return string.format("%d%s %s", goldAmount, MFO_COIN_GOLD, silverCopper)
+    return string.format("%s%d%s %s", prefix, goldAmount, MFO_COIN_GOLD, silverCopper)
   end
-  return silverCopper
+  return prefix .. silverCopper
 end
 local scanAgeFooter
-local scanMode="Crates"
 local writPanel
 local lastScanAgeText,lastScanAgeColor
 local function setScanAgeDisplay(text,color)
@@ -44,11 +46,10 @@ local function setScanAgeDisplay(text,color)
     lastScanAgeColor=color
   end
 end
--- Display the timestamp of the last completed MFO standalone AH scan.
+-- Display the timestamp of the last completed full AH scan.
 local function updateScanNote()
-  local mode=writPanel and writPanel:IsShown() and "Writs" or scanMode
-  local scannedAt=MFO_AH and MFO_AH.LastScan(mode)
-  local label=mode=="Crates" and "Last AH Scan: " or ("Last "..mode.." Scan: ")
+  local scannedAt=MFO_AH and MFO_AH.LastScan("Full")
+  local label="Last Full Scan: "
   if type(scannedAt)~="number" or scannedAt<=0 then
     setScanAgeDisplay(label.."Unknown","unknown")
     return
@@ -285,6 +286,7 @@ coinWatermark:SetPoint("BOTTOMRIGHT",frame,"BOTTOMRIGHT",-9,8)
 coinWatermark:SetVertexColor(.78,.68,.54,1)
 coinWatermark:SetAlpha(.40)
 frame:SetClampedToScreen(true)
+frame:SetClampRectInsets(0,0,0,-40)
 frame:SetFrameStrata("HIGH")
 frame:Hide()
 
@@ -337,7 +339,7 @@ scanAgeFooter=frame:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
 scanAgeFooter:SetPoint("BOTTOMRIGHT",frame,"BOTTOMRIGHT",-19,16)
 scanAgeFooter:SetWidth(290)
 scanAgeFooter:SetJustifyH("RIGHT")
-scanAgeFooter:SetText("Last AH Scan: Unknown")
+scanAgeFooter:SetText("Last Full Scan: Unknown")
 scanAgeFooter:SetTextColor(.65,.65,.65)
 -- Recessed bronze controls matching the profession panel's visual language.
 -- Same textured button artwork and font treatment as What's Training? Professions.
@@ -1162,16 +1164,14 @@ local function scanRelevantItems()
   -- The scanner copies this list into its queue synchronously.
   for id in pairs(scanItemScratch) do scanItemScratch[id]=nil end
   local items=scanItemScratch
-  if scanMode~="Writs" then
-    for _,crate in ipairs(rows) do
-      items[crate.id]=crate.name
-      for _,bundle in ipairs(crate.bundles) do
-        local id=resolve(bundle.name)
-        if id then items[id]=bundle.name end
-      end
+  for _,crate in ipairs(rows) do
+    items[crate.id]=crate.name
+    for _,bundle in ipairs(crate.bundles) do
+      local id=resolve(bundle.name)
+      if id then items[id]=bundle.name end
     end
   end
-  local ok,message=MFO_AH.Scan(items,scanMode)
+  local ok,message=MFO_AH.Scan(items,"Full")
   status:SetText(message or (ok and "Scanning" or "Scan unavailable"))
 
 end
@@ -1213,36 +1213,16 @@ scanButton:SetText("Scan AH");SkinWoodButton(scanButton);scanButton:SetScript("O
 scanButton:SetScript("OnEnter",function(self)
   GameTooltip:SetOwner(self,"ANCHOR_BOTTOMRIGHT")
   GameTooltip:AddLine("Scan Auction House",1,.82,.2)
+  GameTooltip:AddLine("Scans Crates, Writs and their materials.",1,1,1)
   GameTooltip:AddLine("Active Market: "..MFO_AH.Market(),1,1,1)
   GameTooltip:AddLine("Prices and shopping lists are shared only with characters on this megarealm and faction.",.8,.8,.8,true)
   GameTooltip:Show()
 end)
 scanButton:SetScript("OnLeave",function() GameTooltip:Hide() end)
-local scanModeButton=CreateFrame("Button",nil,frame)
-scanModeButton:SetSize(82,22)
-scanModeButton:SetPoint("LEFT",scanButton,"RIGHT",7,0)
-scanModeButton:SetText(scanMode)
-SkinWoodButton(scanModeButton)
-scanModeButton:SetScript("OnClick",function(self)
-  local _,running=MFO_AH.Progress()
-  if running then return end
-  scanMode=scanMode=="Crates" and "Writs" or scanMode=="Writs" and "Full" or "Crates"
-  self:SetText(scanMode)
-  updateScanNote()
-end)
-scanModeButton:SetScript("OnEnter",function(self)
-  GameTooltip:SetOwner(self,"ANCHOR_BOTTOMRIGHT")
-  GameTooltip:AddLine("Click to Change Scan Mode",1,.82,.2)
-  GameTooltip:AddLine("Crates: crates and their materials",1,1,1)
-  GameTooltip:AddLine("Writs: verified Writs and their required items",1,1,1)
-  GameTooltip:AddLine("Full: Crates and Writs in one scan",1,1,1)
-  GameTooltip:Show()
-end)
-scanModeButton:SetScript("OnLeave",function() GameTooltip:Hide() end)
 -- Optional inventory source: native is the default, Syndicator never required.
 local inventoryButton=CreateFrame("Button",nil,frame)
 inventoryButton:SetSize(132,22)
-inventoryButton:SetPoint("LEFT",scanModeButton,"RIGHT",7,0)
+inventoryButton:SetPoint("LEFT",scanButton,"RIGHT",7,0)
 SkinWoodButton(inventoryButton)
 local function setInventoryMode(mode)
   MFO_DB.inventorySource=mode=="syndicator" and "syndicator" or "native"
@@ -1295,12 +1275,14 @@ scanCaption:SetPoint("TOP",scanPercent,"BOTTOM",0,-6)
 scanCaption:SetText("Scanning AH")
 scanOverlay:Hide()
 local scanSummary=CreateFrame("Frame",nil,frame)
-scanSummary:SetSize(170,22)
-scanSummary:SetPoint("LEFT",inventoryButton,"RIGHT",10,0)
+scanSummary:SetSize(290,22)
+scanSummary:SetPoint("RIGHT",scanAgeFooter,"RIGHT")
 scanSummary:EnableMouse(true)
 local scanSummaryText=scanSummary:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-scanSummaryText:SetPoint("LEFT",scanSummary,"LEFT",0,0)
-scanSummaryText:SetJustifyH("LEFT")
+scanSummaryText:SetPoint("LEFT",scanSummary,"LEFT")
+scanSummaryText:SetPoint("RIGHT",scanSummary,"RIGHT")
+scanSummaryText:SetJustifyH("RIGHT")
+scanSummaryText:SetWordWrap(false)
 scanSummary:Hide()
 scanSummary:SetScript("OnEnter",function(self)
   local missing=MFO_AH.Missing()
@@ -1346,13 +1328,24 @@ local function updateScanProgress()
     -- Visibility only changes when the scan enters a different state.
     if mode=="running" then
       scanSummary:Hide()
+      scanAgeFooter:Show()
       scanOverlay:Show()
     elseif mode=="complete" then
       scanOverlay:Hide()
       scanSummary:Show()
+      scanSummaryText:Show()
+      scanAgeFooter:Hide()
+      local expiresAt=GetTime()+8
+      scanSummary:SetScript("OnUpdate",function(self)
+        if GetTime()<expiresAt then return end
+        scanSummaryText:Hide()
+        scanAgeFooter:Show()
+        self:SetScript("OnUpdate",nil)
+      end)
     else
       scanOverlay:Hide()
       scanSummary:Hide()
+      scanAgeFooter:Show()
     end
     lastScanDisplayMode=mode
   end
@@ -1376,8 +1369,11 @@ do
   local writScroll
   writPanel,writScroll=MFO_CreateWritTab(frame,SkinWoodButton,SkinWoodScroll,money,MFO_ART,
     MFO_AH.ShoppingItemStock,updateOwnedSetting,status)
-  local crateTab,writTab
-  local inactiveScanMode="Writs"
+  local crateTab,setCrateSelected=MFO_CreateWindowTab(frame,"Crates")
+  local writTab,setWritSelected=MFO_CreateWindowTab(frame,"Writs")
+  crateTab:SetPoint("TOPLEFT",frame,"BOTTOMLEFT",20,1)
+  writTab:SetPoint("TOPLEFT",crateTab,"TOPRIGHT",3,0)
+  setCrateSelected(true)
   local function selectTab(showWrits)
     if writPanel:IsShown()==showWrits then return end
     GameTooltip:Hide()
@@ -1391,29 +1387,15 @@ do
       targetInput:Show();targetLabel:Show();clearButton:Show();advancedPlanner.modeButton:Show()
     end
     local activeScroll=showWrits and writScroll or scrollFrame
-    scanMode,inactiveScanMode=inactiveScanMode,scanMode
-    scanModeButton:SetText(scanMode)
     scanOverlay:ClearAllPoints()
     scanOverlay:SetPoint("TOPLEFT",activeScroll,"TOPLEFT")
     scanOverlay:SetPoint("BOTTOMRIGHT",activeScroll,"BOTTOMRIGHT")
-    crateTab:GetFontString():SetTextColor(1,showWrits and .74 or .94,showWrits and .3 or .67)
-    writTab:GetFontString():SetTextColor(1,showWrits and .94 or .74,showWrits and .67 or .3)
+    setCrateSelected(not showWrits)
+    setWritSelected(showWrits)
     refresh()
   end
-  local function makeTab(label,x,showWrits)
-    local tab=CreateFrame("Button",nil,frame)
-    tab:SetSize(65,20)
-    tab:SetPoint("TOPLEFT",x,-10)
-    local font=tab:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
-    font:SetPoint("CENTER",tab)
-    tab:SetFontString(font)
-    tab:SetText(label)
-    SkinWoodButton(tab)
-    tab:SetScript("OnClick",function() selectTab(showWrits) end)
-    return tab
-  end
-  crateTab,writTab=makeTab("Crates",66,false),makeTab("Writs",135,true)
-  crateTab:GetFontString():SetTextColor(1,.94,.67)
+  crateTab:SetScript("OnClick",function() selectTab(false) end)
+  writTab:SetScript("OnClick",function() selectTab(true) end)
 end
 -- Explicit open action for other MFO views (never toggle an already-open window).
 MFO_OpenMainWindow=function()

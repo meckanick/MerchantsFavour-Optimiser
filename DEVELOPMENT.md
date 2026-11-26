@@ -116,7 +116,7 @@ clears its own arrow when the stop disappears or markers are disabled.
 ## Writ crafting estimates
 
 Enable **Crafting** on the Writs tab and open the character's own profession
-windows. Run a Writs or Full scan. Compare a Silver Skeleton Key Writ when the
+windows. Click Scan AH. Compare a Silver Skeleton Key Writ when the
 recipe is learned, when the required tool is missing, and when a purchased
 reagent has yet to arrive. Compare Arcanite costs with Transmute: Arcanite ready
 and on cooldown. Check that the instructions identify the anvil, put

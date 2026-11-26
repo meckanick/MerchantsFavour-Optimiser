@@ -2,13 +2,9 @@
 local AH=MFO_AH
 local ART="Interface\\AddOns\\MerchantsFavourOptimiser\\"
 local host,tab,panel,selected
-local tabIndex
 local setTabSelected
-local nativeTabsHooked=false
-local tabSwitchHooked=false
 local rows={}
 local hiddenPanels={}
-local switching=false
 -- Hide native AH content instead of trying to paint over active widgets.
 -- Keep the parent frame, its portrait, outer border, close control and bottom tabs.
 local function isBottomTab(child,parent)
@@ -117,7 +113,11 @@ local function button(parent,label,width)
  b:SetSize(width,23);b:SetText(label)
  local texture=ART.."WTP_FooterButton"
  b:SetNormalTexture(texture);b:SetPushedTexture(texture)
- b:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square","ADD")
+ b:SetHighlightTexture(texture,"ADD")
+ local highlight=b:GetHighlightTexture()
+ highlight:ClearAllPoints()
+ highlight:SetAllPoints(b)
+ highlight:SetAlpha(.22)
  local font=b:GetFontString()
  if font then font:SetFontObject(GameFontNormalSmall);font:SetTextColor(1,.82,.05) end
  return b
@@ -424,6 +424,7 @@ update=function()
   panel.remainingCost:SetTextColor(unpriced>0 and 1 or .98,unpriced>0 and .72 or .87,unpriced>0 and .35 or .64)
  end
  local current=selected and shopping[selected]
+ panel.detailPlaceholder:SetShown(not current)
  if panel.detail then
   local selectedPrice=current and prices[selected]
   local required=current and (current.requiredQty or current.qty) or 0
@@ -476,14 +477,22 @@ update=function()
   else row.highlight:Hide();row:Hide() end
  end
 end
-local function close()
+local function resetShop()
  if resetPurchaseDialogs then resetPurchaseDialogs() end
  commodityOrder=nil
- if panel then panel:Hide() end
  -- Discard results and selections from the previous AH session.
  live.id=nil;live.offers={};live.waiting=false;live.elapsed=0
+ live.message="Select a Shopping-List Item."
  selectedOffer=nil;selected=nil
  if refreshOffers then refreshOffers() end
+end
+function AH.OnShoppingListReplaced()
+ resetShop()
+ if update then update() end
+end
+local function close()
+ if panel then panel:Hide() end
+ resetShop()
  restoreNative()
  restoreNativeTitle()
  if tab then setTabSelected(false) end
@@ -513,20 +522,31 @@ local function attach(parent)
  local modern=parent.Tabs and #parent.Tabs>0
   and type(PanelTemplates_SelectTab)=="function"
   and type(PanelTemplates_DeselectTab)=="function"
+ local tabLibrary=modern and parent==AuctionHouseFrame and LibStub and LibStub:GetLibrary("LibAHTab-1-0",true)
+ local shopTabID="MerchantsFavourOptimiser"
+ panel=CreateFrame("Frame",nil,parent,"BackdropTemplate")
+ panel:Hide()
  local reference=modern and parent.Tabs[#parent.Tabs] or nil
- if modern then
+ if tabLibrary then
+  tabLibrary:CreateTab(shopTabID,panel,"MFO Shop","MFO - Shopping")
+  tab=tabLibrary:GetButton(shopTabID)
+ elseif modern then
   local ok,created=pcall(CreateFrame,"Button",nil,parent,"AuctionHouseFrameDisplayModeTabTemplate")
   if ok and created then tab=created else modern=false end
  end
+ local shopDisplayMode=modern and not tabLibrary and type(parent.SetDisplayMode)=="function"
+  and type(hooksecurefunc)=="function" and {}
  if modern then
-  tab:SetText("MFO Shop")
-  if type(PanelTemplates_TabResize)=="function" then
-   PanelTemplates_TabResize(tab,20,nil,70)
-  else
-   tab:SetWidth(108)
+  if not tabLibrary then
+   tab:SetText("MFO Shop")
+   if type(PanelTemplates_TabResize)=="function" then
+    PanelTemplates_TabResize(tab,20,nil,70)
+   else
+    tab:SetWidth(108)
+   end
+   tab:SetPoint("TOPLEFT",reference,"TOPRIGHT",3,0)
+   PanelTemplates_DeselectTab(tab)
   end
-  tab:SetPoint("TOPLEFT",reference,"TOPRIGHT",3,0)
-  PanelTemplates_DeselectTab(tab)
   setTabSelected=function(active)
    if active then
     for _,native in ipairs(parent.Tabs) do PanelTemplates_DeselectTab(native) end
@@ -536,59 +556,7 @@ local function attach(parent)
    end
   end
  else
-  tab=CreateFrame("Button",nil,parent,"BackdropTemplate")
-  tab:SetSize(108,29)
-  tab:SetBackdrop({
-   bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",
-   edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",
-   tile=false,edgeSize=12,
-   insets={left=3,right=3,top=3,bottom=3}
-  })
-  local tabText=tab:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
-  tabText:SetPoint("CENTER",tab,"CENTER",0,0)
-  tabText:SetText("MFO Shop")
-  tab:SetFontString(tabText)
-  local face={}
-  for i=1,12 do
-   local strip=tab:CreateTexture(nil,"BACKGROUND",nil,1)
-   strip:SetPoint("TOPLEFT",tab,"TOPLEFT",4,-3-(i-1)*2)
-   strip:SetPoint("TOPRIGHT",tab,"TOPRIGHT",-4,-3-(i-1)*2)
-   strip:SetHeight(3)
-   face[i]=strip
-  end
-  local selectedGlow=CreateFrame("Frame",nil,tab,"BackdropTemplate")
-  selectedGlow:SetPoint("TOPLEFT",tab,"TOPLEFT",-2,2)
-  selectedGlow:SetPoint("BOTTOMRIGHT",tab,"BOTTOMRIGHT",2,-2)
-  selectedGlow:SetBackdrop({
-   edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",
-   edgeSize=12,insets={left=0,right=0,top=0,bottom=0}
-  })
-  selectedGlow:SetBackdropBorderColor(1,.79,.07,1)
-  selectedGlow:Hide()
-  setTabSelected=function(active)
-   tab:SetHeight(active and 35 or 29)
-   if active then
-    tab:SetBackdropColor(.20,.15,.085,1)
-    tab:SetBackdropBorderColor(.90,.67,.10,1)
-    tabText:SetTextColor(1,1,.91,1)
-    for i,strip in ipairs(face) do
-     local t=(i-1)/11
-     strip:SetColorTexture(.22+.40*t,.16+.23*t,.09+.025*t,1)
-    end
-    selectedGlow:Show()
-   else
-    tab:SetBackdropColor(.10,.10,.10,1)
-    tab:SetBackdropBorderColor(.27,.26,.24,1)
-    tabText:SetTextColor(1,.79,.18,1)
-    for i,strip in ipairs(face) do
-     local t=(i-1)/11
-     local grey=.24-.10*t
-     strip:SetColorTexture(grey,grey,grey,1)
-    end
-    selectedGlow:Hide()
-   end
-  end
-  setTabSelected(false)
+  tab,setTabSelected=MFO_CreateWoodTab(parent,"MFO Shop",108)
   if last then
    tab:SetPoint("TOPLEFT",last,"TOPRIGHT",-7,0)
   else
@@ -597,7 +565,6 @@ local function attach(parent)
  end
  tab:SetFrameLevel(parent:GetFrameLevel()+12)
  tab:Show()
- panel=CreateFrame("Frame",nil,parent,"BackdropTemplate")
  panel:SetPoint("TOPLEFT",parent,"TOPLEFT",8,-8)
  panel:SetPoint("BOTTOMRIGHT",parent,"BOTTOMRIGHT",-8,34)
  panel:SetFrameLevel(parent:GetFrameLevel()+60)
@@ -689,6 +656,10 @@ local function attach(parent)
  panel.detail:SetPoint("RIGHT",right,"RIGHT",-16,0)
  panel.detail:SetJustifyH("LEFT")
  panel.detail:SetTextColor(1,.9,.65)
+ panel.detailPlaceholder=right:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+ panel.detailPlaceholder:SetPoint("TOP",right,"TOP",0,-75)
+ panel.detailPlaceholder:SetTextColor(.8,.72,.58)
+ panel.detailPlaceholder:SetText("Select an item from the shopping list.")
  panel.itemIcon=CreateFrame("Button",nil,right)
  panel.itemIcon:SetSize(40,40)
  panel.itemIcon:SetPoint("TOPLEFT",right,"TOPLEFT",16,-54)
@@ -1339,17 +1310,27 @@ local function attach(parent)
   update()
  end)
  local function activate()
+  if panel:IsShown() then return end
   if AH.RefreshShoppingInventory then AH.RefreshShoppingInventory() end
   if AH.RecalculateShopping then AH.RecalculateShopping() end
-  hideNative(parent)
-  setNativeTitle(parent)
-  panel:Show()
+  if tabLibrary then
+   tabLibrary:SetSelected(shopTabID)
+  else
+   if shopDisplayMode then
+    parent:SetDisplayMode(shopDisplayMode)
+    parent:SetTitle("MFO - Shopping")
+   else
+    hideNative(parent)
+    setNativeTitle(parent)
+   end
+   panel:Show()
+   setTabSelected(true)
+  end
   live.message="Select a Shopping-List Item."
   if not awaitingPurchase then commodityOrder=nil end
   if resetPurchaseDialogs then resetPurchaseDialogs() end
   live.offers={};live.waiting=false;live.elapsed=0;live.id=nil
   selectedOffer=nil;selected=nil
-  setTabSelected(true)
   update()
   refreshOffers()
  end
@@ -1372,14 +1353,33 @@ local function attach(parent)
   playTabClick()
   activate()
  end)
- -- Restore native panes whenever a different bottom tab is selected.
+ -- Let the tab controller own pane visibility and titles on modern clients.
+ if tabLibrary or shopDisplayMode then
+  panel:HookScript("OnHide",resetShop)
+  if shopDisplayMode then
+   hooksecurefunc(parent,"SetDisplayMode",function(_,mode)
+    if mode~=shopDisplayMode and panel:IsShown() then
+     panel:Hide()
+     setTabSelected(false)
+    end
+   end)
+  end
+  parent:HookScript("OnHide",function()
+   panel:Hide()
+   setTabSelected(false)
+  end)
+  return
+ end
+ -- Restore the legacy panes before a different tab runs its click handler.
  if parent.GetChildren then
   for _,child in ipairs({parent:GetChildren()}) do
    if child~=tab and child.GetText and child.HookScript then
     local ok,label=pcall(child.GetText,child)
     if ok and (label=="Buy" or label=="Sell" or label=="Auctions") then
-     child:HookScript("OnClick",function()
-      if panel and panel:IsShown() then close() end
+     local onClick=child:GetScript("OnClick")
+     child:SetScript("OnClick",function(self,...)
+      if panel:IsShown() then close() end
+      if onClick then onClick(self,...) end
      end)
     end
    end

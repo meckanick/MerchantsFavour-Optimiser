@@ -138,7 +138,7 @@ function MFO_CreateWritTab(parent, skinButton, skinScroll, money, art, readStock
     GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
     GameTooltip:AddLine("Compare Finished Items With Crafting",1,.82,.2)
     GameTooltip:AddLine("Uses verified recipes learned by this character and fresh auction prices.",1,1,1,true)
-    GameTooltip:AddLine("Open your professions to verify known recipes. Run a Writs or Full scan to price the reagents.",1,1,1,true)
+    GameTooltip:AddLine("Open your professions to verify known recipes. Click Scan AH to price the reagents.",1,1,1,true)
     GameTooltip:Show()
   end)
   craftButton:SetScript("OnLeave",function() GameTooltip:Hide() end)

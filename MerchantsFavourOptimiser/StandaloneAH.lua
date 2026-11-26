@@ -200,6 +200,7 @@ function AH.ReplaceShopping(items, writIDs, crafting)
   market.shoppingCraftPlan=crafting and true or nil
   market.shoppingCraft=nil
   craftMarket,craftView,craftEstimate=nil,nil,nil
+  if AH.OnShoppingListReplaced then AH.OnShoppingListReplaced() end
   return true
 end
 -- Confirmed purchases are credited immediately, even before the bag update.
@@ -534,6 +535,7 @@ function AH.ClearShopping()
   db().shoppingCraft=nil
   db().shoppingCraftPlan=nil
   craftMarket,craftView,craftEstimate=nil,nil,nil
+  if AH.OnShoppingListReplaced then AH.OnShoppingListReplaced() end
 end
 function AH.Progress()
   return math.floor(math.min(100,(position-1)/math.max(1,scanTotal)*100)),busy,priced,scanTotal,completed
@@ -635,6 +637,113 @@ local function prepareScan(items,mode)
 end
 -- WoW Forever uses the modern C_AuctionHouse API, unlike legacy Classic.
 modern = C_AuctionHouse and type(C_AuctionHouse.SendSearchQuery)=="function"
+local function modernReady()
+  if not C_AuctionHouse.IsThrottledMessageSystemReady or C_AuctionHouse.IsThrottledMessageSystemReady() then
+    return true
+  end
+  started=started or (GetTime and GetTime() or 0)
+  if GetTime and GetTime()-started>15 then
+    stopScan("AH throttle timed out; completion time unchanged")
+  end
+  return false
+end
+
+local browseScan,browseBatch,browseEvent,browseDispatch
+local browseEvents=CreateFrame("Frame")
+local browseOK=modern and type(hooksecurefunc)=="function"
+  and type(C_AuctionHouse.SearchForItemKeys)=="function"
+  and type(C_AuctionHouse.GetBrowseResults)=="function"
+  and type(C_AuctionHouse.HasFullBrowseResults)=="function"
+  and type(C_AuctionHouse.RequestMoreBrowseResults)=="function"
+if browseOK then
+  for _,event in ipairs({"AUCTION_HOUSE_BROWSE_RESULTS_UPDATED","AUCTION_HOUSE_BROWSE_RESULTS_ADDED","AUCTION_HOUSE_BROWSE_FAILURE"}) do
+    if not pcall(browseEvents.RegisterEvent,browseEvents,event) then browseOK=false end
+  end
+end
+if browseOK then
+  local function competingSearch()
+    if busy and browseScan and not browseDispatch then
+      stopScan("AH search changed; scan cancelled without updating completion time")
+    end
+  end
+  for _,name in ipairs({"SendBrowseQuery","SearchForFavorites","SearchForItemKeys","RequestMoreBrowseResults","SendSearchQuery","SendSellSearchQuery"}) do
+    if type(C_AuctionHouse[name])=="function" then hooksecurefunc(C_AuctionHouse,name,competingSearch) end
+  end
+end
+browseEvents:SetScript("OnEvent",function(_,event)
+  -- Read on the next tick so secure hooks can detect competing synchronous queries first.
+  if busy and browseScan and waiting then
+    if browseEvent~="AUCTION_HOUSE_BROWSE_FAILURE" then browseEvent=event end
+  end
+end)
+
+local function fallBackToItemSearch()
+  browseScan=false;browseBatch=nil;browseEvent=nil
+  waiting=false;started=nil
+end
+
+local function browseNext()
+  if position>#queue then finishScan();return end
+  if waiting then
+    if browseEvent=="AUCTION_HOUSE_BROWSE_FAILURE" or (not browseEvent and GetTime and GetTime()-started>15) then
+      fallBackToItemSearch()
+      return
+    end
+    if not browseEvent then return end
+    browseEvent=nil;waiting=false;started=nil
+    if C_AuctionHouse.HasFullBrowseResults() then
+      local prices={}
+      for _,result in ipairs(C_AuctionHouse.GetBrowseResults()) do
+        local id=result.itemKey and result.itemKey.itemID
+        if not browseBatch.ids[id] then
+          stopScan("AH search changed; scan cancelled without updating completion time")
+          return
+        end
+        local price=result.minPrice
+        if type(price)=="number" and price>0 and (not prices[id] or price<prices[id]) then
+          prices[id]=price
+        end
+      end
+      local now=time()
+      for i=position,browseBatch.last do
+        local entry=queue[i]
+        local price=prices[entry.id]
+        if price then
+          scanMarket.prices[entry.id]={price=price,updated=now}
+          priced=priced+1
+        else
+          if not entry.name then entry.name=getItemName(entry.id) end
+          recordUnpriced(entry)
+        end
+      end
+      position=browseBatch.last+1
+      browseBatch=nil
+      if position>#queue then finishScan()
+      elseif AH.onUpdate then AH.onUpdate() end
+      return
+    end
+  end
+  if not modernReady() then return end
+  waiting=true;started=GetTime and GetTime() or 0
+  browseDispatch=true
+  local ok
+  if browseBatch then
+    ok=pcall(C_AuctionHouse.RequestMoreBrowseResults)
+  else
+    local last=math.min(position+49,#queue)
+    local keys,ids={},{}
+    for i=position,last do
+      local id=queue[i].id
+      keys[#keys+1]=C_AuctionHouse.MakeItemKey and C_AuctionHouse.MakeItemKey(id) or {itemID=id}
+      ids[id]=true
+    end
+    browseBatch={last=last,ids=ids}
+    ok=pcall(C_AuctionHouse.SearchForItemKeys,keys,{})
+  end
+  browseDispatch=false
+  if not ok then fallBackToItemSearch() end
+end
+
 -- Reuse the exact item key used for the active query when reading its results.
 local activeItemKey
 local function modernNext()
@@ -654,13 +763,7 @@ local function modernNext()
     if not waitForItem(entry) then activeItemKey=nil end
     return
   end
-  if C_AuctionHouse.IsThrottledMessageSystemReady and not C_AuctionHouse.IsThrottledMessageSystemReady() then
-    started=started or (GetTime and GetTime() or 0)
-    if GetTime and GetTime()-started>15 then
-      stopScan("AH throttle timed out; completion time unchanged")
-    end
-    return
-  end
+  if not modernReady() then return end
   -- Arm result handling before dispatch; a first query may respond synchronously.
   waiting=true;started=GetTime and GetTime() or 0
   local ok=pcall(C_AuctionHouse.SendSearchQuery,key,{},false)
@@ -670,7 +773,7 @@ local modernEvents=CreateFrame("Frame")
 local modernOK=pcall(modernEvents.RegisterEvent,modernEvents,"ITEM_SEARCH_RESULTS_UPDATED")
 local commodityOK=pcall(modernEvents.RegisterEvent,modernEvents,"COMMODITY_SEARCH_RESULTS_UPDATED")
 modernEvents:SetScript("OnEvent",function(_,event,arg)
-  if not busy or not waiting or not modern or not auctionOpen() or not scanMarketMatches() then return end
+  if not busy or not waiting or not modern or browseScan or not auctionOpen() or not scanMarketMatches() then return end
   local entry=queue[position]
   local id=type(arg)=="table" and arg.itemID or arg
   if id~=entry.id then return end
@@ -733,7 +836,7 @@ function AH.Scan(items,mode)
   if busy then return false,"Scan already running" end
   if not auctionOpen() then return false,"Open the Auction House first" end
   if modern then
-    if not modernOK and not commodityOK then return false,"Modern AH result events unavailable" end
+    if not browseOK and not modernOK and not commodityOK then return false,"Modern AH result events unavailable" end
   else
     if not eventOK then return false,"Auction list update event unavailable" end
     if type(QueryAuctionItems)~="function" or type(GetAuctionItemInfo)~="function" or
@@ -743,9 +846,12 @@ function AH.Scan(items,mode)
   end
   local ok,message=prepareScan(items,mode)
   if not ok then return false,message end
+  browseScan,browseBatch,browseEvent=browseOK,nil,nil
   activeItemKey=nil;page=0;lowest=nil
   if AH.onUpdate then AH.onUpdate() end
-  if modern then modernNext() else nextQuery() end
+  if browseScan then browseNext()
+  elseif modern then modernNext()
+  else nextQuery() end
   return true,AH.message
 end
 local events=CreateFrame("Frame")
@@ -797,6 +903,7 @@ events:SetScript("OnUpdate",function(_,elapsed)
     stopScan("AH market changed; scan cancelled without updating completion time")
     return
   end
+  if browseScan then browseNext();return end
   if modern and not waiting then modernNext();return end
   if waiting then
     if GetTime and GetTime()-started>15 then

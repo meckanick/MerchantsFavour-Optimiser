@@ -1,9 +1,9 @@
 Merchant's Favour Optimiser 0.1.179 for WoW Forever
 
 Install the MerchantsFavourOptimiser folder in Interface/AddOns.
-Use /mfo to open MFO or /mfo shop at the Auction House. Select Crates,
-Writs or Full before scanning. Prices and shopping are saved by realm
-and faction. Refresh recalculates from cached prices.
+Use /mfo to open MFO or /mfo shop at the Auction House. Click Scan AH
+to scan Crates, Writs and their materials. Prices and shopping are
+saved by realm and faction. Refresh recalculates from cached prices.
 
 The Crates tab compares 22 supported crate entries. The Writs tab
 compares the Writ and requested-item costs for 130 supported dailies.

@@ -14,7 +14,7 @@ MFO helps answer three questions: **Which crate offers the best value? How can I
 - **Crate cost comparison:** compares supported crate prices, material bundle costs, Favour rewards and estimated net cost per Favour. Currently displays 22 verified crate entries; eight additional unverified Artisan entries remain hidden.
 - **Favour Planner:** plan Crates, Writs or a combination for a Favour target. The planner shows turn-ins, purchase costs, remaining Favour and overfill, and can transfer the plan to MFO Shop.
 - **Writ cost comparison:** ranks 130 supported dailies by estimated purchase cost per Favour, including the Writ itself and its requested item. The Writs tab shows character-specific quest status.
-- **Built-in Auction House scanner:** offers Crates, Writs and Full modes, saves prices and scan timestamps by market, and shows live progress and missing items.
+- **Built-in Auction House scanner** scans Crates, Writs and their materials together, saves prices and scan timestamps by market, and shows live progress and missing items.
 - **MFO Shop:** a dedicated, themed Auction House shopping panel with saved item quantities, live listings, purchase controls, remaining cost, and a final purchase confirmation.
 - **Shopping progress:** an in-header bar displays progress as quantities available in bags/bank, confirmed purchases tracked by MFO, and quantities still to buy. Purchased items may still need collecting from the mailbox.
 - **Crate readiness:** compact indicators and readable tooltips show whether a planned crate is in your bags, needs bank stock, or lacks materials. Shared material quantities are allocated once across the saved crate plan. Readiness is **not** proof a crate has been filled or handed in.
